@@ -147,7 +147,7 @@ contains
     end subroutine conf_set
     
     subroutine conf_transfer(phi_list, phi_list_therm, Latt)
-        real(kind=8), dimension(Naux, Lq, Ltrot), intent(inout) :: phi_list
+        real(kind=8), dimension(Naux, Ndim, Ltrot), intent(inout) :: phi_list
         real(kind=8), dimension(Naux, NdimTherm, LtrotTherm), intent(in) :: phi_list_therm
         class(kagomeLattice), intent(in) :: Latt
         integer :: nt, ntt, nx, ny, ii, iit, nc, no, n

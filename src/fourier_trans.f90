@@ -166,7 +166,7 @@ contains
     end subroutine m_write_k_1
     
     subroutine m_write_k_2(gk, filek, momindex, nf)
-        complex(kind=8), dimension(Lq, Nbond), intent(in) :: gk
+        complex(kind=8), dimension(Lq, Norb), intent(in) :: gk
         character(len=*), intent(in) :: filek
         integer, intent(in) :: momindex, nf
         open(unit=30, file=filek, status='unknown', action="write", position="append")
@@ -176,7 +176,7 @@ contains
     end subroutine m_write_k_2
     
     subroutine m_write_k_3(gk, filek, momindex, no1, no2)
-        complex(kind=8), dimension(Lq, Nbond, Nbond), intent(in) :: gk
+        complex(kind=8), dimension(Lq, Norb, Norb), intent(in) :: gk
         character(len=*), intent(in) :: filek
         integer, intent(in) :: momindex, no1, no2
         open(unit=30, file=filek, status='unknown', action="write", position="append")

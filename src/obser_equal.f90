@@ -26,7 +26,7 @@ contains
     
     subroutine Obs_equal_clear(this)
         type(ObserEqual), intent(inout) :: this
-        deallocate( this%den_corr_up, this%den_corr_do, this%den_corr_do, this%den_corr_updo )
+        deallocate( this%den_corr_up, this%den_corr_do, this%single_corr, this%den_corr_updo )
         return
     end subroutine Obs_equal_clear
     
