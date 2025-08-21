@@ -59,4 +59,4 @@ $$= N_b \, \frac{Z_R P_R \, Z_L P_L^\dagger}{Z_L P_L^\dagger \, Z_R P_R}$$
 
 $$= N_b \, \frac{P_R P_L^\dagger}{P_L^\dagger P_R}$$
 
-每隔一段时间用上述式子正规化一下 $\bar{C}$ 即可。
+每隔一段时间用上述式子正规化一下 $\bar{G}$ 即可。
