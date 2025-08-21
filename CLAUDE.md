@@ -52,3 +52,7 @@ This is a Bosonic Projector Quantum Monte Carlo (BPQMC) implementation written i
 - Fourier transform analysis for momentum-space observables
 - Matrix stabilization for numerical stability
 - Configurable imaginary-time measurements
+
+## Development Context
+
+The current program in the src/ directory implements finite-temperature determinant quantum Monte Carlo algorithm. We will gradually work together to modify it into a zero-temperature projector quantum Monte Carlo algorithm. The key points of the zero-temperature projector Monte Carlo algorithm have been written in the latest README.md. When we make future modifications, we need to implement our program according to the README.md specifications.
