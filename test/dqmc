@@ -1,0 +1,6 @@
+#!/bin/sh
+#SBATCH -J YYK_DEBUG
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH -p node6348
+mpirun -np 1 ./bosonDQMC.out

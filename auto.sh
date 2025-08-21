@@ -1,0 +1,1 @@
+make && make clean && cp *.out ./test/ && cd ./test/ && dqmc && cd ../
