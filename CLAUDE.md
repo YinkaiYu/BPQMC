@@ -1,0 +1,54 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Development Environment
+
+- **Working Environment**: Windows terminal with Fortran compilation/execution in WSL
+- **Important**: For compilation, debugging, or running code, manually operate in WSL environment
+- **Git Policy**: Commit changes to src/ files immediately after modifications with brief update description
+
+## Build Commands
+
+- **Build executable**: `cd src && make` - Compiles the Fortran source files into `bosonDQMC.out`
+- **Clean build artifacts**: `cd src && make clean` - Removes object files
+- **Full build and deploy**: `./auto.sh` - Builds, cleans, copies executable to test directory, and submits SLURM job
+- **Quick build from src**: `cd src && ./auto.sh` - Builds and copies executable to test directory
+
+## Architecture Overview
+
+This is a Bosonic Projector Quantum Monte Carlo (BPQMC) implementation written in Fortran 90 with MPI parallelization.
+
+### Core Components
+
+- **Main Program** (`main.f90`): MPI-based DQMC simulation driver that orchestrates warm-up, sweeps, and measurements
+- **Model System** (`model.f90`): Manages lattice structure (kagome), operators (kinetic and Hubbard), and auxiliary field configurations
+- **Local Sweeps** (`local_sweep.f90`): Implements local Monte Carlo updates and measurement collection
+- **Lattice** (`lattice.f90`): Kagome lattice implementation with geometric operations
+- **Fields** (`fields.f90`): Auxiliary field configuration management
+- **Process Matrix** (`process_matrix.f90`): Defines imaginary-time propagators
+- **Local U Operations** (`localU.f90`): Handles imaginary-time propagation and Monte Carlo updates
+- **Matrix Multiplication** (`multiply.f90`): Handles imaginary-time propagation operations
+- **Observables**: Equal-time (`obser_equal.f90`) and imaginary-time (`obser_tau.f90`) measurements
+- **Stabilization** (`stabilization.f90`): Numerical stabilization for matrix operations
+
+### Build System
+
+- Uses a two-layer Makefile system: outer `Makefile` handles compiler detection and dependency setup, inner `Compile` handles actual compilation
+- Automatically detects MPI Fortran wrappers (mpiifort, mpiifx, mpifort, mpif90, gfortran)
+- Links against external libraries in `/home/*/Lib_90_new/` for modules, numerical routines, and random number generation
+- Produces `bosonDQMC.out` executable
+
+### Execution Environment
+
+- **Test Directory**: Contains SLURM job script (`dqmc`) and configuration files
+- **MPI Execution**: Run via `mpirun -np N ./bosonDQMC.out` where N is number of processes
+- **Configuration**: Uses `confin.txt`, `paramC_sets.txt`, and `seeds.txt` for simulation parameters
+
+### Key Features
+
+- Supports both thermalization and measurement phases
+- Implements local and global update schemes (global currently disabled)
+- Fourier transform analysis for momentum-space observables
+- Matrix stabilization for numerical stability
+- Configurable imaginary-time measurements
