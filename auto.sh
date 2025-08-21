@@ -1,1 +1,1 @@
-make && make clean && cp *.out ./test/ && cd ./test/ && dqmc && cd ../
+cd src && make && make clean && cp *.out ../test/ && cd ../test/ && sbatch dqmc && cd ../
