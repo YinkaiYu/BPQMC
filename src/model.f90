@@ -2,6 +2,7 @@ module DQMC_Model_mod
     use NonInteract
     use Fields_mod
     use OperatorHubbard_mod
+    use MakeInitialState
     implicit none
     
     public
@@ -9,6 +10,7 @@ module DQMC_Model_mod
     type(OperatorKinetic), allocatable  :: Op_T
     type(OperatorHubbard)               :: Op_U1,   Op_U2
     type(AuxConf), allocatable          :: Conf
+    type(Initial), allocatable          :: Init
     
 contains
     subroutine Model_init(iseed)
@@ -34,6 +36,12 @@ contains
 ! set H-S exponential
         call Op_U1%set(RU1)
         call Op_U2%set(RU2)
+! initiate initial state wave function
+        allocate(Init)
+        call Init%make()
+        call Init%set(Latt)
+        write(50,*) 'ground state energy                            :', Init%energy_ground
+        write(50,*) 'energy gap to first excited state              :', Init%energy_gap
         return
     end subroutine Model_init
     
@@ -42,6 +50,7 @@ contains
         call conf_out(Conf, iseed)
         deallocate(Op_T)
         deallocate(Conf)
+        deallocate(Init)
         deallocate(Latt)
         return
     end subroutine Model_clear

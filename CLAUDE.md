@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Working Environment**: Windows terminal with Fortran compilation/execution in WSL
 - **Important**: For compilation, debugging, or running code, manually operate in WSL environment
+- **Compilation Rule**: Claude should only modify build files (Makefile, Compile) but let user handle actual compilation in WSL
+- **Language Rule**: All code comments and documentation files (.md) must be written in English. Conversations with user can be in Chinese.
 - **Git Policy**: Commit changes to src/ files immediately after modifications with brief update description
 
 ## Build Commands
@@ -22,7 +24,8 @@ This is a Bosonic Projector Quantum Monte Carlo (BPQMC) implementation written i
 ### Core Components
 
 - **Main Program** (`main.f90`): MPI-based DQMC simulation driver that orchestrates warm-up, sweeps, and measurements
-- **Model System** (`model.f90`): Manages lattice structure (kagome), operators (kinetic and Hubbard), and auxiliary field configurations
+- **Model System** (`model.f90`): Manages lattice structure (kagome), operators (kinetic and Hubbard), auxiliary field configurations, and initial state wave functions
+- **Initial State** (`initial_state.f90`): Manages trial wave functions for projector algorithm, including ground state calculation and energy gap computation
 - **Local Sweeps** (`local_sweep.f90`): Implements local Monte Carlo updates and measurement collection
 - **Lattice** (`lattice.f90`): Kagome lattice implementation with geometric operations
 - **Fields** (`fields.f90`): Auxiliary field configuration management

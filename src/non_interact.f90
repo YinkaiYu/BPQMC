@@ -3,7 +3,7 @@ module NonInteract
     implicit none
 
     public
-    private :: def_hamT
+    public :: def_hamT
     
     type :: OperatorKinetic
         complex(kind=8), dimension(:,:), allocatable :: expT_P, expT_M
