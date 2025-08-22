@@ -80,10 +80,10 @@ contains
         integer :: i, j, no1, no2, ii, jj, imj, nb, no
         
         Grup    = Prop%Gr                           !   Gr(i, j)    = <b_i b^+_j >
-        Grupc   = transpose(Grup) - ZKRON           !   Grc(i, j)   = <b^+_i b_j > = <b_i b^+_j > - δ(i,j)
+        Grupc   = transpose(Grup) - ZKRON           !   Grc(i, j)   = <b^+_i b_j > = <b_j b^+_i > - δ(i,j)
         
         Grdo    = dconjg(Prop%Gr)                   !   Gr(i, j)    = <c_i c^+_j >
-        Grdoc   = dconjg(transpose(Grdo)) - ZKRON   !   Grc(i, j)   = <c^+_i c_j > = <c_i c^+_j > - δ(i,j)
+        Grdoc   = dconjg(transpose(Grdo)) - ZKRON   !   Grc(i, j)   = <c^+_i c_j > = <c_j c^+_i > - δ(i,j)
         
         do ii = 1, Ndim
             this%density_up = this%density_up + real( Grupc(ii,ii) ) / dble(Lq)
