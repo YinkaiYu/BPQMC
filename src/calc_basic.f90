@@ -19,7 +19,7 @@ module CalcBasic ! Global parameters
 ! Hamiltonian parameters
     real(kind=8),           public,     save    :: RT
     real(kind=8),           public,     save    :: RU1, RU2
-    real(kind=8),           public,     save    :: mu
+    integer,                public,     save    :: Nbos
 ! update parameters
     real(kind=8),           public              :: shiftLoc
     ! logical,                public              :: is_global ! global update switch: Wolff-shift joint update
@@ -46,7 +46,7 @@ contains
         include 'mpif.h'
         if (IRANK == 0) then
             open(unit=20, file='paramC_sets.txt', status='unknown')
-            read(20,*) RU1, RU2, mu
+            read(20,*) RU1, RU2, Nbos
             read(20,*) Nlx, Nly, Ltrot, Beta
             read(20,*) NlxTherm, NlyTherm, LtrotTherm
             read(20,*) Nwrap, Nbin, Nsweep, shiftLoc
@@ -60,7 +60,7 @@ contains
         call MPI_BCAST(Beta, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(RU1, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(RU2, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
-        call MPI_BCAST(mu, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(Nbos, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(shiftLoc, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         ! call MPI_BCAST(shiftGlb, Naux, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(shiftWarm, Naux, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
@@ -140,7 +140,7 @@ contains
             write(50,*) 'Hopping t                                      :', RT
             write(50,*) 'Hubbard U1                                     :', RU1
             write(50,*) 'Hubbard U2                                     :', RU2
-            write(50,*) 'chemical potential                             :', mu
+            write(50,*) 'boson particle number                          :', Nbos
             write(50,*) 'Local update auxiliary field magnitude Shift   :', shiftLoc
             ! if (is_global) then
             ! write(50,*) '# Global                                       :', Nglobal ! global Metropolis algorithm

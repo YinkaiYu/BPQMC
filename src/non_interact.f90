@@ -50,9 +50,6 @@ contains
             enddo
         enddo
 
-        do ii = 1, Ndim
-            HamT(ii,ii) = HamT(ii,ii) - dcmplx(mu, 0.d0)
-        enddo
 
 ! write(6,*) 'HamT'
 ! write(6, "(A)", advance="no") '        '  

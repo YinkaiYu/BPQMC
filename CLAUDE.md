@@ -58,4 +58,10 @@ This is a Bosonic Projector Quantum Monte Carlo (BPQMC) implementation written i
 
 ## Development Context
 
-The current program in the src/ directory implements finite-temperature determinant quantum Monte Carlo algorithm. We will gradually work together to modify it into a zero-temperature projector quantum Monte Carlo algorithm. The key points of the zero-temperature projector Monte Carlo algorithm have been written in the latest README.md. When we make future modifications, we need to implement our program according to the README.md specifications.
+The current program in the src/ directory implements finite-temperature determinant quantum Monte Carlo algorithm. We are gradually modifying it into a zero-temperature projector quantum Monte Carlo (PQMC) algorithm. Key changes made:
+
+- **Algorithm Type**: Converting from finite-temperature DQMC to zero-temperature projector QMC
+- **Ensemble**: Changed from grand canonical (fixed chemical potential μ) to canonical (fixed boson particle number Nbos)
+- **Hamiltonian**: Removed chemical potential term from the kinetic Hamiltonian in non_interact.f90
+
+Future modifications will implement the program according to the README.md specifications for the projector algorithm.
