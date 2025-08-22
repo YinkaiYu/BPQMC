@@ -65,3 +65,20 @@ The current program in the src/ directory implements finite-temperature determin
 - **Hamiltonian**: Removed chemical potential term from the kinetic Hamiltonian in non_interact.f90
 
 Future modifications will implement the program according to the README.md specifications for the projector algorithm.
+
+## Current PQMC Conversion Progress
+
+### Stage 1: Data Structure Modifications [COMPLETED]
+- **Modified `process_matrix.f90`**:
+  - Updated `Propagator` type: UUR(Ndim,1), UUL(1,Ndim) for vector operations
+  - Added Gbar(Ndim,Ndim) to store Ḡ = G - I 
+  - Kept Gr for temporary compatibility during transition
+  - Removed VUR, VUL, DUR, DUL arrays (no longer needed for PQMC)
+  - Updated `WrapList` type: URlist(Ndim,1,0:Nst), ULlist(1,Ndim,0:Nst)
+  - Modified initialization to use Init%PR and Init%PL trial wave functions
+
+### Next Steps:
+- Stage 2: Modify stabilization.f90 for vector orthogonalization
+- Stage 3: Adapt propagation algorithms in multiply.f90 and localU.f90
+- Stage 4: Testing and validation
+- Stage 5: Final documentation and git synchronization
