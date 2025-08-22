@@ -5,8 +5,7 @@ module Stabilize_mod
     
     private
     public :: Wrap_pre, Wrap_L, Wrap_R, Wrap_tau, Stabilize_init, Stabilize_clear
-    
-    complex(kind=kind(0.d0)) ::  Z_one
+    complex(kind=8) ::  Z_one
     type(PropGreen), allocatable :: Gr_tmp
     
 contains
@@ -29,6 +28,10 @@ contains
         class(Propagator), intent(inout) :: Prop
         real(kind=8) :: norm_val
         
+        ! LAPACK function interfaces
+        real(kind=8), external :: DZNRM2
+        external :: ZDSCAL
+        
         ! Calculate ||B(tau,0)P|| using LAPACK DZNRM2
         norm_val = DZNRM2(Ndim, Prop%UUR(1,1), 1)
         
@@ -46,6 +49,10 @@ contains
         ! PQMC version: normalize left vector P^dagger B(2theta,tau) using LAPACK
         class(Propagator), intent(inout) :: Prop
         real(kind=8) :: norm_val
+        
+        ! LAPACK function interfaces
+        real(kind=8), external :: DZNRM2
+        external :: ZDSCAL
         
         ! Calculate ||P^dagger B(2theta,tau)|| using LAPACK DZNRM2
         norm_val = DZNRM2(Ndim, Prop%UUL(1,1), 1)
@@ -67,7 +74,12 @@ contains
         class(Propagator), intent(in) :: Prop
         integer, intent(in) :: nt
         ! Local: 
-        complex(kind=8) :: denominator
+        complex(kind=8) :: denominator, alpha
+        
+        ! LAPACK function interfaces
+        complex(kind=8), external :: ZDOTU
+        real(kind=8), external :: DZNRM2
+        external :: ZDSCAL, ZGERU
         
         ! Calculate denominator: P_L^dagger * P_R using LAPACK ZDOTU
         ! Since UUL is already P_L^dagger (1,Ndim) and UUR is P_R (Ndim,1):
@@ -83,7 +95,6 @@ contains
         ! Using ZGERU: A := alpha*x*y^T + A (no conjugation)
         ! Here: Gbar := (N_b/denominator) * UUR * UUL + 0
         ! Since UUL is already P_L^dagger, no conjugate needed
-        complex(kind=8) :: alpha
         alpha = dcmplx(dble(Nbos), 0.d0) / denominator
         Gbar = dcmplx(0.d0, 0.d0)
         call ZGERU(Ndim, Ndim, alpha, Prop%UUR(1,1), 1, Prop%UUL(1,1), 1, Gbar, Ndim)
