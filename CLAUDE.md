@@ -77,8 +77,16 @@ Future modifications will implement the program according to the README.md speci
   - Updated `WrapList` type: URlist(Ndim,1,0:Nst), ULlist(1,Ndim,0:Nst)
   - Modified initialization to use Init%PR and Init%PL trial wave functions
 
+### Stage 2: Numerical Stabilization Algorithm [COMPLETED]
+- **Modified `stabilization.f90`**:
+  - Replaced matrix QR/UDV decomposition with LAPACK-optimized vector normalization
+  - Implemented `stab_UR` and `stab_UL` using DZNRM2 and ZDSCAL for efficient normalization
+  - Rewrote `stab_green` to calculate Gbar using ZGERC for outer product operations
+  - Updated all Wrap functions (Wrap_pre, Wrap_L, Wrap_R) to use Gbar with numerical stability checks
+  - Removed obsolete functions: QDRP_decompose, complex stab_green_big implementation
+  - Added compatibility layer: Gr = Gbar + I where needed
+
 ### Next Steps:
-- Stage 2: Modify stabilization.f90 for vector orthogonalization
 - Stage 3: Adapt propagation algorithms in multiply.f90 and localU.f90
 - Stage 4: Testing and validation
 - Stage 5: Final documentation and git synchronization

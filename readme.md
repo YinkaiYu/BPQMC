@@ -30,6 +30,9 @@ $$\frac{P[\phi']}{P[\phi]}= e^{-\tfrac{1}{2}(\phi_i'^2 - \phi_i^2)}\left[\frac{P
 
 $$= e^{-\tfrac{1}{2}(\phi_i'^2 - \phi_i^2)}\left[1 + \frac{\Delta_i}{N_b}(G_{ii}-1)\right]^{N_b}$$
 
+其中
+$$\Delta = \mathrm{diag}(0,\dots,\Delta_i,\dots,0),\qquad\Delta_i = e^{-(h_i' - h_i)} - 1$$
+
 可见 $\bar{G} \equiv G - I$ 储存了态中所有有用信息，快速更新：
 
 $$\bar{G}' = \frac{1+\Delta_i}{r_b}\bar{G}$$
