@@ -110,9 +110,9 @@ contains
 !	In Mat Out exp(-Dtau*T) * Mat for nflag = 1
 !	In Mat Out exp( Dtau*T) * Mat for nflag = -1  
         class(OperatorKinetic), intent(in) :: this
-        complex(kind=8), dimension(Ndim, Ndim), intent(inout) :: Mat
+        complex(kind=8), dimension(:, :), intent(inout) :: Mat
         integer, intent(in) :: nflag
-        complex(kind=8), dimension(Ndim, Ndim) :: temp
+        complex(kind=8), dimension(size(Mat,1), size(Mat,2)) :: temp
         if (nflag == 1) then
             call mmult(temp, this%expT_P, Mat)
         elseif (nflag == -1) then
@@ -129,9 +129,9 @@ contains
 !	In Mat Out Mat * exp(-Dtau*T) for nflag = 1
 !	In Mat Out Mat * exp( Dtau*T) for nflag = -1
         class(OperatorKinetic), intent(in) :: this
-        complex(kind=8), dimension(Ndim, Ndim), intent(inout) :: Mat
+        complex(kind=8), dimension(:, :), intent(inout) :: Mat
         integer, intent(in) :: nflag
-        complex(kind=8), dimension(Ndim, Ndim) :: temp
+        complex(kind=8), dimension(size(Mat,1), size(Mat,2)) :: temp
         if (nflag == 1) then
             call mmult(temp, Mat, this%expT_P)
         elseif (nflag == -1) then

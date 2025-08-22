@@ -67,7 +67,7 @@ contains
     subroutine opU_mmult_R(this, Mat, Latt, phi, ii, nflag)
 ! Arguments: 
         class(OperatorHubbard), intent(inout) :: this
-        complex(kind=8), dimension(Ndim, Ndim), intent(inout) :: Mat
+        complex(kind=8), dimension(:, :), intent(inout) :: Mat
         class(kagomeLattice), intent(in) :: Latt
         real(kind=8), intent(in) :: phi
         integer, intent(in) :: ii, nflag
@@ -75,7 +75,7 @@ contains
         integer :: jj
 
         call this%get_exp(phi, nflag)
-        do jj = 1, Ndim
+        do jj = 1, size(Mat, 2)
             Mat(ii,jj) = this%expalpha * Mat(ii,jj)
         enddo
         return
@@ -84,7 +84,7 @@ contains
     subroutine opU_mmult_L(this, Mat, Latt, phi, jj, nflag)
 ! Arguments: 
         class(OperatorHubbard), intent(inout) :: this
-        complex(kind=8), dimension(Ndim, Ndim), intent(inout) :: Mat
+        complex(kind=8), dimension(:, :), intent(inout) :: Mat
         class(kagomeLattice), intent(in) :: Latt
         real(kind=8), intent(in) :: phi
         integer, intent(in) :: jj, nflag
@@ -92,7 +92,7 @@ contains
         integer :: ii
 
         call this%get_exp(phi, nflag)
-        do ii = 1, Ndim
+        do ii = 1, size(Mat, 1)
             Mat(ii,jj) = Mat(ii,jj) * this%expalpha
         enddo
         return
