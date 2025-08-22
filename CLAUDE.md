@@ -86,7 +86,23 @@ Future modifications will implement the program according to the README.md speci
   - Removed obsolete functions: QDRP_decompose, complex stab_green_big implementation
   - Added compatibility layer: Gr = Gbar + I where needed
 
+### Stage 3: Propagation Algorithm Adaptation [COMPLETED]
+- **Modified `operator_Hubbard.f90`**:
+  - Updated `opU_mmult_R` and `opU_mmult_L` to use assumed-shape arrays `dimension(:,:)`
+  - Automatic compatibility with both matrix (Ndim,Ndim) and vector (Ndim,1)/(1,Ndim) operations
+  - Use `size()` function for dynamic array bounds, eliminating need for separate vector functions
+- **Modified `non_interact.f90`**:
+  - Updated `opT_mmult_R` and `opT_mmult_L` to use assumed-shape arrays `dimension(:,:)`
+  - Dynamic temporary array allocation using `dimension(size(Mat,1), size(Mat,2))`
+  - Unified interface handles all matrix and vector operations seamlessly
+- **Zero modification required**: `multiply.f90` and `localU.f90` work without changes due to elegant Fortran overloading
+
 ### Next Steps:
-- Stage 3: Adapt propagation algorithms in multiply.f90 and localU.f90
-- Stage 4: Testing and validation
-- Stage 5: Final documentation and git synchronization
+- Stage 4: Gbar Integration - Gradually replace Gr usage with Gbar throughout the codebase
+- Stage 5: Metropolis Algorithm Adaptation - Modify LocalU_metro according to readme.md PQMC specifications  
+- Stage 6: Observable Calculation Adaptation - Rewrite obser_equal.f90 to use Gbar-based measurements
+- Stage 7: Sweep Flow Modification - Update local_sweep.f90 to calculate observables only at Ltrot/2 (middle imaginary time)
+- Stage 8: Gr Dependency Elimination - Remove all Gr dependencies, make Gbar the primary Green's function
+- Stage 9: Final Integration and Documentation - Complete PQMC conversion with comprehensive testing
+
+**Important**: Each stage must include testing/validation (manual in WSL) and documentation updates to CLAUDE.md, followed by git commits and GitHub synchronization
