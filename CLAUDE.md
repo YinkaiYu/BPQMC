@@ -125,9 +125,23 @@ Future modifications will implement the program according to the README.md speci
   - Added mathematical definition: `r_b = P†B(2θ,τ)(1+Δ)B(τ,0)P / P†B(2θ,τ)B(τ,0)P = 1 + Δ_i/N_b * Gbar_{ii}`
   - Documented the relationship between matrix and scalar expressions for r_b
 
+### Stage 6: Observable Calculation Adaptation [COMPLETED]
+- **Modified `obser_equal.f90`**:
+  - Replaced `Prop%Gr` with `Prop%Gbar + ZKRON` for Green's function calculations
+  - Updated `Grupc = transpose(Prop%Gbar)` for PQMC-compatible measurement formulas
+  - Simplified conjugate Green's functions using direct Gbar operations: `Grdoc = dconjg(transpose(Prop%Gbar))`
+  - Maintains all physical observables (density, kinetic energy, correlations) with Gbar-based calculations
+  - Mathematical equivalence: `G = Gbar + I` where `Gbar = G - I` stores the deviation from identity matrix
+
+### Stage 7: Sweep Flow Modification [COMPLETED]
+- **Modified `local_sweep.f90`**:
+  - Updated `Local_sweep_L`: Observable calculations now occur only at `nt = Ltrot/2` (middle imaginary time)
+  - Updated `Local_sweep_R`: Observable calculations now occur only at `nt = Ltrot/2` (middle imaginary time)
+  - Reduced measurement frequency from `2*Ltrot*Nsweep` to `2*Nsweep` per bin for computational efficiency
+  - PQMC algorithm requirement: Measurements at middle imaginary time provide optimal ground state projection
+  - Maintained `Nobs` counter logic to properly track reduced measurement frequency
+
 ### Next Steps:
-- Stage 6: Observable Calculation Adaptation - Rewrite obser_equal.f90 to use Gbar-based measurements  
-- Stage 7: Sweep Flow Modification - Update local_sweep.f90 to calculate observables only at Ltrot/2 (middle imaginary time)
 - Stage 8: Gr Dependency Elimination - Remove all Gr dependencies, make Gbar the primary Green's function
 - Stage 9: Final Integration and Documentation - Complete PQMC conversion with comprehensive testing
 

@@ -79,11 +79,11 @@ contains
         complex(kind=8), dimension(Ndim, Ndim) :: Grdoc, Grdo
         integer :: i, j, no1, no2, ii, jj, imj, nb, no
         
-        Grup    = Prop%Gr                           !   Gr(i, j)    = <b_i b^+_j >
-        Grupc   = transpose(Grup) - ZKRON           !   Grc(i, j)   = <b^+_i b_j > = <b_j b^+_i > - δ(i,j)
+        Grup    = Prop%Gbar + ZKRON                 !   Gr(i, j)    = <b_i b^+_j > = Gbar + I  
+        Grupc   = transpose(Prop%Gbar)              !   Grc(i, j)   = <b^+_i b_j > = transpose(Gbar)
         
-        Grdo    = dconjg(Prop%Gr)                   !   Gr(i, j)    = <c_i c^+_j >
-        Grdoc   = dconjg(transpose(Grdo)) - ZKRON   !   Grc(i, j)   = <c^+_i c_j > = <c_j c^+_i > - δ(i,j)
+        Grdo    = dconjg(Prop%Gbar + ZKRON)         !   Gr(i, j)    = <c_i c^+_j > = conjg(Gbar + I)
+        Grdoc   = dconjg(transpose(Prop%Gbar))      !   Grc(i, j)   = <c^+_i c_j > = conjg(transpose(Gbar))
         
         do ii = 1, Ndim
             this%density_up = this%density_up + real( Grupc(ii,ii) ) / dble(Lq)

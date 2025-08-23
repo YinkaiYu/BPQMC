@@ -99,8 +99,10 @@ contains
         integer :: nt
         do nt = Ltrot, 1, -1
             if (mod(nt, Nwrap) == 0) call Wrap_L(Prop, WrList, nt, "S")
-            call Obs_equal%calc(Prop, nt)
-            Nobs = Nobs + 1
+            if (nt == Ltrot/2) then  ! Calculate observables only at middle imaginary time
+                call Obs_equal%calc(Prop, nt)
+                Nobs = Nobs + 1
+            endif
             call propT_L(Prop)
             if (abs(RU2) > Zero) call LocalU_prop_L(Op_U2, Prop, iseed, 2, nt)
             if (abs(RU1) > Zero) call LocalU_prop_L(Op_U1, Prop, iseed, 1, nt)
@@ -126,8 +128,10 @@ contains
             if (abs(RU2) > Zero) call LocalU_prop_R(Op_U2, Prop, iseed, 2, nt)
             call propT_R(Prop)
             if (mod(nt, Nwrap) == 0) call Wrap_R(Prop, WrList, nt, "S")
-            call Obs_equal%calc(Prop, nt)
-            Nobs = Nobs + 1
+            if (nt == Ltrot/2) then  ! Calculate observables only at middle imaginary time
+                call Obs_equal%calc(Prop, nt)
+                Nobs = Nobs + 1
+            endif
         enddo
         return
     end subroutine Local_sweep_R
