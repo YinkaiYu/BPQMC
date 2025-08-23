@@ -141,7 +141,6 @@ contains
         nt_st = nt/Nwrap
         if (nt .ne. 0) call stab_UR(Prop)
         WrList%URlist(1:Ndim, 1, nt_st) = Prop%UUR(1:Ndim, 1)
-        WrList%ULlist(1, 1:Ndim, nt_st) = Prop%UUL(1, 1:Ndim)
         if (nt == Ltrot) then
             Gbar = dcmplx(0.d0, 0.d0)
             call stab_green(Gbar, Prop, nt)
@@ -168,10 +167,8 @@ contains
         nt_st = int(nt/Nwrap)
         Gbar = dcmplx(0.d0, 0.d0)
         Prop%UUR(1:Ndim, 1) = WrList%URlist(1:Ndim, 1, nt_st)
-        Prop%UUL(1, 1:Ndim) = WrList%ULlist(1, 1:Ndim, nt_st)
         if (nt == 0) then ! clear URlist
             WrList%URlist = dcmplx(0.d0, 0.d0)
-            WrList%ULlist = dcmplx(0.d0, 0.d0)
         endif
         if (nt .ne. Ltrot) then
             Gbar_old = Prop%Gbar  ! Store old Gbar for comparison
