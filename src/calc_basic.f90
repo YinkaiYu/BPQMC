@@ -95,7 +95,8 @@ contains
         if (mod(Ltrot, Nwrap) == 0) then
             Nst = Ltrot / Nwrap
         else
-            write(6,*) "Ltrot is not a multiple of Nwrap"; stop
+            ! Support non-divisible Ltrot/Nwrap: allocate extra space for remaining time slices
+            Nst = Ltrot / Nwrap + 1
         endif
         return
     end subroutine Params_set
