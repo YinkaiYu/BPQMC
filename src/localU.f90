@@ -86,6 +86,8 @@ contains
             call LocalU_metro(Op_U, Prop%Gr, iseed, nf, ii, ntau)
             call Op_U%mmult_L(Prop%Gr, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
             call Op_U%mmult_R(Prop%Gr, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
+            call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
+            call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
         enddo
         ! wrap the left
         do ii = Ndim, 1, -1
@@ -103,6 +105,8 @@ contains
         do ii = 1, Ndim
             call Op_U%mmult_R(Prop%Gr, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
             call Op_U%mmult_L(Prop%Gr, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
+            call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
+            call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
             call LocalU_metro(Op_U, Prop%Gr, iseed, nf, ii, ntau)
         enddo
         ! wrap the right

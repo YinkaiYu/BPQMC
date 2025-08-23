@@ -81,6 +81,8 @@ contains
         enddo
         call Op_U1%mmult_L(Prop%Gr, Latt, phi_new, nt, 1)
         call Op_U1%mmult_R(Prop%Gr, Latt, phi_new, nt, -1)
+        call Op_U1%mmult_L(Prop%Gbar, Latt, phi_new, nt, 1)
+        call Op_U1%mmult_R(Prop%Gbar, Latt, phi_new, nt, -1)
         call Op_U1%mmult_L(Prop%UUL, Latt, phi_new, nt, 1)
         return
     end subroutine GlobalK_prop_L
@@ -93,6 +95,8 @@ contains
         integer :: ii
         call Op_U1%mmult_R(Prop%Gr, Latt, Conf%phi_list, nt, 1)
         call Op_U1%mmult_L(Prop%Gr, Latt, Conf%phi_list, nt, -1)
+        call Op_U1%mmult_R(Prop%Gbar, Latt, Conf%phi_list, nt, 1)
+        call Op_U1%mmult_L(Prop%Gbar, Latt, Conf%phi_list, nt, -1)
         do ii = 1, Lq
             ratio_fermion = ratio_fermion * ratioK_fermion(Prop%Gr, phi_new, ii, nt)
         enddo

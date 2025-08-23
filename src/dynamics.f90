@@ -40,7 +40,7 @@ contains
     subroutine Dyn_reset(Prop)
         class(Propagator), intent(in) :: Prop
         call Prop_d%asgn(Prop)
-        call PropGr%reset(Prop%Gr) ! the starting point of the time-sliced Green's function
+        call PropGr%reset(Prop%Gbar + ZKRON) ! the starting point of the time-sliced Green's function
         return
     end subroutine Dyn_reset
     

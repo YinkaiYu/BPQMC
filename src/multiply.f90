@@ -23,6 +23,8 @@ contains
         do ii = Ndim, 1, -1
             call Op_U%mmult_L(Prop%Gr, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
             call Op_U%mmult_R(Prop%Gr, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
+            call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
+            call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
         enddo
         do ii = Ndim, 1, -1
             call Op_U%mmult_L(Prop%UUL, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
@@ -38,6 +40,8 @@ contains
         do ii = 1, Ndim
             call Op_U%mmult_R(Prop%Gr, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
             call Op_U%mmult_L(Prop%Gr, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
+            call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
+            call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
         enddo
         do ii = 1, Ndim
             call Op_U%mmult_R(Prop%UUR, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
@@ -73,6 +77,8 @@ contains
         class(Propagator), intent(inout) :: Prop
         call Op_T%mmult_L(Prop%Gr, 1)
         call Op_T%mmult_R(Prop%Gr, -1)
+        call Op_T%mmult_L(Prop%Gbar, 1)
+        call Op_T%mmult_R(Prop%Gbar, -1)
         call Op_T%mmult_L(Prop%UUL, 1)
         return
     end subroutine propT_L
@@ -81,6 +87,8 @@ contains
         class(Propagator), intent(inout) :: Prop
         call Op_T%mmult_R(Prop%Gr, 1)
         call Op_T%mmult_L(Prop%Gr, -1)
+        call Op_T%mmult_R(Prop%Gbar, 1)
+        call Op_T%mmult_L(Prop%Gbar, -1)
         call Op_T%mmult_R(Prop%UUR, 1)
         return
     end subroutine propT_R

@@ -98,8 +98,22 @@ Future modifications will implement the program according to the README.md speci
   - Unified interface handles all matrix and vector operations seamlessly
 - **Zero modification required**: `multiply.f90` and `localU.f90` work without changes due to elegant Fortran overloading
 
+### Stage 4: Gbar Integration [COMPLETED]
+- **Modified `multiply.f90`**:
+  - Updated all propagation functions (`propU_L`, `propU_R`, `propT_L`, `propT_R`) to sync Gr operations with Gbar
+  - Each function now applies the same operator multiplication to both Gr and Gbar matrices
+- **Modified `localU.f90`**:
+  - Updated propagation functions (`LocalU_prop_L`, `LocalU_prop_R`) to sync Gr operations with Gbar
+  - LocalU_metro function kept unchanged (reserved for Stage 5)
+- **Modified `globalK.f90`**:
+  - Updated propagation functions (`GlobalK_prop_L`, `GlobalK_prop_R`) to sync Gr operations with Gbar
+  - ratioK_fermion function kept unchanged (global updates currently disabled)
+- **Modified `dynamics.f90`**:
+  - Updated `Dyn_reset` to initialize PropGreen using `Prop%Gbar + ZKRON` instead of `Prop%Gr`
+  - Maintains consistency with Gbar-based PQMC approach
+
 ### Next Steps:
-- Stage 4: Gbar Integration - Gradually replace Gr usage with Gbar throughout the codebase
+- Stage 4: Gbar Integration - Gradually replace Gr usage with Gbar throughout the codebase [COMPLETED]
 - Stage 5: Metropolis Algorithm Adaptation - Modify LocalU_metro according to readme.md PQMC specifications  
 - Stage 6: Observable Calculation Adaptation - Rewrite obser_equal.f90 to use Gbar-based measurements
 - Stage 7: Sweep Flow Modification - Update local_sweep.f90 to calculate observables only at Ltrot/2 (middle imaginary time)
