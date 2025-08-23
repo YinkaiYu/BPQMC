@@ -4,10 +4,8 @@ module LocalU_mod
     implicit none
     
     public
-    private :: LocalU_metro, LocalU_metro_therm, phi_new
+    private :: LocalU_metro, LocalU_metro_therm
     
-    
-    real(kind=8) :: phi_new
     
 contains
     subroutine LocalU_init(Op_U)
