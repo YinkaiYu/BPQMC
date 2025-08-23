@@ -4,7 +4,7 @@ module Stabilize_mod
     implicit none
     
     private
-    public :: Wrap_pre, Wrap_L, Wrap_R, Wrap_tau, Stabilize_init, Stabilize_clear
+    public :: Wrap_pre, Wrap_L, Wrap_R, Wrap_tau, Stabilize_init, Stabilize_clear, stab_green
     complex(kind=8) ::  Z_one
     type(PropGreen), allocatable :: Gr_tmp
     
