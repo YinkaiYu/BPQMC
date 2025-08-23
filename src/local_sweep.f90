@@ -26,14 +26,15 @@ module LocalSweep_mod
     type(Dynamics) :: Dyn
     
 contains
-    subroutine Local_sweep_init(this)
+    subroutine Local_sweep_init(this, Init_obj)
         class(LocalSweep), intent(inout) :: this
+        class(Initial), intent(in) :: Init_obj
         allocate(Obs_equal)
         call Obs_equal%make()
         if (is_tau) then
             allocate(Obs_tau)
             call Obs_tau%make()
-            call Dyn%init()
+            call Dyn%init(Init_obj)
         endif
         call LocalU_init(Op_U1)
         call LocalU_init(Op_U2)

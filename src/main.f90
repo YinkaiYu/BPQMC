@@ -26,11 +26,11 @@ program bosonDQMC
 ! initiate
     call Model_init(iseed)
     allocate(Prop)
-    call Prop%make()
+    call Prop%make(Init)
     allocate(WrList)
     call WrList%make()
     call Stabilize_init()
-    call Sweep_local%init()
+    call Sweep_local%init(Init)
     ! if (is_global) call Sweep_global%init()
 ! boson warm-up
     if (is_warm) then

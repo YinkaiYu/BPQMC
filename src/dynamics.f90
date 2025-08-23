@@ -2,6 +2,7 @@ module Dynamics_mod
     use Stabilize_mod
     use Multiply_mod
     use ObserTau_mod
+    use MakeInitialState
     implicit none
     
     public
@@ -9,7 +10,7 @@ module Dynamics_mod
     
     type :: Dynamics
     contains
-        procedure, nopass :: init => Dyn_init
+        procedure :: init => Dyn_init
         procedure, nopass :: clear => Dyn_clear
         procedure, nopass :: reset => Dyn_reset
         procedure, nopass :: sweep_R => Dyn_sweep_R
@@ -20,9 +21,11 @@ module Dynamics_mod
     type(PropGreen), allocatable :: PropGr
     
 contains
-    subroutine Dyn_init()
+    subroutine Dyn_init(this, Init_obj)
+        class(Dynamics), intent(inout) :: this
+        class(Initial), intent(in) :: Init_obj
         allocate(Prop_d)
-        call Prop_d%make()
+        call Prop_d%make(Init_obj)
         allocate(PropGr)
         call PropGr%make()
         return

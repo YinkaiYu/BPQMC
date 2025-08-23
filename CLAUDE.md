@@ -13,6 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build Commands
 
 - **Build executable**: `cd src && make` - Compiles the Fortran source files into `bosonDQMC.out`
+- **Debug build with Intel compiler**: `cd src && make FC="mpiifort -fc=ifx" FFLAGS='-check all -traceback -c -I$(HOME)/Modules'` - Compiles with runtime checks and traceback for debugging
 - **Clean build artifacts**: `cd src && make clean` - Removes object files
 - **Full build and deploy**: `./auto.sh` - Builds, cleans, copies executable to test directory, and submits SLURM job
 - **Quick build from src**: `cd src && ./auto.sh` - Builds and copies executable to test directory

@@ -1,5 +1,6 @@
 module ProcessMatrix
     use MyLattice
+    use MakeInitialState
     implicit none
     public
     
@@ -34,12 +35,13 @@ module ProcessMatrix
     end type WrapList
     
 contains
-    subroutine Prop_make(this)
+    subroutine Prop_make(this, Init_obj)
         class(Propagator), intent(inout) :: this
+        class(Initial), intent(in) :: Init_obj
         allocate(this%UUR(Ndim, 1), this%UUL(1, Ndim))
         allocate(this%Gbar(Ndim, Ndim), this%Gr(Ndim, Ndim))
-        this%UUR = Init%PR  ! Initialize with trial wave function
-        this%UUL = Init%PL  ! Initialize with trial wave function
+        this%UUR = Init_obj%PR  ! Initialize with trial wave function
+        this%UUL = Init_obj%PL  ! Initialize with trial wave function
         this%Gbar = dcmplx(0.d0, 0.d0)  ! Initialize Gbar = G - I = 0 at initial state
         this%Gr = ZKRON  ! Initialize Gr = I for compatibility
         this%Xmaxm = 0.d0; this%Xmeanm = 0.d0
