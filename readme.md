@@ -33,9 +33,11 @@ $$= e^{-\tfrac{1}{2}(\phi_i'^2 - \phi_i^2)}\left[1 + \frac{\Delta_i}{N_b}(G_{ii}
 其中
 $$\Delta = \mathrm{diag}(0,\dots,\Delta_i,\dots,0),\qquad\Delta_i = e^{-(h_i' - h_i)} - 1$$
 
+$$r_b = \frac{P^\dagger B(2\theta,\tau)(1+\Delta)B(\tau,0)P}{P^\dagger B(2\theta,\tau)B(\tau,0)P} = 1 + \frac{\Delta_i}{N_b}\bar{G}_{ii}$$
+
 可见 $\bar{G} \equiv G - I$ 储存了态中所有有用信息，快速更新：
 
-$$\bar{G}' = \frac{1+\Delta_i}{r_b}\bar{G}$$
+$$\bar{G}' = \frac{1+\Delta}{r_b}\bar{G}$$
 
 其虚时演化为
 

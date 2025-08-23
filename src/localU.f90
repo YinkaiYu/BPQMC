@@ -1,5 +1,6 @@
 module LocalU_mod
     use Multiply_mod
+    use CalcBasic, only: Nbos
     implicit none
     
     public
@@ -28,11 +29,11 @@ contains
         return
     end subroutine LocalU_reset
     
-    subroutine LocalU_metro(Op_U, Gr, iseed, nf, ii, ntau)
+    subroutine LocalU_metro(Op_U, Gbar, iseed, nf, ii, ntau)
         use MyMats
 ! Arguments:
         type(OperatorHubbard), intent(inout) :: Op_U
-	    complex(kind=8), dimension(Ndim, Ndim), intent(inout) :: Gr
+	    complex(kind=8), dimension(Ndim, Ndim), intent(inout) :: Gbar
         integer, intent(inout) :: iseed
         integer, intent(in) :: ii, ntau, nf
 !   Local: 
@@ -40,34 +41,34 @@ contains
         real(kind=8) :: phi_old, phi_new
         real(kind=8) :: xflip, Xdif, random
         real(kind=8) :: ratio_abs
-        complex(kind=8) :: ratio_det, ratio_exp
-        integer :: mm, nn
-        complex(kind=8), dimension(Ndim, Ndim) :: Gr_new
-        complex(kind=8), dimension(Ndim) :: temp_vec
-        complex(kind=8) :: temp_alpha
+        complex(kind=8) :: ratio_Pfa, ratio_exp, r_b
+        complex(kind=8) :: one_plus_delta
 
 ! Local update on space-time (ii, ntau) for auxiliary field flavor (nf)
         phi_old = Conf%phi_list(nf, ii, ntau)
         xflip = ranf(iseed)
         Xdif = dble((xflip - 0.5) * abs(shiftLoc))
         phi_new = phi_old + Xdif
-! Calculate Metropolis ratio   
+! Calculate PQMC Metropolis ratio   
         call Op_U%get_delta(phi_old, phi_new)
         ratio_exp = Op_U%ratio_gaussian
-        ratio_det = dcmplx(1.d0,0.d0) + Op_U%Delta * ( dcmplx(1.d0,0.d0) - Gr(ii,ii) )
-        ratio_det = dcmplx(1.d0,0.d0) / ratio_det
-        ratio_abs = abs(ratio_exp * ratio_det * dconjg(ratio_det))
-! Upgrade Green's function and phi
+        ! Calculate r_b = 1 + Δ_i/N_b * Gbar_{ii}
+        r_b = dcmplx(1.d0,0.d0) + Op_U%Delta * Gbar(ii,ii) / dble(Nbos)
+        ! Calculate ratio_Pfa = r_b^{N_b}
+        ratio_Pfa = r_b ** Nbos
+        ratio_abs = abs(ratio_exp * ratio_Pfa * dconjg(ratio_Pfa))
+! Update Gbar and phi if accepted
         random = ranf(iseed)
         if (ratio_abs .gt. random) then
             call Op_U%Acc_U_local%count(.true.)
 
-            ! Gr = Gr - Gr(:,ii) * ratio_det * Op_U%Delta * (ZKRON(ii,:) - Gr(ii,:))
-            Gr_new = Gr
-            temp_alpha = - ratio_det * Op_U%Delta
-            temp_vec = ZKRON(ii, 1:Ndim) - Gr(ii, 1:Ndim)
-            call ZGERU(Ndim, Ndim, temp_alpha, Gr(1:Ndim,ii), 1, temp_vec, 1, Gr_new, Ndim)
-            Gr = Gr_new
+            ! PQMC Gbar update: Gbar' = (1+Δ)/r_b * Gbar
+            ! Step 1: Apply (1+Δ_i) to row ii only
+            one_plus_delta = dcmplx(1.d0,0.d0) + Op_U%Delta
+            call ZSCAL(Ndim, one_plus_delta, Gbar(ii,1:Ndim), 1)
+            
+            ! Step 2: Apply factor 1/r_b to entire matrix
+            call ZSCAL(Ndim*Ndim, dcmplx(1.d0,0.d0)/r_b, Gbar, 1)
 
             Conf%phi_list(nf, ii, ntau) = phi_new
         else
@@ -83,7 +84,7 @@ contains
         integer, intent(in) :: ntau, nf
         integer :: ii
         do ii = Ndim, 1, -1
-            call LocalU_metro(Op_U, Prop%Gr, iseed, nf, ii, ntau)
+            call LocalU_metro(Op_U, Prop%Gbar, iseed, nf, ii, ntau)
             call Op_U%mmult_L(Prop%Gr, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
             call Op_U%mmult_R(Prop%Gr, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
             call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
@@ -107,7 +108,7 @@ contains
             call Op_U%mmult_L(Prop%Gr, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
             call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
             call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
-            call LocalU_metro(Op_U, Prop%Gr, iseed, nf, ii, ntau)
+            call LocalU_metro(Op_U, Prop%Gbar, iseed, nf, ii, ntau)
         enddo
         ! wrap the right
         do ii = 1, Ndim
