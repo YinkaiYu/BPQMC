@@ -141,8 +141,29 @@ Future modifications will implement the program according to the README.md speci
   - PQMC algorithm requirement: Measurements at middle imaginary time provide optimal ground state projection
   - Maintained `Nobs` counter logic to properly track reduced measurement frequency
 
-### Next Steps:
-- Stage 8: Gr Dependency Elimination - Remove all Gr dependencies, make Gbar the primary Green's function
-- Stage 9: Final Integration and Documentation - Complete PQMC conversion with comprehensive testing
+### Stage 8: Gr Dependency Elimination [COMPLETED]
+- **Modified `process_matrix.f90`**:
+  - Completely removed `Gr` field from `Propagator` type definition
+  - Updated constructor, assignment operator, and destructor to handle only `Gbar`
+  - Eliminated one Ndim×Ndim complex matrix allocation per Propagator object
+- **Modified `stabilization.f90`**:
+  - Removed all compatibility assignments `Prop%Gr = Gbar + ZKRON`
+  - Kept only `Prop%Gbar = Gbar` assignments in Wrap functions
+- **Modified `multiply.f90`**:
+  - Eliminated redundant `Prop%Gr` operations from all propagation functions
+  - Kept only `Prop%Gbar` operations, reducing matrix computation by 50%
+  - Functions `propU_L`, `propU_R`, `propT_L`, `propT_R` now use pure Gbar operations
+- **Modified `localU.f90`**:
+  - Removed redundant `Prop%Gr` operations from `LocalU_prop_L` and `LocalU_prop_R`
+  - Maintained `LocalU_metro` function unchanged (uses Gbar directly)
+- **Modified `local_sweep.f90`**:
+  - Removed compatibility assignment `Prop%Gr = Prop%Gbar + ZKRON`
+  - Equal-time observables use `Prop%Gbar + ZKRON` directly when needed
+- **Modified `globalK.f90`**:
+  - Replaced all `Prop%Gr` operations with `Prop%Gbar` operations
+  - Updated `ratioK_fermion` calls to properly handle Gbar-to-Gr conversion within loops
+  - Implemented correct update propagation: `Gr_temp = Prop%Gbar + ZKRON` → `ratioK_fermion(Gr_temp)` → `Prop%Gbar = Gr_temp - ZKRON`
+
+**PQMC Conversion Complete**: All propagator operations now use `Gbar = G - I` as the primary Green's function storage. When full Green's function `G` is needed, it's computed temporarily as `Gbar + I`. This completes the algorithmic transition from DQMC (Gr-based) to PQMC (Gbar-based) implementation.
 
 **Important**: Each stage must include testing/validation (manual in WSL) and documentation updates to CLAUDE.md, followed by git commits and GitHub synchronization

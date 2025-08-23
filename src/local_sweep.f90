@@ -86,7 +86,6 @@ contains
         if (Ltrot == 0) then
             ! Direct calculation for Ltrot == 0 case
             call stab_green(Prop%Gbar, Prop, 0)
-            Prop%Gr = Prop%Gbar + ZKRON
         else
             do nt = 1, Ltrot
                 if (abs(RU1) > Zero) call propU_pre(Op_U1, Prop, 1, nt)

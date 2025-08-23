@@ -8,7 +8,6 @@ module ProcessMatrix
         complex(kind=8), dimension(:,:), allocatable :: UUR  ! (Ndim, 1) - B(tau,0)P
         complex(kind=8), dimension(:,:), allocatable :: UUL  ! (1, Ndim) - P^dagger B(2theta,tau)
         complex(kind=8), dimension(:,:), allocatable :: Gbar ! (Ndim, Ndim) - stores G-I
-        complex(kind=8), dimension(:,:), allocatable :: Gr   ! (Ndim, Ndim) - temporary compatibility
         real(kind=8) :: Xmaxm, Xmeanm
     contains
         procedure :: make => Prop_make
@@ -39,11 +38,10 @@ contains
         class(Propagator), intent(inout) :: this
         class(Initial), intent(in) :: Init_obj
         allocate(this%UUR(Ndim, 1), this%UUL(1, Ndim))
-        allocate(this%Gbar(Ndim, Ndim), this%Gr(Ndim, Ndim))
+        allocate(this%Gbar(Ndim, Ndim))
         this%UUR = Init_obj%PR  ! Initialize with trial wave function
         this%UUL = Init_obj%PL  ! Initialize with trial wave function
         this%Gbar = dcmplx(0.d0, 0.d0)  ! Initialize Gbar = G - I = 0 at initial state
-        this%Gr = ZKRON  ! Initialize Gr = I for compatibility
         this%Xmaxm = 0.d0; this%Xmeanm = 0.d0
         return
     end subroutine Prop_make
@@ -54,14 +52,13 @@ contains
         this%UUL = that%UUL
         this%UUR = that%UUR
         this%Gbar = that%Gbar
-        this%Gr = that%Gr
         this%Xmaxm = that%Xmaxm; this%Xmeanm = that%Xmeanm
         return
     end subroutine Prop_assign
     
     subroutine Prop_clear(this)
         type(Propagator), intent(inout) :: this
-        deallocate(this%UUR, this%UUL, this%Gbar, this%Gr)
+        deallocate(this%UUR, this%UUL, this%Gbar)
         return
     end subroutine Prop_clear
     

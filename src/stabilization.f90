@@ -153,8 +153,6 @@ contains
             Gbar = dcmplx(0.d0, 0.d0)
             call stab_green(Gbar, Prop, nt)
             Prop%Gbar = Gbar
-            ! Update Gr for compatibility: Gr = Gbar + I
-            Prop%Gr = Gbar + ZKRON
         endif
         return
     end subroutine Wrap_pre
@@ -200,8 +198,6 @@ contains
             if (dif .ge. 5.5d-5) write(6,*) nt, dif, "left ortho unstable in RANK ", IRANK
             if (present(flag)) Prop%Xmeanm = Prop%Xmeanm + dif
             Prop%Gbar = Gbar
-            ! Update Gr for compatibility: Gr = Gbar + I
-            Prop%Gr = Gbar + ZKRON
         endif
         WrList%ULlist(1, 1:Ndim, nt_st) = Prop%UUL(1, 1:Ndim)
         return
@@ -248,8 +244,6 @@ contains
             if (dif .ge. 5.5d-5) write(6,*) nt, dif, "right ortho unstable in RANK ", IRANK
             if (present(flag)) Prop%Xmeanm = Prop%Xmeanm + dif
             Prop%Gbar = Gbar
-            ! Update Gr for compatibility: Gr = Gbar + I
-            Prop%Gr = Gbar + ZKRON
         endif
         WrList%URlist(1:Ndim, 1, nt_st) = Prop%UUR(1:Ndim, 1)
         return

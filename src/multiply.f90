@@ -21,8 +21,6 @@ contains
         integer, intent(in) :: nf, nt
         integer :: ii
         do ii = Ndim, 1, -1
-            call Op_U%mmult_L(Prop%Gr, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
-            call Op_U%mmult_R(Prop%Gr, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
             call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
             call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
         enddo
@@ -38,8 +36,6 @@ contains
         integer, intent(in) :: nf, nt
         integer :: ii
         do ii = 1, Ndim
-            call Op_U%mmult_R(Prop%Gr, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
-            call Op_U%mmult_L(Prop%Gr, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
             call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
             call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
         enddo
@@ -75,8 +71,6 @@ contains
     
     subroutine propT_L(Prop)
         class(Propagator), intent(inout) :: Prop
-        call Op_T%mmult_L(Prop%Gr, 1)
-        call Op_T%mmult_R(Prop%Gr, -1)
         call Op_T%mmult_L(Prop%Gbar, 1)
         call Op_T%mmult_R(Prop%Gbar, -1)
         call Op_T%mmult_L(Prop%UUL, 1)
@@ -85,8 +79,6 @@ contains
     
     subroutine propT_R(Prop)
         class(Propagator), intent(inout) :: Prop
-        call Op_T%mmult_R(Prop%Gr, 1)
-        call Op_T%mmult_L(Prop%Gr, -1)
         call Op_T%mmult_R(Prop%Gbar, 1)
         call Op_T%mmult_L(Prop%Gbar, -1)
         call Op_T%mmult_R(Prop%UUR, 1)

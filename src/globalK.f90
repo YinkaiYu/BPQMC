@@ -76,11 +76,12 @@ contains
         real(kind=8), dimension(Naux, Lq, Ltrot), intent(in) :: phi_new
         integer, intent(in) :: nt
         integer :: ii
+        complex(kind=8), dimension(Ndim, Ndim) :: Gr_temp
         do ii = Lq, 1, -1
-            ratio_fermion = ratio_fermion * ratioK_fermion(Prop%Gr, phi_new, ii, nt)
+            Gr_temp = Prop%Gbar + ZKRON  ! Create Gr from Gbar
+            ratio_fermion = ratio_fermion * ratioK_fermion(Gr_temp, phi_new, ii, nt)
+            Prop%Gbar = Gr_temp - ZKRON  ! Update Gbar from modified Gr
         enddo
-        call Op_U1%mmult_L(Prop%Gr, Latt, phi_new, nt, 1)
-        call Op_U1%mmult_R(Prop%Gr, Latt, phi_new, nt, -1)
         call Op_U1%mmult_L(Prop%Gbar, Latt, phi_new, nt, 1)
         call Op_U1%mmult_R(Prop%Gbar, Latt, phi_new, nt, -1)
         call Op_U1%mmult_L(Prop%UUL, Latt, phi_new, nt, 1)
@@ -93,12 +94,13 @@ contains
         real(kind=8), dimension(Naux, Lq, Ltrot), intent(in) :: phi_new
         integer, intent(in) :: nt
         integer :: ii
-        call Op_U1%mmult_R(Prop%Gr, Latt, Conf%phi_list, nt, 1)
-        call Op_U1%mmult_L(Prop%Gr, Latt, Conf%phi_list, nt, -1)
+        complex(kind=8), dimension(Ndim, Ndim) :: Gr_temp
         call Op_U1%mmult_R(Prop%Gbar, Latt, Conf%phi_list, nt, 1)
         call Op_U1%mmult_L(Prop%Gbar, Latt, Conf%phi_list, nt, -1)
         do ii = 1, Lq
-            ratio_fermion = ratio_fermion * ratioK_fermion(Prop%Gr, phi_new, ii, nt)
+            Gr_temp = Prop%Gbar + ZKRON  ! Create Gr from Gbar
+            ratio_fermion = ratio_fermion * ratioK_fermion(Gr_temp, phi_new, ii, nt)
+            Prop%Gbar = Gr_temp - ZKRON  ! Update Gbar from modified Gr
         enddo
         call Op_U1%mmult_R(Prop%UUR, Latt, phi_new, nt, 1)
         return

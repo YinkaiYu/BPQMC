@@ -84,8 +84,6 @@ contains
         integer :: ii
         do ii = Ndim, 1, -1
             call LocalU_metro(Op_U, Prop%Gbar, iseed, nf, ii, ntau)
-            call Op_U%mmult_L(Prop%Gr, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
-            call Op_U%mmult_R(Prop%Gr, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
             call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
             call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
         enddo
@@ -103,8 +101,6 @@ contains
         integer, intent(in) :: ntau, nf
         integer :: ii
         do ii = 1, Ndim
-            call Op_U%mmult_R(Prop%Gr, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
-            call Op_U%mmult_L(Prop%Gr, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
             call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
             call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
             call LocalU_metro(Op_U, Prop%Gbar, iseed, nf, ii, ntau)
