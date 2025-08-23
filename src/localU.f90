@@ -38,6 +38,7 @@ contains
         integer, intent(in) :: ii, ntau, nf
 !   Local: 
         real(kind=8), external :: ranf
+        external :: ZSCAL
         real(kind=8) :: phi_old, phi_new
         real(kind=8) :: xflip, Xdif, random
         real(kind=8) :: ratio_abs
@@ -65,7 +66,7 @@ contains
             ! PQMC Gbar update: Gbar' = (1+Δ)/r_b * Gbar
             ! Step 1: Apply (1+Δ_i) to row ii only
             one_plus_delta = dcmplx(1.d0,0.d0) + Op_U%Delta
-            call ZSCAL(Ndim, one_plus_delta, Gbar(ii,1:Ndim), 1)
+            call ZSCAL(Ndim, one_plus_delta, Gbar(ii,1), Ndim)
             
             ! Step 2: Apply factor 1/r_b to entire matrix
             call ZSCAL(Ndim*Ndim, dcmplx(1.d0,0.d0)/r_b, Gbar, 1)
