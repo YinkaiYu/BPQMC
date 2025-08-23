@@ -112,10 +112,21 @@ Future modifications will implement the program according to the README.md speci
   - Updated `Dyn_reset` to initialize PropGreen using `Prop%Gbar + ZKRON` instead of `Prop%Gr`
   - Maintains consistency with Gbar-based PQMC approach
 
+### Stage 5: Metropolis Algorithm Adaptation [COMPLETED]
+- **Modified `localU.f90`**:
+  - Replaced DQMC determinant ratio with PQMC Pfaffian-based acceptance ratio `[r_b]^{N_b}`
+  - Implemented `r_b = 1 + Δ_i/N_b * Gbar_{ii}` calculation using boson particle number Nbos
+  - Updated Gbar using two-step PQMC formula: `Gbar' = (1+Δ)/r_b * Gbar` with BLAS operations
+  - Modified function interface to use Gbar instead of Gr matrix
+  - Updated LocalU_prop_L and LocalU_prop_R function calls to pass Prop%Gbar
+  - Added CalcBasic module import for Nbos access
+  - Corrected acceptance probability to `|ratio_exp * ratio_Pfa|^2` with conjugate term
+- **Modified `readme.md`**:
+  - Added mathematical definition: `r_b = P†B(2θ,τ)(1+Δ)B(τ,0)P / P†B(2θ,τ)B(τ,0)P = 1 + Δ_i/N_b * Gbar_{ii}`
+  - Documented the relationship between matrix and scalar expressions for r_b
+
 ### Next Steps:
-- Stage 4: Gbar Integration - Gradually replace Gr usage with Gbar throughout the codebase [COMPLETED]
-- Stage 5: Metropolis Algorithm Adaptation - Modify LocalU_metro according to readme.md PQMC specifications  
-- Stage 6: Observable Calculation Adaptation - Rewrite obser_equal.f90 to use Gbar-based measurements
+- Stage 6: Observable Calculation Adaptation - Rewrite obser_equal.f90 to use Gbar-based measurements  
 - Stage 7: Sweep Flow Modification - Update local_sweep.f90 to calculate observables only at Ltrot/2 (middle imaginary time)
 - Stage 8: Gr Dependency Elimination - Remove all Gr dependencies, make Gbar the primary Green's function
 - Stage 9: Final Integration and Documentation - Complete PQMC conversion with comprehensive testing
