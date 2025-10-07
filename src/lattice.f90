@@ -103,31 +103,9 @@ contains
                     i  = Latt%inv_cell_list(ix, iy)
                     ii = Latt%inv_dim_list(i, no)
                     Latt%L_bonds(ii, 0) = ii
-                    if (no==1) then
-                        ! A --> B, C
-                        n1  = Latt%inv_cell_list( npbc(ix  , Nlx), npbc(iy+1, Nly) )
-                        nn1 = Latt%inv_dim_list(n1, 2)
-                        Latt%L_bonds(ii, 1) = nn1
-                        n2  = Latt%inv_cell_list( npbc(ix-1, Nlx), npbc(iy+1, Nly) )
-                        nn2 = Latt%inv_dim_list(n2, 3)
-                        Latt%L_bonds(ii, 2) = nn2
-                    elseif (no==2) then
-                        ! B --> C, A
-                        n1  = Latt%inv_cell_list( npbc(ix-1, Nlx), npbc(iy  , Nly) )
-                        nn1 = Latt%inv_dim_list(n1, 3)
-                        Latt%L_bonds(ii, 1) = nn1
-                        n2  = Latt%inv_cell_list( npbc(ix  , Nlx), npbc(iy  , Nly) )
-                        nn2 = Latt%inv_dim_list(n2, 1)
-                        Latt%L_bonds(ii, 2) = nn2
-                    elseif (no==3) then
-                        ! C --> A, B
-                        n1  = Latt%inv_cell_list( npbc(ix  , Nlx), npbc(iy  , Nly) )
-                        nn1 = Latt%inv_dim_list(n1, 1)
-                        Latt%L_bonds(ii, 1) = nn1
-                        n2  = Latt%inv_cell_list( npbc(ix  , Nlx), npbc(iy  , Nly) )
-                        nn2 = Latt%inv_dim_list(n2, 2)
-                        Latt%L_bonds(ii, 2) = nn2
-                    endif           
+                    Latt%L_bonds(ii, 1) = Latt%inv_dim_list(Latt%inv_cell_list( npbc(ix+1, Nlx), npbc(iy  , Nly) ),1)
+                    Latt%L_bonds(ii, 2) = Latt%inv_dim_list(Latt%inv_cell_list( npbc(ix  , Nlx), npbc(iy+1, Nly) ),1)
+                    Latt%L_bonds(ii, 3) = Latt%inv_dim_list(Latt%inv_cell_list( npbc(ix-1, Nlx), npbc(iy+1, Nly) ),1)
                 enddo
             enddo
         enddo
@@ -138,8 +116,9 @@ contains
                 Latt%LT_bonds(iit, 0) = iit
                 Latt%LT_bonds(iit, 1) = Latt%inv_dimt_list(Latt%L_bonds(ii, 1), nt)
                 Latt%LT_bonds(iit, 2) = Latt%inv_dimt_list(Latt%L_bonds(ii, 2), nt)
-                Latt%LT_bonds(iit, 3) = Latt%inv_dimt_list(ii, npbc(nt+1, Ltrot))
-                Latt%LT_bonds(iit, 4) = Latt%inv_dimt_list(ii, npbc(nt-1, Ltrot))
+                Latt%LT_bonds(iit, 3) = Latt%inv_dimt_list(Latt%L_bonds(ii, 3), nt)
+                Latt%LT_bonds(iit, 4) = Latt%inv_dimt_list(ii, npbc(nt+1, Ltrot))
+                Latt%LT_bonds(iit, 5) = Latt%inv_dimt_list(ii, npbc(nt-1, Ltrot))
             enddo
         enddo
 	    return
