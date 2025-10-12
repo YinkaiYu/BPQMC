@@ -15,12 +15,12 @@
 - `auto.sh`: Chain build → copy binary → submit SLURM job.
 
 ## Build, Run, and Development
-- Standard build: `cd src && make` → creates `src/bosonDQMC.out` (auto-detects MPI wrapper).
+- Standard build: `cd src && make` → creates `src/BPQMC.out` (auto-detects MPI wrapper).
 - Clean: `cd src && make clean`
 - Debug (Intel ifx via mpiifort):
   `cd src && make FC="mpiifort -fc=ifx" FFLAGS='-check all -traceback -c -I$(HOME)/Modules'`
 - Quick rebuild and deploy from `src/`: `cd src && ./auto.sh`
-- Local run (1 rank): `cd test && mpirun -np 1 ./bosonDQMC.out`
+- Local run (1 rank): `cd test && mpirun -np 1 ./BPQMC.out`
 - Submit to cluster: `cd test && sbatch dqmc`
 - Helper: `./auto.sh` (build → clean → copy to `test/` → submit).
 - Toolchain overrides: `make -C src HOME=/path/to/Lib_90_new`, `LDFLAGS='-lmkl'`, `SUFFIX='-heap-arrays -fopenmp'`.
@@ -28,11 +28,11 @@
 ## Build System Notes
 - Two-layer Makefile setup: top-level `Makefile` selects compilers/dependencies, inner `Compile` performs the Fortran builds.
 - Automatically detects MPI Fortran wrappers (`mpiifort`, `mpiifx`, `mpifort`, `mpif90`, `gfortran`) and links modules from `/home/*/Lib_90_new/`.
-- Output executable is `bosonDQMC.out`; auxiliary scripts copy it into `test/` for runs.
+- Output executable is `BPQMC.out`; auxiliary scripts copy it into `test/` for runs.
 
 ## Execution Environment
 - `test/` directory holds SLURM job script `dqmc` plus runtime inputs (`confin.txt`, `paramC_sets.txt`, `seeds.txt`).
-- Run MPI jobs with `mpirun -np N ./bosonDQMC.out` (N processes) or via SLURM submission.
+- Run MPI jobs with `mpirun -np N ./BPQMC.out` (N processes) or via SLURM submission.
 - Generated observables and logs should remain inside `test/` unless explicitly archived.
 
 ## Coding Style & Naming

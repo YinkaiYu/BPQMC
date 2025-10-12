@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build Commands
 
-- **Build executable**: `cd src && make` - Compiles the Fortran source files into `bosonDQMC.out`
+- **Build executable**: `cd src && make` - Compiles the Fortran source files into `BPQMC.out`
 - **Debug build with Intel compiler**: `cd src && make FC="mpiifort -fc=ifx" FFLAGS='-check all -traceback -c -I$(HOME)/Modules'` - Compiles with runtime checks and traceback for debugging
 - **Clean build artifacts**: `cd src && make clean` - Removes object files
 - **Full build and deploy**: `./auto.sh` - Builds, cleans, copies executable to test directory, and submits SLURM job
@@ -41,12 +41,12 @@ This is a Bosonic Projector Quantum Monte Carlo (BPQMC) implementation written i
 - Uses a two-layer Makefile system: outer `Makefile` handles compiler detection and dependency setup, inner `Compile` handles actual compilation
 - Automatically detects MPI Fortran wrappers (mpiifort, mpiifx, mpifort, mpif90, gfortran)
 - Links against external libraries in `/home/*/Lib_90_new/` for modules, numerical routines, and random number generation
-- Produces `bosonDQMC.out` executable
+- Produces `BPQMC.out` executable
 
 ### Execution Environment
 
 - **Test Directory**: Contains SLURM job script (`dqmc`) and configuration files
-- **MPI Execution**: Run via `mpirun -np N ./bosonDQMC.out` where N is number of processes
+- **MPI Execution**: Run via `mpirun -np N ./BPQMC.out` where N is number of processes
 - **Configuration**: Uses `confin.txt`, `paramC_sets.txt`, and `seeds.txt` for simulation parameters
 
 ### Key Features
