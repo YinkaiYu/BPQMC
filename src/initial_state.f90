@@ -48,23 +48,24 @@ contains
         return
     end subroutine initial_clear
     
-    subroutine initial_set(this, Latt)
+    subroutine initial_set(this, Latt, iseed)
         ! Set up initial state wave function by diagonalizing non-interacting Hamiltonian
         class(Initial), intent(inout) :: this
         class(kagomeLattice), intent(in) :: Latt
+        integer, intent(inout) :: iseed
         
         ! Local variables
-        complex(kind=8), dimension(Ndim, Ndim) :: HamT, eigvecs
+        complex(kind=8), dimension(Ndim, Ndim) :: HamT_initial, eigvecs
         real(kind=8), dimension(Ndim) :: eigvals
         integer :: i
         
         ! Build non-interacting Hamiltonian using existing function
-        call def_hamT_initial(HamT, Latt)
+        call def_hamT_initial(HamT_initial, Latt, iseed)
         
         ! Diagonalize Hamiltonian to get eigenvalues and eigenvectors
         ! Note: diag returns eigenvalues sorted from smallest to largest
         ! and eigenvectors are orthonormal by default
-        call diag(HamT, eigvecs, eigvals)
+        call diag(HamT_initial, eigvecs, eigvals)
         
         ! Ground state energy (first eigenvalue)
         this%energy_ground = eigvals(1)
@@ -98,13 +99,29 @@ contains
         return
     end subroutine initial_set
     
-    subroutine def_hamT_initial(HamT, Latt)
+    subroutine def_hamT_initial(HamT_initial, Latt, iseed)
         ! Define non-interacting Hamiltonian for initial state
         ! This calls the existing def_hamT function from NonInteract module
-        complex(kind=8), dimension(Ndim, Ndim), intent(inout) :: HamT
+        complex(kind=8), dimension(Ndim, Ndim), intent(inout) :: HamT_initial
         class(kagomeLattice), intent(in) :: Latt
+        integer, intent(inout) :: iseed
+        real(kind=8), external :: ranf
+        real(kind=8) :: twist_val
+        integer :: ii
         
-        call def_hamT(HamT, Latt)
+        call def_hamT(HamT_initial, Latt)
+        
+        select case (iniHam)
+        case (1)
+            do ii = 1, Ndim
+                twist_val = (ranf(iseed) - 0.5d0) * 2.d0 * iniTwist
+                HamT_initial(ii, ii) = HamT_initial(ii, ii) + dcmplx(twist_val, 0.d0)
+            enddo
+        case (0)
+            ! no twist
+        case default
+            ! Future modes can be added here
+        end select
         
         return
     end subroutine def_hamT_initial

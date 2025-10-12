@@ -1,10 +1,11 @@
--1.0        1.0         18
-6           6           10          1.0
-6           6           10 
-5           2           1           5.0
+-1.0        1.0         9
+3           3           900         9.0
+3           3           900
+5           2           10          5.0
 .false.     0    
 .false.     500         1.0         1.0
-2           5.0         0.0         0.0
+2           0.1         0.0         0.0         
+0           0.0001
 
 RU1         RU2         Nbos
 Nlx         Nly         Ltrot       Beta
@@ -12,4 +13,5 @@ NlxTherm    NlyTherm    LtrotTherm
 Nwrap       Nbin        Nsweep      shiftLoc
 is_tau      Nthermal
 is_warm     Nwarm       shiftWarm1  shiftWarm2
-iniType     iniAmpl     iniBias1    iniBias2
+iniType     iniAmpl     iniBias1    iniBias2    
+iniHam      iniTwist

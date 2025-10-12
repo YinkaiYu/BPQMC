@@ -29,6 +29,8 @@ module CalcBasic ! Global parameters
     integer,                public              :: iniType ! type of initial phonon field configuration
     real(kind=8),           public              :: iniAmpl ! Gaussian amplitude of initial phonon fields
     real(kind=8),           public              :: iniBias(Naux) ! initial phonon field balance position
+    integer,                public              :: iniHam  ! initial Hamiltonian twist mode
+    real(kind=8),           public              :: iniTwist ! twist amplitude for initial Hamiltonian
 ! process control parameters
     logical,                    public          :: is_tau ! whether to calculate time-sliced Green function
     integer,                    public          :: Nthermal ! calculate time-sliced Green function from the (Nthermal + 1)-th bin
@@ -54,6 +56,7 @@ contains
             read(20,*) is_warm, Nwarm, shiftWarm(1), shiftWarm(2)
             ! read(20,*) is_global, Nglobal, shiftGlb(1), shiftGlb(2)
             read(20,*) iniType, iniAmpl, iniBias(1), iniBias(2)
+            read(20,*) iniHam, iniTwist
             close(20)
         endif 
 !   MPI process: parallelization
@@ -67,6 +70,8 @@ contains
         call MPI_BCAST(iniAmpl, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(iniBias, Naux, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(iniType, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(iniHam, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(iniTwist, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nlx, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nly, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Ltrot, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
@@ -155,6 +160,8 @@ contains
             endif
             write(50,*) 'Choosing initial distribution type             :', iniType
             write(50,*) 'Magnitude of Gaussian distribution             :', iniAmpl
+            write(50,*) 'Initial Hamiltonian mode (0=none,1=twist,...)  :', iniHam
+            write(50,*) 'Initial Hamiltonian twist amplitude            :', iniTwist
             write(50,*) 'Beta                                           :', Beta
             write(50,*) 'Trotter number                                 :', Ltrot
             write(50,*) '=>Dtau                                         :', Dtau
