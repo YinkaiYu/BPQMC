@@ -138,7 +138,10 @@ contains
         do i = 1, Lq
             do j = 1, Lq
                 imj = Latt%imj(i, j)
-                this%C3breaking = this%C3breaking + real( 4*den_corr(imj,1,1) + den_corr(imj,2,2) + den_corr(imj,3,3) - 2*den_corr(imj,1,2) - 2*den_corr(imj,2,1) - 2*den_corr(imj,1,3) - 2*den_corr(imj,3,1) + den_corr(imj,2,3) + den_corr(imj,3,2) )
+                this%C3breaking = this%C3breaking + real( &
+                    & 4*this%den_corr(imj,1,1) + this%den_corr(imj,2,2) + this%den_corr(imj,3,3) &
+                    & - 2*this%den_corr(imj,1,2) - 2*this%den_corr(imj,2,1) - 2*this%den_corr(imj,1,3) - 2*this%den_corr(imj,3,1) &
+                    & + this%den_corr(imj,2,3) + this%den_corr(imj,3,2) )
             enddo
         enddo
 

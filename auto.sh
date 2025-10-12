@@ -1,1 +1,1 @@
-cd src && make && make clean && cp *.out ../test/ && cd ../test/ && mpirun -np 1 ./BPQMC.out && cd ../
+cd src && make && make clean && cp *.out ../test/ && cd ../test/ && sbatch dqmc && cd ../
