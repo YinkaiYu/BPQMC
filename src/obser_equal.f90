@@ -96,7 +96,7 @@ contains
         do ii = 1, Ndim
             this%density_up = this%density_up + real( Grupc(ii,ii) ) / dble(Lq)
             this%density_do = this%density_do + real( Grdoc(ii,ii) ) / dble(Lq)
-            this%doubleOcc  = this%doubleOcc  + GGfactor * real( Grupc(ii,ii) * Grdoc(ii,ii) ) / dble(Lq)
+            this%doubleOcc  = this%doubleOcc  + real( Grupc(ii,ii) * Grdoc(ii,ii) ) / dble(Lq)
             this%squareOcc  = this%squareOcc  + ( GGfactor * real( Grupc(ii,ii) * Grupc(ii,ii) + Grdoc(ii,ii) * Grdoc(ii,ii) ) + real( Grupc(ii,ii) + Grdoc(ii,ii) ) ) / dble(Lq)
             this%num_up = this%num_up + real( Grupc(ii,ii) ) 
             this%num_do = this%num_do + real( Grdoc(ii,ii) ) 
@@ -122,13 +122,13 @@ contains
                         jj = Latt%inv_dim_list(j, no2)
                         this%den_corr_up(imj, no1, no2) = this%den_corr_up(imj, no1, no2) + GGfactor * Grupc(ii,ii) * Grupc(jj,jj)  / dcmplx(dble(Lq), 0.d0)
                         this%den_corr_do(imj, no1, no2) = this%den_corr_do(imj, no1, no2) + GGfactor * Grdoc(ii,ii) * Grdoc(jj,jj)  / dcmplx(dble(Lq), 0.d0)
-                        this%den_corr(imj, no1, no2) = this%den_corr(imj, no1, no2) + GGfactor * ( Grupc(ii,ii)*Grupc(jj,jj) + Grupc(ii,ii)*Grdoc(jj,jj) + Grdoc(ii,ii)*Grupc(jj,jj) + Grdoc(ii,ii)*Grdoc(jj,jj) )  / dcmplx(dble(Lq), 0.d0)
+                        this%den_corr(imj, no1, no2) = this%den_corr(imj, no1, no2) + GGfactor * ( Grupc(ii,ii)*Grupc(jj,jj) + Grdoc(ii,ii)*Grdoc(jj,jj) ) + ( Grupc(ii,ii)*Grdoc(jj,jj) + Grdoc(ii,ii)*Grupc(jj,jj) )  / dcmplx(dble(Lq), 0.d0)
                         if (ii .ne. jj) then
                             this%den_corr_up(imj, no1, no2) = this%den_corr_up(imj, no1, no2) + Grupc(ii,ii) / dcmplx(dble(Lq), 0.d0)
                             this%den_corr_do(imj, no1, no2) = this%den_corr_do(imj, no1, no2) + Grdoc(ii,ii) / dcmplx(dble(Lq), 0.d0)
                             this%den_corr(imj, no1, no2) = this%den_corr(imj, no1, no2) + ( Grupc(ii,ii) + Grdoc(ii,ii) ) / dcmplx(dble(Lq), 0.d0)
                         endif
-                        this%den_corr_updo(imj) = this%den_corr_updo(imj) + GGfactor * Grupc(ii,ii) * Grdoc(jj,jj) / dcmplx(dble(Lq), 0.d0)
+                        this%den_corr_updo(imj) = this%den_corr_updo(imj) + Grupc(ii,ii) * Grdoc(jj,jj) / dcmplx(dble(Lq), 0.d0)
                         this%single_corr(imj, no1, no2) = this%single_corr(imj, no1, no2) + Grupc(ii,jj) / dcmplx(dble(Lq), 0.d0)
                     enddo
                 enddo
