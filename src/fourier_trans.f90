@@ -316,6 +316,10 @@ contains
         open(unit=80, file='numsquare_do', status='unknown', action="write", position="append")
         write(80,*) Obs%numsquare_do
         close(80)
+            
+        open(unit=80, file='C3breaking', status='unknown', action="write", position="append")
+        write(80,*) Obs%C3breaking
+        close(80)
 
         call Fourier_R_to_K(Obs%den_corr_up, correlation_up, Latt)
         call Fourier_R_to_K(Obs%den_corr_do, correlation_do, Latt)
@@ -390,6 +394,10 @@ contains
         Collect0 = 0.d0
         call MPI_REDUCE(Obs%numsquare_do, Collect0, 1, MPI_real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
         if (IRANK == 0) Obs%numsquare_do = Collect0/dble(ISIZE)
+
+        Collect0 = 0.d0
+        call MPI_REDUCE(Obs%C3breaking, Collect0, 1, MPI_real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
+        if (IRANK == 0) Obs%C3breaking = Collect0/dble(ISIZE)
 
         N = Lq * Norb * Norb
 
