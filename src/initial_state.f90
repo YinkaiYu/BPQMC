@@ -107,20 +107,29 @@ contains
         integer, intent(inout) :: iseed
         real(kind=8), external :: ranf
         real(kind=8) :: twist_val
-        integer :: ii
+        integer :: ii, jj, nb
         
         call def_hamT(HamT_initial, Latt)
         
         select case (iniHam)
-        case (1)
+        case (2) ! twist with random hopping
+            do ii = 1, Ndim
+                do nb = 1, Nbond
+                    jj = Latt%L_bonds(ii, nb)
+                    twist_val = (ranf(iseed) - 0.5d0) * 2.d0 * iniTwist
+                    HamT_initial(ii,jj) = HamT_initial(ii,jj) + dcmplx(twist_val, 0.d0)
+                    HamT_initial(jj,ii) = HamT_initial(jj,ii) + dcmplx(twist_val, 0.d0)
+                enddo
+            enddo
+        case (1) ! twist with random chemical potential
             do ii = 1, Ndim
                 twist_val = (ranf(iseed) - 0.5d0) * 2.d0 * iniTwist
                 HamT_initial(ii, ii) = HamT_initial(ii, ii) + dcmplx(twist_val, 0.d0)
             enddo
-        case (0)
-            ! no twist
-        case default
-            ! Future modes can be added here
+        case (0) ! no twist
+
+        case default ! Future modes can be added here
+
         end select
         
         return
