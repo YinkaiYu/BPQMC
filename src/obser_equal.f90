@@ -4,7 +4,7 @@ module ObserEqual_mod
     implicit none
     
     type, public :: ObserEqual
-        complex(kind=8), dimension(:,:,:), allocatable  :: den_corr_up, den_corr_do, single_corr, den_corr
+        complex(kind=8), dimension(:,:,:), allocatable  :: den_corr_up, den_corr_do, single_corr
         complex(kind=8), dimension(:), allocatable      :: den_corr_updo
         real(kind=8)                                    :: density_up,  density_do
         real(kind=8)                                    :: kinetic, doubleOcc, squareOcc
@@ -21,13 +21,13 @@ module ObserEqual_mod
 contains
     subroutine Obs_equal_make(this)
         class(ObserEqual), intent(inout) :: this
-        allocate( this%den_corr_up(Lq, Norb, Norb), this%den_corr_do(Lq, Norb, Norb), this%den_corr(Lq, Norb, Norb), this%single_corr(Lq, Norb, Norb), this%den_corr_updo(Lq) )
+        allocate( this%den_corr_up(Lq, Norb, Norb), this%den_corr_do(Lq, Norb, Norb), this%single_corr(Lq, Norb, Norb), this%den_corr_updo(Lq) )
         return
     end subroutine Obs_equal_make
     
     subroutine Obs_equal_clear(this)
         type(ObserEqual), intent(inout) :: this
-        deallocate( this%den_corr_up, this%den_corr_do, this%den_corr, this%single_corr, this%den_corr_updo )
+        deallocate( this%den_corr_up, this%den_corr_do, this%single_corr, this%den_corr_updo )
         return
     end subroutine Obs_equal_clear
     
@@ -35,7 +35,6 @@ contains
         class(ObserEqual), intent(inout) :: this
         this%den_corr_up   = dcmplx(0.d0,0.d0)
         this%den_corr_do   = dcmplx(0.d0,0.d0)
-        this%den_corr      = dcmplx(0.d0,0.d0)
         this%single_corr   = dcmplx(0.d0,0.d0)
         this%den_corr_updo = dcmplx(0.d0,0.d0)
         this%density_up  = 0.d0
@@ -58,7 +57,6 @@ contains
         znorm = 1.d0 / dble(Nobs)
         this%den_corr_up = this%den_corr_up * znorm
         this%den_corr_do = this%den_corr_do * znorm
-        this%den_corr    = this%den_corr    * znorm
         this%single_corr = this%single_corr * znorm
         this%density_up  = this%density_up  * znorm
         this%density_do  = this%density_do  * znorm
@@ -84,6 +82,7 @@ contains
         complex(kind=8), dimension(Ndim, Ndim) :: Grdoc, Grdo
         integer :: i, j, no1, no2, ii, jj, imj, nb, no
         real(kind=8) :: GGfactor
+        complex(kind=8) :: den_corr(Lq, Norb, Norb)
         
         Grup    = Prop%Gbar + ZKRON                 !   Gr(i, j)    = <b_i b^+_j > = Gbar + I  
         Grupc   = transpose(Prop%Gbar)              !   Grc(i, j)   = <b^+_i b_j > = transpose(Gbar)
@@ -92,6 +91,7 @@ contains
         Grdoc   = dconjg(transpose(Prop%Gbar))      !   Grc(i, j)   = <c^+_i c_j > = conjg(transpose(Gbar))
 
         GGfactor = dble(Nbos-1) / dble(Nbos)
+        den_corr = dcmplx(0.d0, 0.d0)
         
         do ii = 1, Ndim
             this%density_up = this%density_up + real( Grupc(ii,ii) ) / dble(Lq)
@@ -106,7 +106,7 @@ contains
             do jj = 1, Ndim
                 this%numsquare_up = this%numsquare_up + GGfactor * real( Grupc(ii,ii) * Grupc(jj,jj) )
                 this%numsquare_do = this%numsquare_do + GGfactor * real( Grdoc(ii,ii) * Grdoc(jj,jj) )
-                if (ii .ne. jj) then
+                if (ii==jj) then
                     this%numsquare_up = this%numsquare_up + real( Grupc(ii,ii) )
                     this%numsquare_do = this%numsquare_do + real( Grdoc(ii,ii) )
                 endif
@@ -122,11 +122,11 @@ contains
                         jj = Latt%inv_dim_list(j, no2)
                         this%den_corr_up(imj, no1, no2) = this%den_corr_up(imj, no1, no2) + GGfactor * Grupc(ii,ii) * Grupc(jj,jj)  / dcmplx(dble(Lq), 0.d0)
                         this%den_corr_do(imj, no1, no2) = this%den_corr_do(imj, no1, no2) + GGfactor * Grdoc(ii,ii) * Grdoc(jj,jj)  / dcmplx(dble(Lq), 0.d0)
-                        this%den_corr(imj, no1, no2) = this%den_corr(imj, no1, no2) + GGfactor * ( Grupc(ii,ii)*Grupc(jj,jj) + Grdoc(ii,ii)*Grdoc(jj,jj) ) + ( Grupc(ii,ii)*Grdoc(jj,jj) + Grdoc(ii,ii)*Grupc(jj,jj) )  / dcmplx(dble(Lq), 0.d0)
-                        if (ii .ne. jj) then
+                        den_corr(imj, no1, no2) = den_corr(imj, no1, no2) + GGfactor * ( Grupc(ii,ii)*Grupc(jj,jj) + Grdoc(ii,ii)*Grdoc(jj,jj) ) + ( Grupc(ii,ii)*Grdoc(jj,jj) + Grdoc(ii,ii)*Grupc(jj,jj) )  / dcmplx(dble(Lq), 0.d0)
+                        if (ii==jj) then
                             this%den_corr_up(imj, no1, no2) = this%den_corr_up(imj, no1, no2) + Grupc(ii,ii) / dcmplx(dble(Lq), 0.d0)
                             this%den_corr_do(imj, no1, no2) = this%den_corr_do(imj, no1, no2) + Grdoc(ii,ii) / dcmplx(dble(Lq), 0.d0)
-                            this%den_corr(imj, no1, no2) = this%den_corr(imj, no1, no2) + ( Grupc(ii,ii) + Grdoc(ii,ii) ) / dcmplx(dble(Lq), 0.d0)
+                            den_corr(imj, no1, no2) = den_corr(imj, no1, no2) + ( Grupc(ii,ii) + Grdoc(ii,ii) ) / dcmplx(dble(Lq), 0.d0)
                         endif
                         this%den_corr_updo(imj) = this%den_corr_updo(imj) + Grupc(ii,ii) * Grdoc(jj,jj) / dcmplx(dble(Lq), 0.d0)
                         this%single_corr(imj, no1, no2) = this%single_corr(imj, no1, no2) + Grupc(ii,jj) / dcmplx(dble(Lq), 0.d0)
@@ -135,14 +135,11 @@ contains
             enddo
         enddo
 
-        do i = 1, Lq
-            do j = 1, Lq
-                imj = Latt%imj(i, j)
-                this%C3breaking = this%C3breaking + real( &
-                    & 4*this%den_corr(imj,1,1) + this%den_corr(imj,2,2) + this%den_corr(imj,3,3) &
-                    & - 2*this%den_corr(imj,1,2) - 2*this%den_corr(imj,2,1) - 2*this%den_corr(imj,1,3) - 2*this%den_corr(imj,3,1) &
-                    & + this%den_corr(imj,2,3) + this%den_corr(imj,3,2) )
-            enddo
+        do imj = 1, Lq
+            this%C3breaking = this%C3breaking + real( &
+                & 4*den_corr(imj,1,1) + den_corr(imj,2,2) + den_corr(imj,3,3) &
+                & - 2*den_corr(imj,1,2) - 2*den_corr(imj,2,1) - 2*den_corr(imj,1,3) - 2*den_corr(imj,3,1) &
+                & + den_corr(imj,2,3) + den_corr(imj,3,2) )
         enddo
 
         do ii = 1, Ndim

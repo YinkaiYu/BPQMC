@@ -36,7 +36,7 @@ contains
         class(kagomeLattice), intent(in) :: Latt
 ! Local: 
         complex(kind=8) :: Z
-        integer :: ii, jj, nb
+        integer :: ii, jj, nb, no
 ! integer :: i, j
         
         HamT = dcmplx(0.d0, 0.d0)
@@ -50,6 +50,15 @@ contains
             enddo
         enddo
 
+! add chemical potential bias
+        if ( abs(imbalance)>Zero ) then
+            do ii = 1, Ndim
+                no = Latt%dim_list(ii,2)
+                if (no==1) HamT(ii,ii) = HamT(ii,ii) + dcmplx(-imbalance, 0.d0)
+                ! if (no==2) HamT(ii,ii) = HamT(ii,ii) + dcmplx( 0.d0, 0.d0)
+                if (no==3) HamT(ii,ii) = HamT(ii,ii) + dcmplx( imbalance, 0.d0)
+            enddo
+        endif
 
 ! write(6,*) 'HamT'
 ! write(6, "(A)", advance="no") '        '  

@@ -20,6 +20,7 @@ module CalcBasic ! Global parameters
     real(kind=8),           public,     save    :: RT
     real(kind=8),           public,     save    :: RU1, RU2
     integer,                public,     save    :: Nbos
+    real(kind=8),           public,     save    :: imbalance ! chemical potential imbalance 
 ! update parameters
     real(kind=8),           public              :: shiftLoc
     ! logical,                public              :: is_global ! global update switch: Wolff-shift joint update
@@ -48,7 +49,7 @@ contains
         include 'mpif.h'
         if (IRANK == 0) then
             open(unit=20, file='paramC_sets.txt', status='unknown')
-            read(20,*) RU1, RU2, Nbos
+            read(20,*) RT, RU1, RU2, Nbos
             read(20,*) Nlx, Nly, Ltrot, Beta
             read(20,*) NlxTherm, NlyTherm, LtrotTherm
             read(20,*) Nwrap, Nbin, Nsweep, shiftLoc
@@ -56,11 +57,12 @@ contains
             read(20,*) is_warm, Nwarm, shiftWarm(1), shiftWarm(2)
             ! read(20,*) is_global, Nglobal, shiftGlb(1), shiftGlb(2)
             read(20,*) iniType, iniAmpl, iniBias(1), iniBias(2)
-            read(20,*) iniHam, iniTwist
+            read(20,*) iniHam, iniTwist, imbalance
             close(20)
         endif 
 !   MPI process: parallelization
         call MPI_BCAST(Beta, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(RT, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(RU1, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(RU2, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nbos, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
@@ -72,6 +74,7 @@ contains
         call MPI_BCAST(iniType, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(iniHam, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(iniTwist, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(imbalance, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nlx, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nly, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Ltrot, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
@@ -91,7 +94,6 @@ contains
     end subroutine read_input
     
     subroutine Params_set()
-        RT = 1.d0 
         Lq = Nlx * Nly
         LqTherm = NlxTherm * NlyTherm
         Dtau = Beta / dble(Ltrot)
@@ -162,6 +164,7 @@ contains
             write(50,*) 'Magnitude of Gaussian distribution             :', iniAmpl
             write(50,*) 'Initial Hamiltonian mode (0=none,1=twist,...)  :', iniHam
             write(50,*) 'Initial Hamiltonian twist amplitude            :', iniTwist
+            write(50,*) 'Hamiltonian chemical potential imbalance       :', imbalance
             write(50,*) 'Beta                                           :', Beta
             write(50,*) 'Trotter number                                 :', Ltrot
             write(50,*) '=>Dtau                                         :', Dtau

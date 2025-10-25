@@ -107,12 +107,28 @@ contains
         integer, intent(inout) :: iseed
         real(kind=8), external :: ranf
         real(kind=8) :: twist_val
-        integer :: ii, jj, nb
-        
-        call def_hamT(HamT_initial, Latt)
+        complex(kind=8) :: Z
+        integer :: ii, jj, nb, no
         
         select case (iniHam)
+        case (3) ! twist with chemical potential bias
+            HamT_initial = dcmplx(0.d0, 0.d0)
+            Z = dcmplx( RT, 0.d0) 
+            do ii = 1, Ndim
+                do nb = 1, Nbond
+                    jj = Latt%L_bonds(ii, nb)
+                    HamT_initial(ii,jj) = HamT_initial(ii,jj) + Z
+                    HamT_initial(jj,ii) = HamT_initial(jj,ii) + dconjg(Z)
+                enddo
+            enddo
+            do ii = 1, Ndim
+                no = Latt%dim_list(ii,2)
+                if (no==1) HamT_initial(ii,ii) = HamT_initial(ii,ii) + dcmplx(-iniTwist, 0.d0)
+                ! if (no==2) HamT_initial(ii,ii) = HamT_initial(ii,ii) + dcmplx( 0.d0, 0.d0)
+                if (no==3) HamT_initial(ii,ii) = HamT_initial(ii,ii) + dcmplx( iniTwist, 0.d0)
+            enddo
         case (2) ! twist with random hopping
+            call def_hamT(HamT_initial, Latt)
             do ii = 1, Ndim
                 do nb = 1, Nbond
                     jj = Latt%L_bonds(ii, nb)
@@ -122,14 +138,20 @@ contains
                 enddo
             enddo
         case (1) ! twist with random chemical potential
+            call def_hamT(HamT_initial, Latt)
             do ii = 1, Ndim
                 twist_val = (ranf(iseed) - 0.5d0) * 2.d0 * iniTwist
                 HamT_initial(ii, ii) = HamT_initial(ii, ii) + dcmplx(twist_val, 0.d0)
             enddo
         case (0) ! no twist
-
-        case default ! Future modes can be added here
-
+            call def_hamT(HamT_initial, Latt)
+        case (-1) ! all on A sites
+            HamT_initial = dcmplx(0.d0, 0.d0)
+            do ii = 1, Ndim
+                if (Latt%dim_list(ii,2)==1) HamT_initial(ii, ii) = dcmplx(-1.d0, 0.d0)
+            enddo
+        case default
+            call def_hamT(HamT_initial, Latt)
         end select
         
         return
