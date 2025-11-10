@@ -6,10 +6,13 @@ module ObserEqual_mod
     type, public :: ObserEqual
         complex(kind=8), dimension(:,:,:), allocatable  :: den_corr_up, den_corr_do, single_corr
         complex(kind=8), dimension(:), allocatable      :: den_corr_updo
+        complex(kind=8), dimension(:), allocatable      :: SF_corr_up, SF_corr_do
+        complex(kind=8), dimension(:), allocatable      :: PF_corr
+        complex(kind=8), dimension(:), allocatable      :: C3_corr
         real(kind=8)                                    :: density_up,  density_do
         real(kind=8)                                    :: kinetic, doubleOcc, squareOcc
         real(kind=8)                                    :: num_up, num_do, numsquare_up, numsquare_do
-        real(kind=8)                                    :: C3breaking
+        real(kind=8)                                    :: C3breaking, C3breaking_up, C3breaking_do
     contains
         procedure :: make   => Obs_equal_make
         procedure :: reset  => Obs_equal_reset
@@ -22,12 +25,14 @@ contains
     subroutine Obs_equal_make(this)
         class(ObserEqual), intent(inout) :: this
         allocate( this%den_corr_up(Lq, Norb, Norb), this%den_corr_do(Lq, Norb, Norb), this%single_corr(Lq, Norb, Norb), this%den_corr_updo(Lq) )
+        allocate( this%SF_corr_up(Lq), this%SF_corr_do(Lq), this%PF_corr(Lq), this%C3_corr(Lq) )
         return
     end subroutine Obs_equal_make
     
     subroutine Obs_equal_clear(this)
         type(ObserEqual), intent(inout) :: this
         deallocate( this%den_corr_up, this%den_corr_do, this%single_corr, this%den_corr_updo )
+        deallocate( this%SF_corr_up, this%SF_corr_do, this%PF_corr, this%C3_corr )
         return
     end subroutine Obs_equal_clear
     
@@ -37,6 +42,10 @@ contains
         this%den_corr_do   = dcmplx(0.d0,0.d0)
         this%single_corr   = dcmplx(0.d0,0.d0)
         this%den_corr_updo = dcmplx(0.d0,0.d0)
+        this%SF_corr_up   = dcmplx(0.d0,0.d0)
+        this%SF_corr_do   = dcmplx(0.d0,0.d0)
+        this%PF_corr      = dcmplx(0.d0,0.d0)
+        this%C3_corr     = dcmplx(0.d0,0.d0)
         this%density_up  = 0.d0
         this%density_do  = 0.d0
         this%kinetic     = 0.d0
@@ -47,6 +56,8 @@ contains
         this%numsquare_up = 0.d0
         this%numsquare_do = 0.d0
         this%C3breaking  = 0.d0
+        this%C3breaking_up  = 0.d0
+        this%C3breaking_do  = 0.d0
         return
     end subroutine Obs_equal_reset
     
@@ -58,6 +69,10 @@ contains
         this%den_corr_up = this%den_corr_up * znorm
         this%den_corr_do = this%den_corr_do * znorm
         this%single_corr = this%single_corr * znorm
+        this%SF_corr_up  = this%SF_corr_up  * znorm
+        this%SF_corr_do  = this%SF_corr_do  * znorm
+        this%PF_corr     = this%PF_corr     * znorm
+        this%C3_corr     = this%C3_corr     * znorm
         this%density_up  = this%density_up  * znorm
         this%density_do  = this%density_do  * znorm
         this%kinetic     = this%kinetic     * znorm
@@ -69,6 +84,8 @@ contains
         this%numsquare_up = this%numsquare_up * znorm
         this%numsquare_do = this%numsquare_do * znorm
         this%C3breaking = this%C3breaking * znorm
+        this%C3breaking_up = this%C3breaking_up * znorm
+        this%C3breaking_do = this%C3breaking_do * znorm
         return
     end subroutine Obs_equal_ave
     
@@ -80,9 +97,12 @@ contains
 ! Local: 
         complex(kind=8), dimension(Ndim, Ndim) :: Grupc, Grup
         complex(kind=8), dimension(Ndim, Ndim) :: Grdoc, Grdo
+        complex(kind=8), dimension(Ndim) :: PL1, PL2, PR1, PR2
+        complex(kind=8) :: overlap1, overlap2, alpha1, alpha2, beta1, beta2
         integer :: i, j, no1, no2, ii, jj, imj, nb, no
-        real(kind=8) :: GGfactor
-        complex(kind=8) :: den_corr(Lq, Norb, Norb)
+        real(kind=8) :: GGfactor, num_per_site, num_per_cell
+        complex(kind=8) :: den_temp(Lq, Norb, Norb), den_temp_up(Lq, Norb, Norb), den_temp_do(Lq, Norb, Norb)
+        complex(kind=8), external :: ZDOTU
         
         Grup    = Prop%Gbar + ZKRON                 !   Gr(i, j)    = <b_i b^+_j > = Gbar + I  
         Grupc   = transpose(Prop%Gbar)              !   Grc(i, j)   = <b^+_i b_j > = transpose(Gbar)
@@ -91,7 +111,22 @@ contains
         Grdoc   = dconjg(transpose(Prop%Gbar))      !   Grc(i, j)   = <c^+_i c_j > = conjg(transpose(Gbar))
 
         GGfactor = dble(Nbos-1) / dble(Nbos)
-        den_corr = dcmplx(0.d0, 0.d0)
+        num_per_cell = dble(Nbos) / dble(Lq)
+        num_per_site = dble(Nbos) / dble(Norb*Lq)
+        den_temp = dcmplx(0.d0, 0.d0)
+        den_temp_up = dcmplx(0.d0, 0.d0)
+        den_temp_do = dcmplx(0.d0, 0.d0)
+
+        PR1 = Prop%UUR(1:Ndim, 1)
+        PL1 = Prop%UUL(1, 1:Ndim)
+        PR2 = dconjg(PR1)
+        PL2 = dconjg(PL1)
+        overlap1 = ZDOTU(Ndim, PR1, 1, PL1, 1)
+        overlap2 = dconjg(overlap1)
+        alpha1 = dcmplx(dble(Nbos), 0.d0) / overlap1
+        alpha2 = dcmplx(dble(Nbos), 0.d0) / overlap2
+        beta1 = alpha1 * dcmplx(dble(Nbos-1), 0.d0) / overlap1
+        beta2 = alpha2 * dcmplx(dble(Nbos-1), 0.d0) / overlap2
         
         do ii = 1, Ndim
             this%density_up = this%density_up + real( Grupc(ii,ii) ) / dble(Lq)
@@ -116,19 +151,36 @@ contains
         do i = 1, Lq
             do j = 1, Lq
                 imj = Latt%imj(i, j)
+                do no = 1, Norb
+                    ii = Latt%inv_dim_list(i, no)
+                    jj = Latt%inv_dim_list(j, no)
+                    this%SF_corr_up(imj) = this%SF_corr_up(imj) + Grupc(ii,jj) / dcmplx(dble(Norb*Lq), 0.d0)
+                    this%SF_corr_do(imj) = this%SF_corr_do(imj) + Grdoc(ii,jj) / dcmplx(dble(Norb*Lq), 0.d0)
+                    this%PF_corr(imj)    = this%PF_corr(imj)    + ( Grupc(ii,jj) * Grdoc(ii,jj) ) / dcmplx(dble(Norb*Lq), 0.d0)
+                enddo
+            enddo
+        enddo
+
+        do i = 1, Lq
+            do j = 1, Lq
+                imj = Latt%imj(i, j)
                 do no1 = 1, Norb
                     do no2 = 1, Norb
                         ii = Latt%inv_dim_list(i, no1)
                         jj = Latt%inv_dim_list(j, no2)
-                        this%den_corr_up(imj, no1, no2) = this%den_corr_up(imj, no1, no2) + GGfactor * Grupc(ii,ii) * Grupc(jj,jj)  / dcmplx(dble(Lq), 0.d0)
-                        this%den_corr_do(imj, no1, no2) = this%den_corr_do(imj, no1, no2) + GGfactor * Grdoc(ii,ii) * Grdoc(jj,jj)  / dcmplx(dble(Lq), 0.d0)
-                        den_corr(imj, no1, no2) = den_corr(imj, no1, no2) + GGfactor * ( Grupc(ii,ii)*Grupc(jj,jj) + Grdoc(ii,ii)*Grdoc(jj,jj) ) + ( Grupc(ii,ii)*Grdoc(jj,jj) + Grdoc(ii,ii)*Grupc(jj,jj) )  / dcmplx(dble(Lq), 0.d0)
+                        this%den_corr_up(imj, no1, no2) = this%den_corr_up(imj, no1, no2) + ( GGfactor * Grupc(ii,ii) * Grupc(jj,jj) - num_per_site * (Grupc(ii,ii)+Grupc(jj,jj)-num_per_site) ) / dcmplx(dble(Lq), 0.d0)
+                        this%den_corr_do(imj, no1, no2) = this%den_corr_do(imj, no1, no2) + ( GGfactor * Grdoc(ii,ii) * Grdoc(jj,jj) - num_per_site * (Grdoc(ii,ii)+Grdoc(jj,jj)-num_per_site) ) / dcmplx(dble(Lq), 0.d0)
+                        den_temp(imj, no1, no2) = den_temp(imj, no1, no2) + GGfactor * ( Grupc(ii,ii)*Grupc(jj,jj) + Grdoc(ii,ii)*Grdoc(jj,jj) ) + ( Grupc(ii,ii)*Grdoc(jj,jj) + Grdoc(ii,ii)*Grupc(jj,jj) )  / dcmplx(dble(Lq), 0.d0)
+                        den_temp_up(imj, no1, no2) = den_temp_up(imj, no1, no2) + ( GGfactor * Grupc(ii,ii) * Grupc(jj,jj) - num_per_site * (Grupc(ii,ii)+Grupc(jj,jj)-num_per_site) ) / dcmplx(dble(Lq), 0.d0)
+                        den_temp_do(imj, no1, no2) = den_temp_do(imj, no1, no2) + ( GGfactor * Grdoc(ii,ii) * Grdoc(jj,jj) - num_per_site * (Grdoc(ii,ii)+Grdoc(jj,jj)-num_per_site) ) / dcmplx(dble(Lq), 0.d0)
                         if (ii==jj) then
                             this%den_corr_up(imj, no1, no2) = this%den_corr_up(imj, no1, no2) + Grupc(ii,ii) / dcmplx(dble(Lq), 0.d0)
                             this%den_corr_do(imj, no1, no2) = this%den_corr_do(imj, no1, no2) + Grdoc(ii,ii) / dcmplx(dble(Lq), 0.d0)
-                            den_corr(imj, no1, no2) = den_corr(imj, no1, no2) + ( Grupc(ii,ii) + Grdoc(ii,ii) ) / dcmplx(dble(Lq), 0.d0)
+                            den_temp(imj, no1, no2) = den_temp(imj, no1, no2) + ( Grupc(ii,ii) + Grdoc(ii,ii) ) / dcmplx(dble(Lq), 0.d0)
+                            den_temp_up(imj, no1, no2) = den_temp_up(imj, no1, no2) + Grupc(ii,ii) / dcmplx(dble(Lq), 0.d0)
+                            den_temp_do(imj, no1, no2) = den_temp_do(imj, no1, no2) + Grdoc(ii,ii) / dcmplx(dble(Lq), 0.d0)
                         endif
-                        this%den_corr_updo(imj) = this%den_corr_updo(imj) + Grupc(ii,ii) * Grdoc(jj,jj) / dcmplx(dble(Lq), 0.d0)
+                        this%den_corr_updo(imj) = this%den_corr_updo(imj) + ( Grupc(ii,ii) * Grdoc(jj,jj) - num_per_site * (Grupc(ii,ii)+Grdoc(jj,jj)-num_per_site) ) / dcmplx(dble(Lq), 0.d0)
                         this%single_corr(imj, no1, no2) = this%single_corr(imj, no1, no2) + Grupc(ii,jj) / dcmplx(dble(Lq), 0.d0)
                     enddo
                 enddo
@@ -137,9 +189,25 @@ contains
 
         do imj = 1, Lq
             this%C3breaking = this%C3breaking + real( &
-                & 4*den_corr(imj,1,1) + den_corr(imj,2,2) + den_corr(imj,3,3) &
-                & - 2*den_corr(imj,1,2) - 2*den_corr(imj,2,1) - 2*den_corr(imj,1,3) - 2*den_corr(imj,3,1) &
-                & + den_corr(imj,2,3) + den_corr(imj,3,2) )
+                & 4*den_temp(imj,1,1) + 4*den_temp(imj,2,2) + 4*den_temp(imj,3,3) &
+                & - 2*den_temp(imj,1,2) - 2*den_temp(imj,2,1) &
+                & - 2*den_temp(imj,1,3) - 2*den_temp(imj,3,1) &
+                & - 2*den_temp(imj,2,3) - 2*den_temp(imj,3,2) ) / 6.d0
+            this%C3breaking_up = this%C3breaking_up + real( &
+                & 4*den_temp_up(imj,1,1) + 4*den_temp_up(imj,2,2) + 4*den_temp_up(imj,3,3) &
+                & - 2*den_temp_up(imj,1,2) - 2*den_temp_up(imj,2,1) &
+                & - 2*den_temp_up(imj,1,3) - 2*den_temp_up(imj,3,1) &
+                & - 2*den_temp_up(imj,2,3) - 2*den_temp_up(imj,3,2) ) / 6.d0
+            this%C3breaking_do = this%C3breaking_do + real( &
+                & 4*den_temp_do(imj,1,1) + 4*den_temp_do(imj,2,2) + 4*den_temp_do(imj,3,3) &
+                & - 2*den_temp_do(imj,1,2) - 2*den_temp_do(imj,2,1) &
+                & - 2*den_temp_do(imj,1,3) - 2*den_temp_do(imj,3,1) &
+                & - 2*den_temp_do(imj,2,3) - 2*den_temp_do(imj,3,2) ) / 6.d0
+            this%C3_corr(imj) = ( &
+                & 4*den_temp_up(imj,1,1) + 4*den_temp_up(imj,2,2) + 4*den_temp_up(imj,3,3) &
+                & - 2*den_temp_up(imj,1,2) - 2*den_temp_up(imj,2,1) &
+                & - 2*den_temp_up(imj,1,3) - 2*den_temp_up(imj,3,1) &
+                & - 2*den_temp_up(imj,2,3) - 2*den_temp_up(imj,3,2) ) / dcmplx(6.d0,0.d0)
         enddo
 
         do ii = 1, Ndim
