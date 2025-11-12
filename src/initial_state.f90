@@ -54,11 +54,14 @@ contains
         class(kagomeLattice), intent(in) :: Latt
         integer, intent(inout) :: iseed
         
-        ! Local variables
-        complex(kind=8), dimension(Ndim, Ndim) :: HamT_initial, eigvecs
-        real(kind=8), dimension(Ndim) :: eigvals
+    ! Local variables
+        complex(kind=8), allocatable :: HamT_initial(:,:), eigvecs(:,:)
+        real(kind=8), allocatable :: eigvals(:)
         integer :: i
         
+        allocate(HamT_initial(Ndim, Ndim), eigvecs(Ndim, Ndim))
+        allocate(eigvals(Ndim))
+
         ! Build non-interacting Hamiltonian using existing function
         call def_hamT_initial(HamT_initial, Latt, iseed)
         
@@ -96,6 +99,8 @@ contains
             this%PL(1,:) = this%PL(1,:) / this%norm_factor
         endif
         
+        deallocate(eigvals)
+        deallocate(eigvecs, HamT_initial)
         return
     end subroutine initial_set
     

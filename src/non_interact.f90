@@ -85,9 +85,14 @@ contains
 ! Local: 
 !        real(kind=8) :: degen, en_free
         integer :: i, nl, nr
-        complex(kind=8), dimension(Ndim, Ndim) :: HamT, Hlp1, Hlp1dag, temp1, temp2
-        real(kind=8), dimension(Ndim) :: WC
-        complex(kind=8), dimension(Ndim) :: dmat1, dmat2
+        complex(kind=8), allocatable :: HamT(:,:), Hlp1(:,:), Hlp1dag(:,:), temp1(:,:), temp2(:,:)
+        real(kind=8), allocatable :: WC(:)
+        complex(kind=8), allocatable :: dmat1(:), dmat2(:)
+
+        allocate(HamT(Ndim, Ndim), Hlp1(Ndim, Ndim), Hlp1dag(Ndim, Ndim))
+        allocate(temp1(Ndim, Ndim), temp2(Ndim, Ndim))
+        allocate(WC(Ndim))
+        allocate(dmat1(Ndim), dmat2(Ndim))
         
         call def_hamT(HamT, Latt)
         call diag(HamT, Hlp1, WC)
@@ -111,6 +116,12 @@ contains
         enddo
         call mmult(this%expT_P, temp1, Hlp1dag) ! output
         call mmult(this%expT_M, temp2, Hlp1dag) ! output
+
+        deallocate(dmat2, dmat1)
+        deallocate(WC)
+        deallocate(temp2, temp1)
+        deallocate(Hlp1dag, Hlp1, HamT)
+        
         return
     end subroutine opT_set
     

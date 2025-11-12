@@ -30,10 +30,12 @@ contains
         integer, intent(out) :: iseed
         class(kagomeLattice), intent(in) :: Latt
 ! Local: 
-        real(kind=8), dimension(Naux, NdimTherm, LtrotTherm) :: phi_list_therm
+        real(kind=8), allocatable :: phi_list_therm(:,:,:)
         
+        allocate(phi_list_therm(Naux, NdimTherm, LtrotTherm)) ! heap allocation avoids large stack frames
         call conf_therm_in(phi_list_therm, iseed)
         call conf_transfer(Conf%phi_list, phi_list_therm, Latt)
+        deallocate(phi_list_therm)
         return
     end subroutine conf_in
     
@@ -48,7 +50,9 @@ contains
         integer :: iseed0, itmp
         integer :: ii, ns, nt, N
         real(kind=8), external :: ranf
-        real(kind=8), dimension(Naux, NdimTherm, LtrotTherm) :: phi_list_itmp
+    real(kind=8), allocatable :: phi_list_itmp(:,:,:)
+
+    allocate(phi_list_itmp(Naux, NdimTherm, LtrotTherm))
         
         if (IRANK == 0 ) then
             open(unit=30, file='confin.txt', status='unknown')
@@ -99,6 +103,7 @@ contains
 			call MPI_RECV(phi_list_therm, Naux*NdimTherm*LtrotTherm, MPI_Real8, 0, IRANK + 1024, MPI_COMM_WORLD, STATUS, IERR)
             print '("Rank ", i3.1, " after receiving message. ")', IRANK
         endif
+        deallocate(phi_list_itmp)
         if (IRANK == 0 ) then
             close(30); close(10)
         endif

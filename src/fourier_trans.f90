@@ -425,6 +425,8 @@ contains
         filek = 'dentot_corr_do'
         call this%write_cmplx(dentot_corr_do, filek)
 
+        filek = 'SF_structure'
+        call this%write_reciprocal(SF_structure, filek)
         filek = 'SF_structure_up'
         call this%write_reciprocal(SF_structure_up, filek)
         filek = 'SF_structure_do'

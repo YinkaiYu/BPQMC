@@ -133,7 +133,6 @@ contains
         class(WrapList), intent(inout) :: WrList
         integer, intent(in) :: nt
         ! Local: 
-        complex(kind=8), dimension(Ndim, Ndim) :: Gbar
         integer :: nt_st
         ! Allow wrapping at nt=Ltrot even if not divisible by Nwrap
         if (mod(nt, Nwrap) .ne. 0 .and. nt .ne. Ltrot) then
@@ -150,9 +149,8 @@ contains
         if (nt .ne. 0) call stab_UR(Prop)
         WrList%URlist(1:Ndim, 1, nt_st) = Prop%UUR(1:Ndim, 1)
         if (nt == Ltrot) then
-            Gbar = dcmplx(0.d0, 0.d0)
-            call stab_green(Gbar, Prop, nt)
-            Prop%Gbar = Gbar
+            Prop%Gbar = dcmplx(0.d0, 0.d0)
+            call stab_green(Prop%Gbar, Prop, nt)
         endif
         return
     end subroutine Wrap_pre
@@ -164,7 +162,6 @@ contains
         integer, intent(in) :: nt
         character(len=*), optional, intent(in) :: flag
         ! Local: 
-        complex(kind=8), dimension(Ndim, Ndim) :: Gbar, Gbar_old
         integer :: nt_st
         real(kind=8) :: dif
         ! Allow wrapping at nt=Ltrot even if not divisible by Nwrap
@@ -184,20 +181,19 @@ contains
             write(6,*) "Warning: nt_st exceeds Nst in Wrap_L, nt=", nt, "nt_st=", nt_st
             nt_st = Nst  ! Use last valid index
         endif
-        Gbar = dcmplx(0.d0, 0.d0)
         Prop%UUR(1:Ndim, 1) = WrList%URlist(1:Ndim, 1, nt_st)
         if (nt == 0) then ! clear URlist
             WrList%URlist = dcmplx(0.d0, 0.d0)
         endif
         if (nt .ne. Ltrot) then
-            Gbar_old = Prop%Gbar  ! Store old Gbar for comparison
             call stab_UL(Prop)
-            call stab_green(Gbar, Prop, nt)
-            dif = compare_mat(Gbar, Gbar_old)
+            Gr_tmp%Gr00 = dcmplx(0.d0, 0.d0)
+            call stab_green(Gr_tmp%Gr00, Prop, nt)
+            dif = compare_mat(Gr_tmp%Gr00, Prop%Gbar)
             if (dif > Prop%Xmaxm) Prop%Xmaxm = dif
             if (dif .ge. 5.5d-5) write(6,*) nt, dif, "left ortho unstable in RANK ", IRANK
             if (present(flag)) Prop%Xmeanm = Prop%Xmeanm + dif
-            Prop%Gbar = Gbar
+            Prop%Gbar = Gr_tmp%Gr00
         endif
         WrList%ULlist(1, 1:Ndim, nt_st) = Prop%UUL(1, 1:Ndim)
         return
@@ -210,7 +206,6 @@ contains
         integer, intent(in) :: nt
         character(len=*), optional, intent(in) :: flag
         ! Local: 
-        complex(kind=8), dimension(Ndim, Ndim) :: Gbar, Gbar_old
         integer :: nt_st
         real(kind=8) :: dif
         ! Allow wrapping at nt=Ltrot even if not divisible by Nwrap
@@ -230,20 +225,19 @@ contains
             write(6,*) "Warning: nt_st exceeds Nst in Wrap_R, nt=", nt, "nt_st=", nt_st
             nt_st = Nst  ! Use last valid index
         endif
-        Gbar = dcmplx(0.d0, 0.d0)
         Prop%UUL(1, 1:Ndim) = WrList%ULlist(1, 1:Ndim, nt_st)
         if (nt == Ltrot) then
             WrList%ULlist = dcmplx(0.d0, 0.d0)
         endif
         if (nt .ne. 0) then
-            Gbar_old = Prop%Gbar  ! Store old Gbar for comparison
             call stab_UR(Prop)
-            call stab_green(Gbar, Prop, nt)
-            dif = compare_mat(Gbar, Gbar_old)
+            Gr_tmp%Gr00 = dcmplx(0.d0, 0.d0)
+            call stab_green(Gr_tmp%Gr00, Prop, nt)
+            dif = compare_mat(Gr_tmp%Gr00, Prop%Gbar)
             if (dif > Prop%Xmaxm) Prop%Xmaxm = dif
             if (dif .ge. 5.5d-5) write(6,*) nt, dif, "right ortho unstable in RANK ", IRANK
             if (present(flag)) Prop%Xmeanm = Prop%Xmeanm + dif
-            Prop%Gbar = Gbar
+            Prop%Gbar = Gr_tmp%Gr00
         endif
         WrList%URlist(1:Ndim, 1, nt_st) = Prop%UUR(1:Ndim, 1)
         return
