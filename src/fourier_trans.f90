@@ -297,10 +297,18 @@ contains
         complex(kind=8) :: dentot_corr(Lq), dentot_corr_up(Lq), dentot_corr_do(Lq), SF_corr(Lq)
         complex(kind=8) :: SF_structure(Lq), SF_structure_up(Lq), SF_structure_do(Lq),PF_structure(Lq), C3_structure(Lq), C3_structure_up(Lq), dentot_structure(Lq), dentot_structure_up(Lq), dentot_structure_do(Lq)
         character(len=25) :: filek
-        integer :: indexzero, no1, no2, i
+        integer :: indexzero, no1, no2, i, index_K, index_M, nx, ny
         real(kind=8) temp, C3breaking, C3breaking_up
         
         indexzero = Latt%inv_cell_list(1, 1)
+
+        nx = 2*Nlx/3 + 1
+        ny = Nly/3 + 1
+        index_K = Latt%inv_cell_list(nx, ny)
+
+        nx = Nlx/2 + 1
+        ny = 1
+        index_M = Latt%inv_cell_list(nx, ny)
             
         open(unit=80, file='density_up', status='unknown', action="write", position="append")
         write(80,*) Obs%density_up
@@ -405,6 +413,24 @@ contains
         call this%write_k(dentot_structure_up, filek, indexzero )
         filek = 'dentot_do_Gamma'
         call this%write_k(dentot_structure_do, filek, indexzero )
+
+        filek = 'SF_K'
+        call this%write_k(SF_structure, filek, index_K )
+        filek = 'PF_K'
+        call this%write_k(PF_structure, filek, index_K )
+        filek = 'C3_K'
+        call this%write_k(C3_structure, filek, index_K )
+        filek = 'dentot_K'
+        call this%write_k(dentot_structure, filek, index_K )
+
+        filek = 'SF_M'
+        call this%write_k(SF_structure, filek, index_M )
+        filek = 'PF_M'
+        call this%write_k(PF_structure, filek, index_M )
+        filek = 'C3_M'
+        call this%write_k(C3_structure, filek, index_M )
+        filek = 'dentot_M'
+        call this%write_k(dentot_structure, filek, index_M )
 
         filek = 'SF_corr'
         call this%write_cmplx(SF_corr, filek)
