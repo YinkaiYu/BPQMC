@@ -4,7 +4,7 @@ module LocalU_mod
     implicit none
     
     public
-    private :: LocalU_metro, LocalU_metro_therm
+    private :: LocalU_metro, LocalU_metro_therm, clog1p
     
     
 contains
@@ -42,6 +42,7 @@ contains
         real(kind=8) :: ratio_abs
         complex(kind=8) :: ratio_Pfa, ratio_exp, r_b
         complex(kind=8) :: one_plus_delta
+        complex(kind=8) :: delta_over_nb, log_r_b
 
 ! Local update on space-time (ii, ntau) for auxiliary field flavor (nf)
         phi_old = Conf%phi_list(nf, ii, ntau)
@@ -52,9 +53,11 @@ contains
         call Op_U%get_delta(phi_old, phi_new)
         ratio_exp = Op_U%ratio_gaussian
         ! Calculate r_b = 1 + Δ_i/N_b * Gbar_{ii}
-        r_b = dcmplx(1.d0,0.d0) + Op_U%Delta * Gbar(ii,ii) / dble(Nbos)
-        ! Calculate ratio_Pfa = r_b^{N_b}
-        ratio_Pfa = r_b ** Nbos
+        delta_over_nb = Op_U%Delta * Gbar(ii,ii) / dble(Nbos)
+        r_b = dcmplx(1.d0,0.d0) + delta_over_nb
+        ! Calculate ratio_Pfa = exp(N_b * log1p(Δ_i/N_b * Gbar_{ii})) for stability
+        log_r_b = clog1p(delta_over_nb)
+        ratio_Pfa = exp(dcmplx(dble(Nbos), 0.d0) * log_r_b)
         ratio_abs = abs(ratio_exp * ratio_Pfa * dconjg(ratio_Pfa))
 ! Update Gbar and phi if accepted
         random = ranf(iseed)
@@ -154,4 +157,18 @@ contains
         enddo
         return
     end subroutine LocalU_prop_therm
+
+    pure function clog1p(z) result(res)
+        complex(kind=8), intent(in) :: z
+        complex(kind=8) :: res
+        real(kind=8), parameter :: small_thresh = 1.d-6
+        complex(kind=8) :: z_sq
+        if (abs(z) < small_thresh) then
+            z_sq = z * z
+            res = z - 0.5d0 * z_sq + (z * z_sq) / 3.d0
+        else
+            res = log(dcmplx(1.d0, 0.d0) + z)
+        endif
+        return
+    end function clog1p
 end module LocalU_mod
