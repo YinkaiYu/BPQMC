@@ -294,7 +294,7 @@ contains
         class(FourierTrans), intent(inout) :: this
         class(ObserEqual), intent(in) :: Obs
         complex(kind=8) :: correlation_up(Lq, Norb, Norb), correlation_do(Lq, Norb, Norb), correlation_updo(Lq)
-        complex(kind=8) :: dentot_corr(Lq), dentot_corr_up(Lq), dentot_corr_do(Lq), SF_corr(Lq)
+        complex(kind=8) :: dentot_corr(Lq), dentot_corr_up(Lq), dentot_corr_do(Lq), SF_corr(Lq), temp_corr(Lq)
         complex(kind=8) :: SF_structure(Lq), SF_structure_up(Lq), SF_structure_do(Lq),PF_structure(Lq), C3_structure(Lq), C3_structure_up(Lq), dentot_structure(Lq), dentot_structure_up(Lq), dentot_structure_do(Lq)
         character(len=25) :: filek
         integer :: indexzero, no1, no2, i, index_K, index_M, nx, ny
@@ -328,6 +328,10 @@ contains
             
         open(unit=80, file='squareOcc', status='unknown', action="write", position="append")
         write(80,*) Obs%squareOcc
+        close(80)
+
+        open(unit=80, file='nearestOcc', status='unknown', action="write", position="append")
+        write(80,*) Obs%nearestOcc
         close(80)
             
         open(unit=80, file='num_up', status='unknown', action="write", position="append")
@@ -389,6 +393,14 @@ contains
                 call this%write_k(correlation_up, filek, indexzero, no1, no2 )
                 write(filek, "('den_dodo_sub',I0,'',I0)") no1, no2
                 call this%write_k(correlation_do, filek, indexzero, no1, no2 )
+
+                write(filek, "('dencorr_up_sub',I0,'',I0)") no1, no2
+                temp_corr = Obs%den_corr_up(:, no1, no2)
+                call this%write_cmplx(temp_corr, filek)
+
+                write(filek, "('SFcorr_up_sub',I0,'',I0)") no1, no2
+                temp_corr = Obs%single_corr(:, no1, no2)
+                call this%write_cmplx(temp_corr, filek)
             enddo
         enddo
 
@@ -511,6 +523,10 @@ contains
         Collect0 = 0.d0
         call MPI_REDUCE(Obs%squareOcc, Collect0, 1, MPI_real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
         if (IRANK == 0) Obs%squareOcc = Collect0/dble(ISIZE)
+
+        Collect0 = 0.d0
+        call MPI_REDUCE(Obs%nearestOcc, Collect0, 1, MPI_real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
+        if (IRANK == 0) Obs%nearestOcc = Collect0/dble(ISIZE)
         
         Collect0 = 0.d0
         call MPI_REDUCE(Obs%num_up, Collect0, 1, MPI_real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)

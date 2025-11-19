@@ -10,7 +10,7 @@ module ObserEqual_mod
         complex(kind=8), dimension(:), allocatable      :: PF_corr
         complex(kind=8), dimension(:), allocatable      :: C3_corr, C3_corr_up
         real(kind=8)                                    :: density_up,  density_do
-        real(kind=8)                                    :: kinetic, doubleOcc, squareOcc
+        real(kind=8)                                    :: kinetic, doubleOcc, squareOcc, nearestOcc
         real(kind=8)                                    :: num_up, num_do, numsquare_up, numsquare_do
     contains
         procedure :: make   => Obs_equal_make
@@ -51,6 +51,7 @@ contains
         this%kinetic     = 0.d0
         this%doubleOcc   = 0.d0
         this%squareOcc   = 0.d0
+        this%nearestOcc  = 0.d0
         this%num_up      = 0.d0
         this%num_do      = 0.d0
         this%numsquare_up = 0.d0
@@ -76,6 +77,7 @@ contains
         this%kinetic     = this%kinetic     * znorm
         this%doubleOcc   = this%doubleOcc   * znorm
         this%squareOcc   = this%squareOcc   * znorm
+        this%nearestOcc  = this%nearestOcc  * znorm
         this%den_corr_updo = this%den_corr_updo * znorm
         this%num_up      = this%num_up * znorm
         this%num_do      = this%num_do * znorm
@@ -210,6 +212,7 @@ contains
             do nb = 1, Nbond
                 jj = Latt%L_bonds(ii, nb)
                 this%kinetic = this%kinetic + RT * real( Grupc(ii,jj) + Grupc(jj,ii) + Grdoc(ii,jj) + Grdoc(jj,ii) ) / dble(Lq)
+                this%nearestOcc = this%nearestOcc + ( GGfactor * real( Grupc(ii,ii) * Grupc(jj,jj) + Grdoc(ii,ii) * Grdoc(jj,jj) ) ) / dble(Lq)
             enddo
         enddo
 
