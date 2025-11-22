@@ -36,7 +36,7 @@
 - Generated observables and logs should remain inside `test/` unless explicitly archived.
 
 ## Coding Style & Naming
-- Fortran 90/95; 2-space indent; aim ≤ 100 columns.
+- Fortran 90/95; 4-space indent; aim ≤ 100 columns.
 - Filenames: lowercase_with_underscores (e.g., `process_matrix.f90`).
 - Add `implicit none`; specify `intent(in|out|inout)`; prefer descriptive snake_case names.
 - Keep docs/comments concise and in English.
