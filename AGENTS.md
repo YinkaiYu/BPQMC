@@ -77,3 +77,58 @@
 - Propagator structure now stores only `Gbar`, reducing memory footprint and aligning all modules (`process_matrix`, `stabilization`, `multiply`, `localU`, `local_sweep`, `globalK`) to operate directly on `Gbar`.
 - Measurement routines (`obser_equal`, others) reconstruct `G = Gbar + I` as needed, keeping physical observables intact.
 - Each major stage of the conversion should be documented here and validated manually in WSL after changes.
+
+## Current Refactor: Rank-1 Propagation (Bosonic PQMC)
+
+This section tracks the ongoing refactor to move from a Green’s-function-propagation algorithm to a rank-1 wavefunction propagation scheme, as now documented in `readme.md`.  The high-level goal is to:
+- store and propagate only the left/right rank-1 wavefunctions at each time slice;
+- reconstruct `G` (or `Gbar`) on demand for measurements;
+- completely remove the need to maintain an `N×N` `Gbar` during propagation.
+
+### Plan & Milestones
+
+0. **Algorithm documentation (DONE)**  
+   - Update `readme.md` to describe the rank-1 propagation scheme, the role of `UUL`, `UUR` and the overlap scalar, and how to reconstruct `G` / `Gbar` at measurement times.
+
+1. **Wavefunction storage & normalization (TODO)**  
+   - In `local_sweep.f90`, change the time-slice handling so that the rank-1 wavefunctions are normalised and stored at *every* imaginary-time slice (no more `Nwrap`-based stabilisation interval from `calc_basic.f90`).  
+   - Use the `stabilization.f90` utilities and `process_matrix.f90` data structures to maintain full `URlist` and `ULlist` for later use.  
+   - After this step, `Gbar` is still maintained as before, but wavefunction storage is sufficient for a rank-1-only algorithm.
+
+2. **Decouple local updates from `Gbar` – `LocalU_metro` (TODO)**  
+   - Extend `type :: Propagator` in `process_matrix.f90` to include a complex scalar `overlap` that tracks the inner product of `UUL` and `UUR`.  
+   - Rewrite `LocalU_metro` in `localU.f90` to depend only on `UUL`, `UUR`, and `overlap` for computing local Metropolis ratios, while still updating `Gbar` in parallel for cross-checking.  
+   - Ensure that when an auxiliary-field update is accepted, `UUR` and `overlap` are updated consistently with the new configuration.
+
+3. **Adapt propagation routines to the new interface (TODO)**  
+   - Update `LocalU_prop_L`, `LocalU_prop_R`, and any related routines in `localU.f90` to:  
+     - retrieve `UUR` (or `UUL`) from `URlist`/`ULlist`;  
+     - compute the overlap between `UUL` and `UUR`;  
+     - loop over sites to call `LocalU_metro` purely in terms of wavefunctions;  
+     - apply the imaginary-time propagation with `Op_U%mmult_L` / `Op_U%mmult_R` in the appropriate order.  
+   - Keep `Gbar` propagation active for now so that behaviour can be compared to the original algorithm.
+
+4. **Verify local updates without `Gbar` (TODO)**  
+   - Search for and remove residual dependencies on `Gbar` in the local-update logic, beyond the parallel-maintained version used for checks.  
+   - Run paired tests (same seeds in `test/`) comparing observables or acceptance statistics between:  
+     - the original `Gbar`-based update path;  
+     - the new rank-1-wavefunction-based path.  
+   - Only proceed once the two paths agree to the desired numerical tolerance.
+
+5. **Remove `Gbar` from equal-time measurements (TODO)**  
+   - In `obser_equal.f90` (`Obs_equal_calc`), reconstruct `G`/`Gbar` using `UUL`, `UUR`, and `overlap` following the formulas in `readme.md` instead of using stored `Gbar`.  
+   - Pay special attention to the `Ltrot == 0` branch in `local_sweep.f90` to ensure that measurements at zero imaginary-time length are still handled correctly.  
+   - Perform parallel checks: compare reconstructed `Gbar` with the still-maintained `Gbar` to verify correctness.
+
+6. **Clean up remaining `Gbar` dependencies (TODO)**  
+   - Search the codebase for any other uses of `Gbar` (e.g. global updates, imaginary-time correlation functions).  
+   - For features that are currently disabled or not actively maintained, introduce lightweight placeholders or compile-time guards so the code still compiles without requiring a fully propagated `Gbar`.
+
+7. **Remove redundant `Gbar` maintenance (TODO)**  
+   - Once all functional dependencies on `Gbar` are removed and verified, strip out the parallel `Gbar` updates from propagation and local-update routines.  
+   - Verify that the resulting implementation uses only rank-1 wavefunctions and overlaps in the main Monte Carlo loop, and that performance scales as expected (matrix–vector only, no matrix–matrix updates).
+
+8. **Documentation and cleanup (TODO)**  
+   - Update `readme.md` and any in-code comments to reflect the final design (rank-1 propagation, overlap handling, storage strategy).  
+   - Remove temporary notes from this section, keeping only a concise summary of the final architecture and any non-obvious design choices.  
+   - If helpful, record a short “developer note” here on how to re-enable a `Gbar`-like path for debugging, without reintroducing it into the hot path.
