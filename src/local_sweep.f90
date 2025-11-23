@@ -89,8 +89,6 @@ contains
         WrListU2%URlist = dcmplx(0.d0, 0.d0); WrListU2%ULlist = dcmplx(0.d0, 0.d0)
         if (Ltrot == 0) then
             ! Direct calculation for Ltrot == 0 case
-            call stab_UR(Prop)
-            call stab_UL(Prop)
             call stab_green(Prop%Gbar, Prop, 0)
         else
             do nt = 1, Ltrot
