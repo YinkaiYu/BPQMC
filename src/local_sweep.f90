@@ -122,11 +122,11 @@ contains
             call propT_L(Prop)
             if (abs(RU2) > Zero) then
                 call Store_UL(Prop, WrListU2, nt)
-                call LocalU_prop_L(Op_U2, Prop, iseed, 2, nt)
+                call LocalU_prop_L(Op_U2, Prop, WrListU2, iseed, 2, nt)
             endif
             if (abs(RU1) > Zero) then
                 call Store_UL(Prop, WrListU1, nt)
-                call LocalU_prop_L(Op_U1, Prop, iseed, 1, nt)
+                call LocalU_prop_L(Op_U1, Prop, WrListU1, iseed, 1, nt)
             endif
         enddo
         return
@@ -146,11 +146,11 @@ contains
         endif
         do nt = 1, Ltrot
             if (abs(RU1) > Zero) then
-                call LocalU_prop_R(Op_U1, Prop, iseed, 1, nt)
+                call LocalU_prop_R(Op_U1, Prop, WrListU1, iseed, 1, nt)
                 call Store_UR(Prop, WrListU1, nt)
             endif
             if (abs(RU2) > Zero) then
-                call LocalU_prop_R(Op_U2, Prop, iseed, 2, nt)
+                call LocalU_prop_R(Op_U2, Prop, WrListU2, iseed, 2, nt)
                 call Store_UR(Prop, WrListU2, nt)
             endif
             call propT_R(Prop)
