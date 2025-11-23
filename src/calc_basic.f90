@@ -97,7 +97,7 @@ contains
         Dtau = Beta / dble(Ltrot)
         Ndim = Lq * Norb
         NdimTherm = LqTherm * Norb
-        Nst = max(Ltrot, 1)
+        Nst = Ltrot
         return
     end subroutine Params_set
     

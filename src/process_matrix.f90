@@ -25,7 +25,7 @@ module ProcessMatrix
     end type PropGreen
     
     type, public :: WrapList
-        complex(kind=8), dimension(:,:,:), allocatable :: URlist, ULlist  ! (Ndim,1,0:Nst), (1,Ndim,0:Nst)
+        complex(kind=8), dimension(:,:,:), allocatable :: URlist, ULlist  ! (Ndim,1,1:Nst), (1,Ndim,1:Nst)
         ! Note: VRlist, VLlist, DRlist, DLlist removed for PQMC algorithm
     contains
         procedure :: make => Wrlist_make
@@ -93,7 +93,7 @@ contains
     
     subroutine Wrlist_make(this)
         class(WrapList), intent(inout) :: this
-        allocate(this%URlist(Ndim, 1, 0:Nst), this%ULlist(1, Ndim, 0:Nst))
+        allocate(this%URlist(Ndim, 1, max(Nst, 1)), this%ULlist(1, Ndim, max(Nst, 1)))
         this%URlist = dcmplx(0.d0, 0.d0); this%ULlist = dcmplx(0.d0, 0.d0)
         return
     end subroutine Wrlist_make

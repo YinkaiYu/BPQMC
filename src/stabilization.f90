@@ -4,7 +4,8 @@ module Stabilize_mod
     implicit none
     
     private
-    public :: Wrap_pre, Wrap_L, Wrap_R, Wrap_tau, Stabilize_init, Stabilize_clear, stab_green
+    public :: Wrap_pre, Wrap_L, Wrap_R, Wrap_tau, Store_UR, Store_UL
+    public :: Stabilize_init, Stabilize_clear, stab_green
     complex(kind=8) ::  Z_one
     type(PropGreen), allocatable :: Gr_tmp
     logical :: warned_wrap_tau
@@ -136,7 +137,8 @@ contains
         integer, intent(in) :: nt
         ! Local: 
         integer :: nt_st
-        if (nt < 0 .or. nt > Ltrot) then
+        if (Nst <= 0) return
+        if (nt < 1 .or. nt > Ltrot) then
             write(6,*) "incorrect preortho time slice, NT = ", nt; stop
         endif
         nt_st = nt
@@ -158,14 +160,12 @@ contains
         ! Local: 
         integer :: nt_st
         real(kind=8) :: dif
-        if (nt < 0 .or. nt > Ltrot) then
+        if (Nst <= 0) return
+        if (nt < 1 .or. nt > Ltrot) then
             write(6,*) "incorrect ortholeft time slice, NT = ", nt; stop
         endif
         nt_st = nt
         Prop%UUR(1:Ndim, 1) = WrList%URlist(1:Ndim, 1, nt_st)
-        if (nt == 0) then ! clear URlist
-            WrList%URlist = dcmplx(0.d0, 0.d0)
-        endif
         call stab_UL(Prop)
         if (nt .ne. Ltrot) then
             Gr_tmp%Gr00 = dcmplx(0.d0, 0.d0)
@@ -189,24 +189,20 @@ contains
         ! Local: 
         integer :: nt_st
         real(kind=8) :: dif
-        if (nt < 0 .or. nt > Ltrot) then
+        if (Nst <= 0) return
+        if (nt < 1 .or. nt > Ltrot) then
             write(6,*) "incorrect orthoright time slice, NT = ", nt; stop
         endif
         nt_st = nt
         Prop%UUL(1, 1:Ndim) = WrList%ULlist(1, 1:Ndim, nt_st)
-        if (nt == Ltrot) then
-            WrList%ULlist = dcmplx(0.d0, 0.d0)
-        endif
         call stab_UR(Prop)
-        if (nt .ne. 0) then
-            Gr_tmp%Gr00 = dcmplx(0.d0, 0.d0)
-            call stab_green(Gr_tmp%Gr00, Prop, nt)
-            dif = compare_mat(Gr_tmp%Gr00, Prop%Gbar)
-            if (dif > Prop%Xmaxm) Prop%Xmaxm = dif
-            if (dif .ge. 5.5d-5) write(6,*) nt, dif, "right ortho unstable in RANK ", IRANK
-            if (present(flag)) Prop%Xmeanm = Prop%Xmeanm + dif
-            Prop%Gbar = Gr_tmp%Gr00
-        endif
+        Gr_tmp%Gr00 = dcmplx(0.d0, 0.d0)
+        call stab_green(Gr_tmp%Gr00, Prop, nt)
+        dif = compare_mat(Gr_tmp%Gr00, Prop%Gbar)
+        if (dif > Prop%Xmaxm) Prop%Xmaxm = dif
+        if (dif .ge. 5.5d-5) write(6,*) nt, dif, "right ortho unstable in RANK ", IRANK
+        if (present(flag)) Prop%Xmeanm = Prop%Xmeanm + dif
+        Prop%Gbar = Gr_tmp%Gr00
         WrList%URlist(1:Ndim, 1, nt_st) = Prop%UUR(1:Ndim, 1)
         return
     end subroutine Wrap_R
@@ -221,6 +217,7 @@ contains
         ! Local: 
         integer :: nt_st
         
+        if (Nst <= 0) return
         if (nt <= 0 .or. nt > Ltrot) then
             write(6,*) "incorrect orthobig time slice, NT = ", nt; stop
         endif
@@ -235,4 +232,30 @@ contains
         
         return
     end subroutine Wrap_tau
+
+    subroutine Store_UR(Prop, WrList, nt)
+        class(Propagator), intent(inout) :: Prop
+        class(WrapList), intent(inout) :: WrList
+        integer, intent(in) :: nt
+        if (Nst <= 0) return
+        if (nt < 1 .or. nt > Ltrot) then
+            write(6,*) "incorrect store UR time slice, NT = ", nt; stop
+        endif
+        call stab_UR(Prop)
+        WrList%URlist(1:Ndim, 1, nt) = Prop%UUR(1:Ndim, 1)
+        return
+    end subroutine Store_UR
+
+    subroutine Store_UL(Prop, WrList, nt)
+        class(Propagator), intent(inout) :: Prop
+        class(WrapList), intent(inout) :: WrList
+        integer, intent(in) :: nt
+        if (Nst <= 0) return
+        if (nt < 1 .or. nt > Ltrot) then
+            write(6,*) "incorrect store UL time slice, NT = ", nt; stop
+        endif
+        call stab_UL(Prop)
+        WrList%ULlist(1, 1:Ndim, nt) = Prop%UUL(1, 1:Ndim)
+        return
+    end subroutine Store_UL
 end module Stabilize_mod
