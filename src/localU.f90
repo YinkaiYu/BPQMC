@@ -96,14 +96,14 @@ contains
         integer :: ii
         Prop%UUR(1:Ndim,1) = WrListU%URlist(1:Ndim,1,ntau)
         Prop%overlap = ZDOTU(Ndim, Prop%UUL(1,1), 1, Prop%UUR(1,1), 1)
-        do ii = 1, Ndim
+        do ii = Ndim, 1, -1
             call LocalU_metro(Op_U, Prop, iseed, nf, ii, ntau)
         enddo
-        do ii = 1, Ndim
+        do ii = Ndim, 1, -1
             call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
             call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
         enddo
-        do ii = 1, Ndim
+        do ii = Ndim, 1, -1
             call Op_U%mmult_L(Prop%UUL, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
         enddo
         return
