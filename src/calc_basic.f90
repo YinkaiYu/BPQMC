@@ -38,8 +38,7 @@ module CalcBasic ! Global parameters
     logical,                    public          :: is_warm ! bosonic warm-up switch
     integer,                    public          :: Nwarm
     real(kind=8),               public          :: shiftWarm(Naux)
-    integer,                    public          :: Nst
-    integer,                    public          :: Nwrap
+    integer,                    public          :: Nst  ! number of stored imaginary-time slices (0..Ltrot)
     integer,                    public          :: Nbin
     integer,                    public          :: Nsweep
     integer,                    public          :: ISIZE, IRANK, IERR
@@ -52,7 +51,7 @@ contains
             read(20,*) RT, RU1, RU2, Nbos
             read(20,*) Nlx, Nly, Ltrot, Beta
             read(20,*) NlxTherm, NlyTherm, LtrotTherm
-            read(20,*) Nwrap, Nbin, Nsweep, shiftLoc
+            read(20,*) Nbin, Nsweep, shiftLoc
             read(20,*) is_tau, Nthermal
             read(20,*) is_warm, Nwarm, shiftWarm(1), shiftWarm(2)
             ! read(20,*) is_global, Nglobal, shiftGlb(1), shiftGlb(2)
@@ -81,7 +80,6 @@ contains
         call MPI_BCAST(NlxTherm, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(NlyTherm, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(LtrotTherm, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
-        call MPI_BCAST(Nwrap, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nbin, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nwarm, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         ! call MPI_BCAST(Nglobal, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
@@ -99,12 +97,7 @@ contains
         Dtau = Beta / dble(Ltrot)
         Ndim = Lq * Norb
         NdimTherm = LqTherm * Norb
-        if (mod(Ltrot, Nwrap) == 0) then
-            Nst = Ltrot / Nwrap
-        else
-            ! Support non-divisible Ltrot/Nwrap: allocate extra space for remaining time slices
-            Nst = Ltrot / Nwrap + 1
-        endif
+        Nst = max(Ltrot, 1)
         return
     end subroutine Params_set
     
@@ -168,13 +161,10 @@ contains
             write(50,*) 'Beta                                           :', Beta
             write(50,*) 'Trotter number                                 :', Ltrot
             write(50,*) '=>Dtau                                         :', Dtau
-            write(50,*) 'N_Ortho                                        :', Nwrap
+            write(50,*) 'Wavefunction storage/normalization stride      : every time slice'
             write(50,*) '# Bins                                         :', Nbin
             write(50,*) '# Nsweep in one bin                            :', Nsweep
             write(50,*) '# Cores                                        :', ISIZE
-            if (mod(Ltrot, Nwrap) .NE. 0) then
-                write(50,*) 'Ltrot is not a multiple of Nwrap'; stop
-            endif
         endif
         return
     end subroutine write_info

@@ -236,7 +236,7 @@ contains
         ratio_fermion = 1.d0
         call this%flip(iseed, size_cluster)
         do nt = Ltrot, 1, -1
-            if (mod(nt, Nwrap) == 0) call Wrap_L(this%prop, this%wrlist, nt)
+            call Wrap_L(this%prop, this%wrlist, nt)
             call propT_L(this%prop)
             if (U1 > Zero) call GlobalK_prop_L(this%prop, ratio_fermion, phi_new, nt)
         enddo
@@ -278,7 +278,7 @@ contains
         do nt = 1, Ltrot
             if (U1 > Zero) call GlobalK_prop_R(this%prop, ratio_fermion, phi_new, nt)
             call propT_R(this%prop)
-            if (mod(nt, Nwrap) == 0) call Wrap_R(this%prop, this%wrlist, nt)
+            call Wrap_R(this%prop, this%wrlist, nt)
         enddo
         ratio_boson = Conf%bosonratio(phi_new)
         ratio_re = ratio_fermion * ratio_boson

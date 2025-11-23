@@ -7,10 +7,12 @@ module Stabilize_mod
     public :: Wrap_pre, Wrap_L, Wrap_R, Wrap_tau, Stabilize_init, Stabilize_clear, stab_green
     complex(kind=8) ::  Z_one
     type(PropGreen), allocatable :: Gr_tmp
+    logical :: warned_wrap_tau
     
 contains
     subroutine Stabilize_init()
         Z_one = dcmplx(1.d0, 0.d0)
+        warned_wrap_tau = .false.
         allocate(Gr_tmp)
         call Gr_tmp%make()
         return
@@ -134,19 +136,11 @@ contains
         integer, intent(in) :: nt
         ! Local: 
         integer :: nt_st
-        ! Allow wrapping at nt=Ltrot even if not divisible by Nwrap
-        if (mod(nt, Nwrap) .ne. 0 .and. nt .ne. Ltrot) then
+        if (nt < 0 .or. nt > Ltrot) then
             write(6,*) "incorrect preortho time slice, NT = ", nt; stop
         endif
-        ! Calculate correct nt_st for non-divisible Ltrot/Nwrap cases
-        if (nt == 0) then
-            nt_st = 0
-        else if (mod(nt, Nwrap) == 0) then
-            nt_st = nt / Nwrap
-        else
-            nt_st = nt / Nwrap + 1  ! Next interval for partial wrap
-        endif
-        if (nt .ne. 0) call stab_UR(Prop)
+        nt_st = nt
+        call stab_UR(Prop)
         WrList%URlist(1:Ndim, 1, nt_st) = Prop%UUR(1:Ndim, 1)
         if (nt == Ltrot) then
             Prop%Gbar = dcmplx(0.d0, 0.d0)
@@ -164,29 +158,16 @@ contains
         ! Local: 
         integer :: nt_st
         real(kind=8) :: dif
-        ! Allow wrapping at nt=Ltrot even if not divisible by Nwrap
-        if (mod(nt, Nwrap) .ne. 0 .and. nt .ne. 0 .and. nt .ne. Ltrot) then
+        if (nt < 0 .or. nt > Ltrot) then
             write(6,*) "incorrect ortholeft time slice, NT = ", nt; stop
         endif
-        ! Calculate correct nt_st for non-divisible Ltrot/Nwrap cases
-        if (nt == 0) then
-            nt_st = 0
-        else if (mod(nt, Nwrap) == 0) then
-            nt_st = nt / Nwrap
-        else
-            nt_st = nt / Nwrap + 1  ! Next interval for partial wrap
-        endif
-        ! Bounds check for WrapList array access
-        if (nt_st > Nst) then
-            write(6,*) "Warning: nt_st exceeds Nst in Wrap_L, nt=", nt, "nt_st=", nt_st
-            nt_st = Nst  ! Use last valid index
-        endif
+        nt_st = nt
         Prop%UUR(1:Ndim, 1) = WrList%URlist(1:Ndim, 1, nt_st)
         if (nt == 0) then ! clear URlist
             WrList%URlist = dcmplx(0.d0, 0.d0)
         endif
+        call stab_UL(Prop)
         if (nt .ne. Ltrot) then
-            call stab_UL(Prop)
             Gr_tmp%Gr00 = dcmplx(0.d0, 0.d0)
             call stab_green(Gr_tmp%Gr00, Prop, nt)
             dif = compare_mat(Gr_tmp%Gr00, Prop%Gbar)
@@ -208,29 +189,16 @@ contains
         ! Local: 
         integer :: nt_st
         real(kind=8) :: dif
-        ! Allow wrapping at nt=Ltrot even if not divisible by Nwrap
-        if (mod(nt, Nwrap) .ne. 0 .and. nt .ne. 0 .and. nt .ne. Ltrot) then
+        if (nt < 0 .or. nt > Ltrot) then
             write(6,*) "incorrect orthoright time slice, NT = ", nt; stop
         endif
-        ! Calculate correct nt_st for non-divisible Ltrot/Nwrap cases
-        if (nt == 0) then
-            nt_st = 0
-        else if (mod(nt, Nwrap) == 0) then
-            nt_st = nt / Nwrap
-        else
-            nt_st = nt / Nwrap + 1  ! Next interval for partial wrap
-        endif
-        ! Bounds check for WrapList array access
-        if (nt_st > Nst) then
-            write(6,*) "Warning: nt_st exceeds Nst in Wrap_R, nt=", nt, "nt_st=", nt_st
-            nt_st = Nst  ! Use last valid index
-        endif
+        nt_st = nt
         Prop%UUL(1, 1:Ndim) = WrList%ULlist(1, 1:Ndim, nt_st)
         if (nt == Ltrot) then
             WrList%ULlist = dcmplx(0.d0, 0.d0)
         endif
+        call stab_UR(Prop)
         if (nt .ne. 0) then
-            call stab_UR(Prop)
             Gr_tmp%Gr00 = dcmplx(0.d0, 0.d0)
             call stab_green(Gr_tmp%Gr00, Prop, nt)
             dif = compare_mat(Gr_tmp%Gr00, Prop%Gbar)
@@ -253,22 +221,17 @@ contains
         ! Local: 
         integer :: nt_st
         
-        ! Allow wrapping at nt=Ltrot even if not divisible by Nwrap
-        if ((mod(nt, Nwrap) .ne. 0 .and. nt .ne. Ltrot) .or. nt == 0) then
+        if (nt <= 0 .or. nt > Ltrot) then
             write(6,*) "incorrect orthobig time slice, NT = ", nt; stop
         endif
-        ! Calculate correct nt_st for non-divisible Ltrot/Nwrap cases
-        if (mod(nt, Nwrap) == 0) then
-            nt_st = nt / Nwrap
-        else
-            nt_st = nt / Nwrap + 1  ! Next interval for partial wrap
-        endif
+        nt_st = nt
         Prop%UUL(1, 1:Ndim) = WrList%ULlist(1, 1:Ndim, nt_st)
         call stab_UR(Prop)
         
-        ! For PQMC, the time-dependent Green's function calculation
-        ! needs to be adapted. For now, keep minimal functionality.
-        write(6,*) "Wrap_tau: PQMC time-dependent Green's function not fully implemented"
+        if (.not. warned_wrap_tau) then
+            write(6,*) "Wrap_tau: PQMC time-dependent Green's function not fully implemented"
+            warned_wrap_tau = .true.
+        endif
         
         return
     end subroutine Wrap_tau
