@@ -41,6 +41,7 @@ contains
         ! Normalize: P_R = B(tau,0)P / ||B(tau,0)P||
         if (norm_val > 1.d-14) then
             call ZDSCAL(Ndim, 1.d0/norm_val, Prop%UUR(1,1), 1)
+            Prop%overlap = Prop%overlap / norm_val
         else
             write(6,*) "Warning: very small norm in stab_UR, norm=", norm_val
         endif
@@ -63,6 +64,7 @@ contains
         ! Normalize: P_L^dagger = P^dagger B(2theta,tau) / ||P^dagger B(2theta,tau)||
         if (norm_val > 1.d-14) then
             call ZDSCAL(Ndim, 1.d0/norm_val, Prop%UUL(1,1), 1)
+            Prop%overlap = Prop%overlap / norm_val
         else
             write(6,*) "Warning: very small norm in stab_UL, norm=", norm_val
         endif

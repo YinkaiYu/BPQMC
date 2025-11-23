@@ -1,5 +1,6 @@
 module LocalU_mod
     use Multiply_mod
+    use ProcessMatrix
     use CalcBasic, only: Nbos
     implicit none
     
@@ -27,11 +28,11 @@ contains
         return
     end subroutine LocalU_reset
     
-    subroutine LocalU_metro(Op_U, Gbar, iseed, nf, ii, ntau)
+    subroutine LocalU_metro(Op_U, Prop, iseed, nf, ii, ntau)
         use MyMats
 ! Arguments:
         type(OperatorHubbard), intent(inout) :: Op_U
-	    complex(kind=8), dimension(Ndim, Ndim), intent(inout) :: Gbar
+	    class(Propagator), intent(inout) :: Prop
         integer, intent(inout) :: iseed
         integer, intent(in) :: ii, ntau, nf
 !   Local: 
@@ -42,7 +43,8 @@ contains
         real(kind=8) :: ratio_abs
         complex(kind=8) :: ratio_Pfa, ratio_exp, r_b
         complex(kind=8) :: one_plus_delta
-        complex(kind=8) :: delta_over_nb, log_r_b
+        complex(kind=8) :: delta_term, log_r_b
+        complex(kind=8) :: uur_old
 
 ! Local update on space-time (ii, ntau) for auxiliary field flavor (nf)
         phi_old = Conf%phi_list(nf, ii, ntau)
@@ -52,11 +54,13 @@ contains
 ! Calculate PQMC Metropolis ratio   
         call Op_U%get_delta(phi_old, phi_new)
         ratio_exp = Op_U%ratio_gaussian
-        ! Calculate r_b = 1 + Δ_i/N_b * Gbar_{ii}
-        delta_over_nb = Op_U%Delta * Gbar(ii,ii) / dble(Nbos)
-        r_b = dcmplx(1.d0,0.d0) + delta_over_nb
-        ! Calculate ratio_Pfa = exp(N_b * log1p(Δ_i/N_b * Gbar_{ii})) for stability
-        log_r_b = clog1p(delta_over_nb)
+        uur_old = Prop%UUR(ii,1)
+        if (abs(Prop%overlap) < 1.d-14) then
+            write(6,*) "Warning: small overlap in LocalU_metro, tau=", ntau, "site=", ii
+        endif
+        delta_term = Op_U%Delta * uur_old * Prop%UUL(1,ii) / Prop%overlap
+        r_b = dcmplx(1.d0,0.d0) + delta_term
+        log_r_b = clog1p(delta_term)
         ratio_Pfa = exp(dcmplx(dble(Nbos), 0.d0) * log_r_b)
         ratio_abs = abs(ratio_exp * ratio_Pfa * dconjg(ratio_Pfa))
 ! Update Gbar and phi if accepted
@@ -67,10 +71,13 @@ contains
             ! PQMC Gbar update: Gbar' = (1+Δ)/r_b * Gbar
             ! Step 1: Apply (1+Δ_i) to row ii only
             one_plus_delta = dcmplx(1.d0,0.d0) + Op_U%Delta
-            call ZSCAL(Ndim, one_plus_delta, Gbar(ii,1), Ndim)
+            call ZSCAL(Ndim, one_plus_delta, Prop%Gbar(ii,1), Ndim)
             
             ! Step 2: Apply factor 1/r_b to entire matrix
-            call ZSCAL(Ndim*Ndim, dcmplx(1.d0,0.d0)/r_b, Gbar, 1)
+            call ZSCAL(Ndim*Ndim, dcmplx(1.d0,0.d0)/r_b, Prop%Gbar, 1)
+
+            Prop%UUR(ii,1) = (dcmplx(1.d0,0.d0) + Op_U%Delta) * uur_old
+            Prop%overlap = Prop%overlap + Op_U%Delta * uur_old * Prop%UUL(1,ii)
 
             Conf%phi_list(nf, ii, ntau) = phi_new
         else
@@ -86,7 +93,7 @@ contains
         integer, intent(in) :: ntau, nf
         integer :: ii
         do ii = Ndim, 1, -1
-            call LocalU_metro(Op_U, Prop%Gbar, iseed, nf, ii, ntau)
+            call LocalU_metro(Op_U, Prop, iseed, nf, ii, ntau)
             call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
             call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
         enddo
@@ -106,7 +113,7 @@ contains
         do ii = 1, Ndim
             call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
             call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
-            call LocalU_metro(Op_U, Prop%Gbar, iseed, nf, ii, ntau)
+            call LocalU_metro(Op_U, Prop, iseed, nf, ii, ntau)
         enddo
         ! wrap the right
         do ii = 1, Ndim

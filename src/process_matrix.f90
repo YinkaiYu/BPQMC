@@ -8,6 +8,7 @@ module ProcessMatrix
         complex(kind=8), dimension(:,:), allocatable :: UUR  ! (Ndim, 1) - B(tau,0)P
         complex(kind=8), dimension(:,:), allocatable :: UUL  ! (1, Ndim) - P^dagger B(2theta,tau)
         complex(kind=8), dimension(:,:), allocatable :: Gbar ! (Ndim, Ndim) - stores G-I
+        complex(kind=8) :: overlap                        ! scalar P_L^dagger P_R
         real(kind=8) :: Xmaxm, Xmeanm
     contains
         procedure :: make => Prop_make
@@ -42,6 +43,7 @@ contains
         this%UUR = Init_obj%PR  ! Initialize with trial wave function
         this%UUL = Init_obj%PL  ! Initialize with trial wave function
         this%Gbar = dcmplx(0.d0, 0.d0)  ! Initialize Gbar = G - I = 0 at initial state
+        this%overlap = sum(this%UUL(1, 1:Ndim) * this%UUR(1:Ndim, 1))
         this%Xmaxm = 0.d0; this%Xmeanm = 0.d0
         return
     end subroutine Prop_make
@@ -52,6 +54,7 @@ contains
         this%UUL = that%UUL
         this%UUR = that%UUR
         this%Gbar = that%Gbar
+        this%overlap = that%overlap
         this%Xmaxm = that%Xmaxm; this%Xmeanm = that%Xmeanm
         return
     end subroutine Prop_assign
