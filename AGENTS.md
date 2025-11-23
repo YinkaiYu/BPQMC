@@ -90,17 +90,17 @@ This section tracks the ongoing refactor to move from a Green’s-function-propa
 0. **Algorithm documentation (DONE)**  
    - Update `readme.md` to describe the rank-1 propagation scheme, the role of `UUL`, `UUR` and the overlap scalar, and how to reconstruct `G` / `Gbar` at measurement times.
 
-1. **Wavefunction storage & normalization (TODO)**  
+1. **Wavefunction storage & normalization (DONE)**  
    - In `local_sweep.f90`, change the time-slice handling so that the rank-1 wavefunctions are normalised and stored at *every* imaginary-time slice (no more `Nwrap`-based stabilisation interval from `calc_basic.f90`).  
    - Use the `stabilization.f90` utilities and `process_matrix.f90` data structures to maintain full `URlist` and `ULlist` for later use.  
    - After this step, `Gbar` is still maintained as before, but wavefunction storage is sufficient for a rank-1-only algorithm.
 
-2. **Decouple local updates from `Gbar` – `LocalU_metro` (TODO)**  
+2. **Decouple local updates from `Gbar` – `LocalU_metro` (DONE)**  
    - Extend `type :: Propagator` in `process_matrix.f90` to include a complex scalar `overlap` that tracks the inner product of `UUL` and `UUR`.  
    - Rewrite `LocalU_metro` in `localU.f90` to depend only on `UUL`, `UUR`, and `overlap` for computing local Metropolis ratios, while still updating `Gbar` in parallel for cross-checking.  
    - Ensure that when an auxiliary-field update is accepted, `UUR` and `overlap` are updated consistently with the new configuration.
 
-3. **Adapt propagation routines to the new interface (TODO)**  
+3. **Adapt propagation routines to the new interface (DONE)**  
    - Update `LocalU_prop_L`, `LocalU_prop_R`, and any related routines in `localU.f90` to:  
      - retrieve `UUR` (or `UUL`) from `URlist`/`ULlist`;  
      - compute the overlap between `UUL` and `UUR`;  
