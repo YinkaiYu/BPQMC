@@ -6,22 +6,16 @@ module Stabilize_mod
     
     private
     public :: Wrap_pre, Wrap_L, Wrap_R, Wrap_tau
-    public :: Stabilize_init, Stabilize_clear, stab_green
-    complex(kind=8) ::  Z_one
-    type(PropGreen), allocatable :: Gr_tmp
+    public :: Stabilize_init, Stabilize_clear
     logical :: warned_wrap_tau
     
 contains
     subroutine Stabilize_init()
-        Z_one = dcmplx(1.d0, 0.d0)
         warned_wrap_tau = .false.
-        allocate(Gr_tmp)
-        call Gr_tmp%make()
         return
     end subroutine Stabilize_init
     
     subroutine Stabilize_clear()
-        deallocate(Gr_tmp)
         return
     end subroutine Stabilize_clear
     
@@ -72,66 +66,6 @@ contains
         
         return
     end subroutine stab_UL
-    
-    subroutine stab_green(Gbar, Prop, nt)
-        ! PQMC version: calculate Gbar using optimized LAPACK operations
-        ! Arguments: 
-        complex(kind=8), dimension(Ndim, Ndim), intent(out) :: Gbar
-        class(Propagator), intent(in) :: Prop
-        integer, intent(in) :: nt
-        ! Local: 
-        complex(kind=8) :: denominator, alpha
-        
-        ! LAPACK function interfaces
-        complex(kind=8), external :: ZDOTU
-        real(kind=8), external :: DZNRM2
-        external :: ZDSCAL, ZGERU
-        
-        ! Calculate denominator: P_L^dagger * P_R using LAPACK ZDOTU
-        ! Since UUL is already P_L^dagger (1,Ndim) and UUR is P_R (Ndim,1):
-        ! denominator = sum_i UUL(1,i) * UUR(i,1) (no conjugation needed)
-        denominator = ZDOTU(Ndim, Prop%UUL(1,1), 1, Prop%UUR(1,1), 1)
-        
-        ! Check for numerical stability
-        if (abs(denominator) < 1.d-14) then
-            write(6,*) "Warning: small denominator in stab_green, |denom|=", abs(denominator)
-        endif
-        
-        ! Calculate Gbar = N_b * (P_R * P_L^dagger) / denominator
-        ! Using ZGERU: A := alpha*x*y^T + A (no conjugation)
-        ! Here: Gbar := (N_b/denominator) * UUR * UUL + 0
-        ! Since UUL is already P_L^dagger, no conjugate needed
-        alpha = dcmplx(dble(Nbos), 0.d0) / denominator
-        Gbar = dcmplx(0.d0, 0.d0)
-        call ZGERU(Ndim, Ndim, alpha, Prop%UUR(1,1), 1, Prop%UUL(1,1), 1, Gbar, Ndim)
-        
-        return
-    end subroutine stab_green
-        
-    subroutine stab_green_big(Prop)
-        ! PQMC version: simplified version for big Green's function
-        ! Arguments:
-        class(Propagator), intent(in) :: Prop
-        
-        ! For PQMC, this function may not be needed in the same way
-        ! as the original matrix-based algorithm. 
-        ! Placeholder implementation - may need future adaptation
-        write(6,*) "stab_green_big: PQMC version not yet implemented"
-        
-        return
-    end subroutine stab_green_big
-    
-    real(kind=8) function compare_mat(Gr, Gr2) result(dif)
-        complex(kind=8), dimension(Ndim, Ndim), intent(in) :: Gr, Gr2
-        integer :: nl, nr
-        dif = 0.d0
-        do nr = 1, Ndim
-            do nl = 1, Ndim
-                dif = dif + real( abs(Gr(nl, nr) - Gr2(nl, nr)) )
-            enddo
-        enddo
-        return
-    end function compare_mat
     
     subroutine Wrap_pre(Prop, WrList, nt)
         ! Arguments: 

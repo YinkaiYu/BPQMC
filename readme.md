@@ -1,6 +1,6 @@
 # Bosonic Projector QMC
 
-This note summarises the rank-1 projector algorithm used in the bosonic PQMC codebase.  Instead of storing the full equal-time Green’s function at every imaginary-time slice (which would require $O(N^3)$ matrix products), we propagate only the rank-1 trial state.  All local updates therefore reduce to matrix–vector multiplications ($O(N^2)$), and the Green’s function is reconstructed only at measurement times.
+This note summarises the rank-1 projector algorithm used in the bosonic PQMC codebase.  The simulation propagates only the left/right trial vectors and their overlap, so all local updates are matrix–vector operations ($O(N^2)$); equal-time Green’s functions are reconstructed on demand at measurement times.
 
 ## Rank-1 trial state
 
