@@ -25,6 +25,7 @@ contains
         ! PQMC version: normalize right vector B(tau,0)P using LAPACK
         class(Propagator), intent(inout) :: Prop
         real(kind=8) :: norm_val
+        complex(kind=8), external :: ZDOTU
         
         ! LAPACK function interfaces
         real(kind=8), external :: DZNRM2
@@ -36,7 +37,7 @@ contains
         ! Normalize: P_R = B(tau,0)P / ||B(tau,0)P||
         if (norm_val > 1.d-14) then
             call ZDSCAL(Ndim, 1.d0/norm_val, Prop%UUR(1,1), 1)
-            Prop%overlap = Prop%overlap / norm_val
+            Prop%overlap = ZDOTU(Ndim, Prop%UUL(1,1), 1, Prop%UUR(1,1), 1)
         else
             write(6,*) "Warning: very small norm in stab_UR, norm=", norm_val
         endif
@@ -48,6 +49,7 @@ contains
         ! PQMC version: normalize left vector P^dagger B(2theta,tau) using LAPACK
         class(Propagator), intent(inout) :: Prop
         real(kind=8) :: norm_val
+        complex(kind=8), external :: ZDOTU
         
         ! LAPACK function interfaces
         real(kind=8), external :: DZNRM2
@@ -59,7 +61,7 @@ contains
         ! Normalize: P_L^dagger = P^dagger B(2theta,tau) / ||P^dagger B(2theta,tau)||
         if (norm_val > 1.d-14) then
             call ZDSCAL(Ndim, 1.d0/norm_val, Prop%UUL(1,1), 1)
-            Prop%overlap = Prop%overlap / norm_val
+            Prop%overlap = ZDOTU(Ndim, Prop%UUL(1,1), 1, Prop%UUR(1,1), 1)
         else
             write(6,*) "Warning: very small norm in stab_UL, norm=", norm_val
         endif
