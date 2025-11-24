@@ -110,9 +110,9 @@ This section tracks the ongoing refactor to move from a Green’s-function-propa
    - `obser_equal.f90` now reconstructs `G`/`Gbar` directly from `UUL`, `UUR`, and the propagated `overlap` (rank-1 outer product); the `Ltrot == 0` path uses the same reconstruction.  
    - The measurement path no longer depends on the stored `Gbar`; reconstruction is now the sole source.
 
-6. **Clean up remaining `Gbar` dependencies (TODO)**  
-   - Search the codebase for any other uses of `Gbar` (e.g. global updates, imaginary-time correlation functions).  
-   - For features that are currently disabled or not actively maintained, introduce lightweight placeholders or compile-time guards so the code still compiles without requiring a fully propagated `Gbar`.
+6. **Clean up remaining `Gbar` dependencies (DONE)**  
+   - Imaginary-time (`dynamics.f90`) now seeds time-sliced Greens via reconstructed rank-1 `G` instead of stored `Gbar`.  
+   - Global update path (`globalK.f90`) is stubbed as disabled for the rank-1 flow so compilation does not rely on `Gbar`.
 
 7. **Remove redundant `Gbar` maintenance (TODO)**  
    - Once all functional dependencies on `Gbar` are removed and verified, strip out the parallel `Gbar` updates from propagation and local-update routines.  

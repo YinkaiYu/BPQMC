@@ -39,8 +39,19 @@ contains
     
     subroutine Dyn_reset(Prop)
         class(Propagator), intent(in) :: Prop
+        complex(kind=8), dimension(Ndim, Ndim) :: G_init
+        complex(kind=8) :: alpha
+        external :: ZGERU
+
         call Prop_d%asgn(Prop)
-        call PropGr%reset(Prop%Gbar + ZKRON) ! the starting point of the time-sliced Green's function
+        G_init = ZKRON
+        if (abs(Prop_d%overlap) < 1.d-14) then
+            write(6,*) "Dyn_reset: small overlap, skip G reconstruction"
+        else
+            alpha = dcmplx(dble(Nbos), 0.d0) / Prop_d%overlap
+            call ZGERU(Ndim, Ndim, alpha, Prop_d%UUR(1,1), 1, Prop_d%UUL(1,1), 1, G_init, Ndim)
+        endif
+        call PropGr%reset(G_init) ! start time-sliced Green's function from reconstructed rank-1 G
         return
     end subroutine Dyn_reset
     
