@@ -53,72 +53,20 @@
 ## Architecture Overview
 - `main.f90`: MPI-enabled driver that manages warm-up, sweeps, measurements, and high-level control flow.
 - `model.f90`: Defines lattice geometry, kinetic/Hubbard operators, auxiliary fields, and initializes trial wave functions.
-- `initial_state.f90`: Builds projector trial states, evaluates gaps, and prepares left/right wave functions.
+- `initial_state.f90`: Builds projector trial states, evaluates gaps, and prepares left/right rank-1 wave functions.
 - `lattice.f90`: Encapsulates lattice construction and geometric utilities (kagome structure).
 - `fields.f90`: Handles auxiliary field representation and updates.
-- `process_matrix.f90`: Maintains propagator data (Gbar, wrap lists), imaginary-time propagation, and stabilization hooks.
-- `localU.f90`: Implements local imaginary-time propagation and Metropolis updates.
+- `process_matrix.f90`: Stores propagated vectors (`UUR`, `UUL`), overlap scalar, wrap lists, and bookkeeping.
+- `localU.f90`: Implements local imaginary-time propagation and Metropolis updates using only rank-1 data.
 - `local_sweep.f90`: Orchestrates left/right sweeps, measurement scheduling, and counter management.
-- `multiply.f90`: Performs propagation matrix multiplications using stabilized routines.
-- `obser_equal.f90`, `obser_tau.f90`: Collect equal-time and imaginary-time observables.
-- `stabilization.f90`: Provides numerical stabilization for propagation matrices via LAPACK vector normalization.
-- `globalK.f90` (currently disabled globally): Implements optional global updates using Gbar-based conversions.
+- `multiply.f90`: Propagates the rank-1 wavefunctions through kinetic and interaction operators.
+- `obser_equal.f90`, `obser_tau.f90`: Collect equal-time and imaginary-time observables by reconstructing `G` on demand.
+- `stabilization.f90`: Provides normalization/orthogonalization for the propagated vectors.
+- `globalK.f90`: Placeholder; global updates remain disabled in the rank-1 flow.
 
-## Key Features
-- Supports projector QMC with distinct thermalization and measurement phases.
-- Local and (optional) global update strategies; global flow currently off by default.
-- Uses `Gbar = G - I` storage for Green’s function, reconstructing full `G` only on demand.
-- Includes Fourier analysis utilities for momentum observables and matrix stabilization for numerical robustness.
-- Configurable imaginary-time measurements with focus on mid-projection sampling.
-
-## Development Context & PQMC Transition
-- Code base transitioned from finite-temperature DQMC to zero-temperature PQMC with canonical ensemble (fixed boson number).
-- Chemical potential terms were removed from kinetic Hamiltonian during the transition.
-- Propagator structure now stores only `Gbar`, reducing memory footprint and aligning all modules (`process_matrix`, `stabilization`, `multiply`, `localU`, `local_sweep`, `globalK`) to operate directly on `Gbar`.
-- Measurement routines (`obser_equal`, others) reconstruct `G = Gbar + I` as needed, keeping physical observables intact.
-- Each major stage of the conversion should be documented here and validated manually in WSL after changes.
-
-## Current Refactor: Rank-1 Propagation (Bosonic PQMC)
-
-This section tracks the ongoing refactor to move from a Green’s-function-propagation algorithm to a rank-1 wavefunction propagation scheme, as now documented in `readme.md`.  The high-level goal is to:
-- store and propagate only the left/right rank-1 wavefunctions at each time slice;
-- reconstruct `G` (or `Gbar`) on demand for measurements;
-- completely remove the need to maintain an `N×N` `Gbar` during propagation.
-
-### Plan & Milestones
-
-0. **Algorithm documentation (DONE)**  
-   - Update `readme.md` to describe the rank-1 propagation scheme, the role of `UUL`, `UUR` and the overlap scalar, and how to reconstruct `G` / `Gbar` at measurement times.
-
-1. **Wavefunction storage & normalization (DONE)**  
-   - `local_sweep.f90` stores normalised left/right wavefunctions at wrap intervals (`Nwrap`) and always at `nt=Ltrot`.  
-   - `WrapList` holds full `URlist/ULlist`; `Gbar` still propagated in parallel for checks.
-
-2. **Decouple local updates from `Gbar` – `LocalU_metro` (DONE)**  
-   - `Propagator` carries scalar `overlap`; `LocalU_metro` uses only `UUL/UUR/overlap` for ratios while still updating `Gbar` for comparison.  
-   - Acceptance updates both `UUR` and `overlap` consistently.
-
-3. **Propagate both wavefunctions explicitly (DONE)**  
-   - `LocalU_prop_L`: compute overlap → Metropolis over sites → propagate `Gbar`/`UUL`/`UUR` (L: `mmult_L` +1, `mmult_R` -1).  
-   - `LocalU_prop_R`: propagate `Gbar`/`UUL`/`UUR` (R: `mmult_R` +1, `mmult_L` -1) → compute overlap → Metropolis over sites.  
-   - All other propagation routines simultaneously advance `UUL`/`UUR` (no per-U WrList helpers). Wrapping steps re-orthonormalise and log differences between propagated vectors and stored lists to monitor drift.
-
-4. **Verify local updates without `Gbar` (DONE)**  
-   - Wrapping now occurs every `Nwrap` slices (plus `nt=Ltrot`), with stored/propagated vector diffs logged; `Gbar` maintained in parallel for cross-checks.
-
-5. **Remove `Gbar` from equal-time measurements (DONE)**  
-   - `obser_equal.f90` now reconstructs `G`/`Gbar` directly from `UUL`, `UUR`, and the propagated `overlap` (rank-1 outer product); the `Ltrot == 0` path uses the same reconstruction.  
-   - The measurement path no longer depends on the stored `Gbar`; reconstruction is now the sole source.
-
-6. **Clean up remaining `Gbar` dependencies (DONE)**  
-   - Imaginary-time (`dynamics.f90`) now seeds time-sliced Greens via reconstructed rank-1 `G` instead of stored `Gbar`.  
-   - Global update path (`globalK.f90`) is stubbed as disabled for the rank-1 flow so compilation does not rely on `Gbar`.
-
-7. **Remove redundant `Gbar` maintenance (DONE)**  
-   - Local propagation and Metropolis updates no longer multiply/update `Gbar`; only rank-1 `UUL/UUR/overlap` are propagated (`localU.f90`, `multiply.f90`, `local_sweep.f90`, `stabilization.f90`).  
-   - `Prop%Gbar` is left allocated for compatibility but is no longer touched in the hot path; Monte Carlo now runs purely on vector operations.
-
-8. **Documentation and cleanup (TODO)**  
-   - Update `readme.md` and any in-code comments to reflect the final design (rank-1 propagation, overlap handling, storage strategy).  
-   - Remove temporary notes from this section, keeping only a concise summary of the final architecture and any non-obvious design choices.  
-   - If helpful, record a short “developer note” here on how to re-enable a `Gbar`-like path for debugging, without reintroducing it into the hot path.
+## Current Design (Rank-1 PQMC)
+- Monte Carlo loop propagates only the left/right trial vectors and their overlap; no `N×N` Green’s matrix is stored.
+- Local Metropolis ratios use the outer product of the current vectors; propagation is matrix–vector only.
+- Equal-time and time-sliced Green’s functions are reconstructed on demand from `UUR`, `UUL`, and `overlap` when measuring.
+- Wrapping/normalization keeps vectors well-conditioned and logs drift for diagnostics.
+- Imaginary-time measurements and Fourier analysis operate on reconstructed observables while runtime outputs stay under `test/`.
