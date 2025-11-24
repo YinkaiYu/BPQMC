@@ -77,29 +77,20 @@ contains
         return
     end subroutine Local_sweep_therm
     
-    subroutine Local_sweep_pre(this, Prop, WrList, WrListU1, WrListU2)
+    subroutine Local_sweep_pre(this, Prop, WrList)
         class(LocalSweep), intent(inout) :: this
         class(Propagator), intent(inout) :: Prop
         class(WrapList), intent(inout) :: WrList
-        class(WrapList), intent(inout) :: WrListU1, WrListU2
         integer :: nt
         call this%reset(.false.)
         WrList%URlist = dcmplx(0.d0, 0.d0); WrList%ULlist = dcmplx(0.d0, 0.d0)
-        WrListU1%URlist = dcmplx(0.d0, 0.d0); WrListU1%ULlist = dcmplx(0.d0, 0.d0)
-        WrListU2%URlist = dcmplx(0.d0, 0.d0); WrListU2%ULlist = dcmplx(0.d0, 0.d0)
         if (Ltrot == 0) then
             ! Direct calculation for Ltrot == 0 case
             call stab_green(Prop%Gbar, Prop, 0)
         else
             do nt = 1, Ltrot
-                if (abs(RU1) > Zero) then
-                    call propU_pre(Op_U1, Prop, 1, nt)
-                    call Store_UR(Prop, WrListU1, nt)
-                endif
-                if (abs(RU2) > Zero) then
-                    call propU_pre(Op_U2, Prop, 2, nt)
-                    call Store_UR(Prop, WrListU2, nt)
-                endif
+                if (abs(RU1) > Zero) call propU_pre(Op_U1, Prop, 1, nt)
+                if (abs(RU2) > Zero) call propU_pre(Op_U2, Prop, 2, nt)
                 call propT_pre(Prop)
                 call Wrap_pre(Prop, WrList, nt)
             enddo
@@ -107,10 +98,9 @@ contains
         return
     end subroutine Local_sweep_pre
     
-    subroutine Local_sweep_L(Prop, WrList, WrListU1, WrListU2, iseed, Nobs)
+    subroutine Local_sweep_L(Prop, WrList, iseed, Nobs)
         class(Propagator), intent(inout) :: Prop
         class(WrapList), intent(inout) :: WrList
-        class(WrapList), intent(inout) :: WrListU1, WrListU2
         integer, intent(inout) :: iseed, Nobs
         integer :: nt
         do nt = Ltrot, 1, -1
@@ -120,22 +110,15 @@ contains
                 Nobs = Nobs + 1
             endif
             call propT_L(Prop)
-            if (abs(RU2) > Zero) then
-                call Store_UL(Prop, WrListU2, nt)
-                call LocalU_prop_L(Op_U2, Prop, WrListU2, iseed, 2, nt)
-            endif
-            if (abs(RU1) > Zero) then
-                call Store_UL(Prop, WrListU1, nt)
-                call LocalU_prop_L(Op_U1, Prop, WrListU1, iseed, 1, nt)
-            endif
+            if (abs(RU2) > Zero) call LocalU_prop_L(Op_U2, Prop, iseed, 2, nt)
+            if (abs(RU1) > Zero) call LocalU_prop_L(Op_U1, Prop, iseed, 1, nt)
         enddo
         return
     end subroutine Local_sweep_L
     
-    subroutine Local_sweep_R(Prop, WrList, WrListU1, WrListU2, iseed, toggle, Nobs, Nobst)
+    subroutine Local_sweep_R(Prop, WrList, iseed, toggle, Nobs, Nobst)
         class(Propagator), intent(inout) :: Prop
         class(WrapList), intent(inout) :: WrList
-        class(WrapList), intent(inout) :: WrListU1, WrListU2
         logical, intent(in) :: toggle
         integer, intent(inout) :: iseed, Nobs, Nobst
         integer :: nt
@@ -145,14 +128,8 @@ contains
             Nobst = Nobst + 1
         endif
         do nt = 1, Ltrot
-            if (abs(RU1) > Zero) then
-                call LocalU_prop_R(Op_U1, Prop, WrListU1, iseed, 1, nt)
-                call Store_UR(Prop, WrListU1, nt)
-            endif
-            if (abs(RU2) > Zero) then
-                call LocalU_prop_R(Op_U2, Prop, WrListU2, iseed, 2, nt)
-                call Store_UR(Prop, WrListU2, nt)
-            endif
+            if (abs(RU1) > Zero) call LocalU_prop_R(Op_U1, Prop, iseed, 1, nt)
+            if (abs(RU2) > Zero) call LocalU_prop_R(Op_U2, Prop, iseed, 2, nt)
             call propT_R(Prop)
             call Wrap_R(Prop, WrList, nt, "S")
             if (nt == Ltrot/2) then  ! Calculate observables only at middle imaginary time
@@ -163,11 +140,10 @@ contains
         return
     end subroutine Local_sweep_R
     
-    subroutine Local_sweep(this, Prop, WrList, WrListU1, WrListU2, iseed, is_beta, toggle)
+    subroutine Local_sweep(this, Prop, WrList, iseed, is_beta, toggle)
         class(LocalSweep), intent(inout) :: this
         class(Propagator), intent(inout) :: Prop
         class(WrapList), intent(inout) :: WrList
-        class(WrapList), intent(inout) :: WrListU1, WrListU2
         integer, intent(inout) :: iseed
         logical, intent(inout) :: is_beta
         logical, intent(in) :: toggle
@@ -184,11 +160,11 @@ contains
         else
             do nsw = 1, Nsweep
                 if(is_beta) then
-                    call this%sweep_L(Prop, WrList, WrListU1, WrListU2, iseed, Nobs)
-                    call this%sweep_R(Prop, WrList, WrListU1, WrListU2, iseed, toggle, Nobs, Nobst)
+                    call this%sweep_L(Prop, WrList, iseed, Nobs)
+                    call this%sweep_R(Prop, WrList, iseed, toggle, Nobs, Nobst)
                 else
-                    call this%sweep_R(Prop, WrList, WrListU1, WrListU2, iseed, toggle, Nobs, Nobst)
-                    call this%sweep_L(Prop, WrList, WrListU1, WrListU2, iseed, Nobs)
+                    call this%sweep_R(Prop, WrList, iseed, toggle, Nobs, Nobst)
+                    call this%sweep_L(Prop, WrList, iseed, Nobs)
                 endif
             enddo
         endif

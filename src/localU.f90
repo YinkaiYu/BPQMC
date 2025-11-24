@@ -1,7 +1,7 @@
 module LocalU_mod
     use Multiply_mod
     use ProcessMatrix
-    use CalcBasic, only: Nbos
+    use CalcBasic, only: Nbos, norm_diff_vec, norm_threshold
     implicit none
     
     public
@@ -37,6 +37,7 @@ contains
         integer, intent(in) :: ii, ntau, nf
 !   Local: 
         real(kind=8), external :: ranf
+        complex(kind=8), external :: ZDOTU
         external :: ZSCAL
         real(kind=8) :: phi_old, phi_new
         real(kind=8) :: xflip, Xdif, random
@@ -86,15 +87,13 @@ contains
         return
     end subroutine LocalU_metro
     
-    subroutine LocalU_prop_L(Op_U, Prop, WrListU, iseed, nf, ntau)
+    subroutine LocalU_prop_L(Op_U, Prop, iseed, nf, ntau)
         type(OperatorHubbard), intent(inout) :: Op_U
         class(Propagator), intent(inout) :: Prop
-        class(WrapList), intent(in) :: WrListU
         integer, intent(inout) :: iseed
         integer, intent(in) :: ntau, nf
         complex(kind=8), external :: ZDOTU
         integer :: ii
-        Prop%UUR(1:Ndim,1) = WrListU%URlist(1:Ndim,1,ntau)
         Prop%overlap = ZDOTU(Ndim, Prop%UUL(1,1), 1, Prop%UUR(1,1), 1)
         do ii = Ndim, 1, -1
             call LocalU_metro(Op_U, Prop, iseed, nf, ii, ntau)
@@ -102,17 +101,15 @@ contains
         do ii = Ndim, 1, -1
             call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
             call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
-        enddo
-        do ii = Ndim, 1, -1
             call Op_U%mmult_L(Prop%UUL, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
+            call Op_U%mmult_R(Prop%UUR, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
         enddo
         return
     end subroutine LocalU_prop_L
     
-    subroutine LocalU_prop_R(Op_U, Prop, WrListU, iseed, nf, ntau)
+    subroutine LocalU_prop_R(Op_U, Prop, iseed, nf, ntau)
         type(OperatorHubbard), intent(inout) :: Op_U
         class(Propagator), intent(inout) :: Prop
-        class(WrapList), intent(in) :: WrListU
         integer, intent(inout) :: iseed
         integer, intent(in) :: ntau, nf
         complex(kind=8), external :: ZDOTU
@@ -120,11 +117,9 @@ contains
         do ii = 1, Ndim
             call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
             call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
-        enddo
-        do ii = 1, Ndim
             call Op_U%mmult_R(Prop%UUR, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
+            call Op_U%mmult_L(Prop%UUL, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
         enddo
-        Prop%UUL(1,1:Ndim) = WrListU%ULlist(1,1:Ndim,ntau)
         Prop%overlap = ZDOTU(Ndim, Prop%UUL(1,1), 1, Prop%UUR(1,1), 1)
         do ii = 1, Ndim
             call LocalU_metro(Op_U, Prop, iseed, nf, ii, ntau)

@@ -15,7 +15,7 @@ program BPQMC
     type(LocalSweep) :: Sweep_local
     type(FourierTrans) :: Fourier
     type(Propagator), allocatable :: Prop
-    type(WrapList), allocatable :: WrList, WrListU1, WrListU2
+    type(WrapList), allocatable :: WrList
 
     call MPI_INIT(IERR)
     call MPI_COMM_SIZE(MPI_COMM_WORLD, ISIZE, IERR)
@@ -29,10 +29,6 @@ program BPQMC
     call Prop%make(Init)
     allocate(WrList)
     call WrList%make()
-    allocate(WrListU1)
-    call WrListU1%make()
-    allocate(WrListU2)
-    call WrListU2%make()
     call Stabilize_init()
     call Sweep_local%init(Init)
     ! if (is_global) call Sweep_global%init()
@@ -46,12 +42,12 @@ program BPQMC
         if (IRANK == 0) write(50,*) "Skipping Bosonic warm-up"
     endif
 ! Sweep
-    call Sweep_local%pre(Prop, WrList, WrListU1, WrListU2)
+    call Sweep_local%pre(Prop, WrList)
     is_beta = .true.; istau_tmp = .false.
     do nbc = 1, Nbin
         if (nbc .gt. Nthermal) istau_tmp = is_tau
         ! if (is_global) call Sweep_global%sweep(Prop, WrList, iseed, is_beta)
-        call Sweep_local%sweep(Prop, WrList, WrListU1, WrListU2, iseed, is_beta, istau_tmp)
+        call Sweep_local%sweep(Prop, WrList, iseed, is_beta, istau_tmp)
         call Fourier%preq(Obs_equal)
         if (istau_tmp) call Fourier%prtau(Obs_tau)
     enddo
@@ -81,8 +77,6 @@ program BPQMC
     call Stabilize_clear()
     deallocate(Prop)
     deallocate(WrList)
-    deallocate(WrListU1)
-    deallocate(WrListU2)
     call Model_clear(iseed) ! conf-out
     
     call MPI_FINALIZE(IERR)

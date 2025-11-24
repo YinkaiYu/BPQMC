@@ -1,10 +1,11 @@
 module Stabilize_mod
     use ProcessMatrix
     use MyMats
+    use CalcBasic, only: norm_diff_vec, norm_threshold
     implicit none
     
     private
-    public :: Wrap_pre, Wrap_L, Wrap_R, Wrap_tau, Store_UR, Store_UL
+    public :: Wrap_pre, Wrap_L, Wrap_R, Wrap_tau
     public :: Stabilize_init, Stabilize_clear, stab_green
     complex(kind=8) ::  Z_one
     type(PropGreen), allocatable :: Gr_tmp
@@ -161,12 +162,15 @@ contains
         character(len=*), optional, intent(in) :: flag
         ! Local: 
         integer :: nt_st
-        real(kind=8) :: dif
+        real(kind=8) :: dif, dif_wr
         if (Nst <= 0) return
         if (nt < 1 .or. nt > Ltrot) then
             write(6,*) "incorrect ortholeft time slice, NT = ", nt; stop
         endif
         nt_st = nt
+        call stab_UR(Prop)
+        dif_wr = norm_diff_vec(Prop%UUR(:,1), WrList%URlist(:,1,nt_st), Ndim)
+        if (dif_wr > norm_threshold) write(6,*) "wrap_L UR diff at nt=", nt, " diff=", dif_wr, " rank=", IRANK
         Prop%UUR(1:Ndim, 1) = WrList%URlist(1:Ndim, 1, nt_st)
         call stab_UL(Prop)
         if (nt .ne. Ltrot) then
@@ -190,12 +194,15 @@ contains
         character(len=*), optional, intent(in) :: flag
         ! Local: 
         integer :: nt_st
-        real(kind=8) :: dif
+        real(kind=8) :: dif, dif_wr
         if (Nst <= 0) return
         if (nt < 1 .or. nt > Ltrot) then
             write(6,*) "incorrect orthoright time slice, NT = ", nt; stop
         endif
         nt_st = nt
+        call stab_UL(Prop)
+        dif_wr = norm_diff_vec(Prop%UUL(1,:), WrList%ULlist(1,1:Ndim,nt_st), Ndim)
+        if (dif_wr > norm_threshold) write(6,*) "wrap_R UL diff at nt=", nt, " diff=", dif_wr, " rank=", IRANK
         Prop%UUL(1, 1:Ndim) = WrList%ULlist(1, 1:Ndim, nt_st)
         call stab_UR(Prop)
         Gr_tmp%Gr00 = dcmplx(0.d0, 0.d0)
@@ -234,30 +241,4 @@ contains
         
         return
     end subroutine Wrap_tau
-
-    subroutine Store_UR(Prop, WrList, nt)
-        class(Propagator), intent(inout) :: Prop
-        class(WrapList), intent(inout) :: WrList
-        integer, intent(in) :: nt
-        if (Nst <= 0) return
-        if (nt < 1 .or. nt > Ltrot) then
-            write(6,*) "incorrect store UR time slice, NT = ", nt; stop
-        endif
-        call stab_UR(Prop)
-        WrList%URlist(1:Ndim, 1, nt) = Prop%UUR(1:Ndim, 1)
-        return
-    end subroutine Store_UR
-
-    subroutine Store_UL(Prop, WrList, nt)
-        class(Propagator), intent(inout) :: Prop
-        class(WrapList), intent(inout) :: WrList
-        integer, intent(in) :: nt
-        if (Nst <= 0) return
-        if (nt < 1 .or. nt > Ltrot) then
-            write(6,*) "incorrect store UL time slice, NT = ", nt; stop
-        endif
-        call stab_UL(Prop)
-        WrList%ULlist(1, 1:Ndim, nt) = Prop%UUL(1, 1:Ndim)
-        return
-    end subroutine Store_UL
 end module Stabilize_mod

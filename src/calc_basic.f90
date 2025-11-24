@@ -42,6 +42,8 @@ module CalcBasic ! Global parameters
     integer,                    public          :: Nbin
     integer,                    public          :: Nsweep
     integer,                    public          :: ISIZE, IRANK, IERR
+! utilities
+    real(kind=8),               public          :: norm_threshold
     
 contains
     subroutine read_input()
@@ -88,6 +90,7 @@ contains
         call MPI_BCAST(is_tau, 1, MPI_Logical, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(is_warm, 1, MPI_Logical, 0, MPI_COMM_WORLD, IERR)
         ! call MPI_BCAST(is_global, 1, MPI_Logical, 0, MPI_COMM_WORLD, IERR)
+        norm_threshold = 1.d-6
         return
     end subroutine read_input
     
@@ -100,6 +103,19 @@ contains
         Nst = Ltrot
         return
     end subroutine Params_set
+
+    real(kind=8) function norm_diff_vec(vec1, vec2, n)
+        complex(kind=8), intent(in) :: vec1(:), vec2(:)
+        integer, intent(in) :: n
+        integer :: i
+        real(kind=8) :: acc
+        acc = 0.d0
+        do i = 1, n
+            acc = acc + abs(vec1(i) - vec2(i))**2
+        enddo
+        norm_diff_vec = sqrt(acc)
+        return
+    end function norm_diff_vec
     
     integer function nranf(iseed, N)
         integer, intent(inout) :: iseed
