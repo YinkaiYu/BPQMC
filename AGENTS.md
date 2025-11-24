@@ -91,7 +91,7 @@ This section tracks the ongoing refactor to move from a Green’s-function-propa
    - Update `readme.md` to describe the rank-1 propagation scheme, the role of `UUL`, `UUR` and the overlap scalar, and how to reconstruct `G` / `Gbar` at measurement times.
 
 1. **Wavefunction storage & normalization (DONE)**  
-   - `local_sweep.f90` stores normalised left/right wavefunctions at every imaginary-time slice (no `Nwrap`).  
+   - `local_sweep.f90` stores normalised left/right wavefunctions at wrap intervals (`Nwrap`) and always at `nt=Ltrot`.  
    - `WrapList` holds full `URlist/ULlist`; `Gbar` still propagated in parallel for checks.
 
 2. **Decouple local updates from `Gbar` – `LocalU_metro` (DONE)**  

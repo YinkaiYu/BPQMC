@@ -108,7 +108,7 @@ contains
         if (Ltrot <= 0) then
             Nst = 0
         else
-            Nst = (Ltrot + Nwrap - 1) / Nwrap
+            Nst = (Ltrot + Nwrap - 1) / Nwrap  ! ceil(Ltrot / Nwrap)
         endif
         return
     end subroutine Params_set
@@ -187,7 +187,6 @@ contains
             write(50,*) 'Trotter number                                 :', Ltrot
             write(50,*) '=>Dtau                                         :', Dtau
             write(50,*) 'N_Ortho                                        :', Nwrap
-            write(50,*) 'Wavefunction storage/normalization stride      : every time slice'
             write(50,*) '# Bins                                         :', Nbin
             write(50,*) '# Nsweep in one bin                            :', Nsweep
             write(50,*) '# Cores                                        :', ISIZE

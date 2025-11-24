@@ -144,7 +144,7 @@ contains
         if (nt < 1 .or. nt > Ltrot) then
             write(6,*) "incorrect preortho time slice, NT = ", nt; stop
         endif
-        nt_st = (nt - 1) / Nwrap + 1
+        nt_st = (nt - 1) / Nwrap + 1  ! ceil(nt / Nwrap)
         call stab_UR(Prop)
         WrList%URlist(1:Ndim, 1, nt_st) = Prop%UUR(1:Ndim, 1)
         if (nt == Ltrot) then
