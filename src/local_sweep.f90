@@ -92,7 +92,7 @@ contains
                 if (abs(RU1) > Zero) call propU_pre(Op_U1, Prop, 1, nt)
                 if (abs(RU2) > Zero) call propU_pre(Op_U2, Prop, 2, nt)
                 call propT_pre(Prop)
-                call Wrap_pre(Prop, WrList, nt)
+                if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_pre(Prop, WrList, nt)
             enddo
         endif
         return
@@ -104,7 +104,7 @@ contains
         integer, intent(inout) :: iseed, Nobs
         integer :: nt
         do nt = Ltrot, 1, -1
-            call Wrap_L(Prop, WrList, nt, "S")
+            if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_L(Prop, WrList, nt, "S")
             if (nt == Ltrot/2) then  ! Calculate observables only at middle imaginary time
                 call Obs_equal%calc(Prop, nt)
                 Nobs = Nobs + 1
@@ -131,7 +131,7 @@ contains
             if (abs(RU1) > Zero) call LocalU_prop_R(Op_U1, Prop, iseed, 1, nt)
             if (abs(RU2) > Zero) call LocalU_prop_R(Op_U2, Prop, iseed, 2, nt)
             call propT_R(Prop)
-            call Wrap_R(Prop, WrList, nt, "S")
+            if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_R(Prop, WrList, nt, "S")
             if (nt == Ltrot/2) then  ! Calculate observables only at middle imaginary time
                 call Obs_equal%calc(Prop, nt)
                 Nobs = Nobs + 1

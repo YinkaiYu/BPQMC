@@ -39,6 +39,7 @@ module CalcBasic ! Global parameters
     integer,                    public          :: Nwarm
     real(kind=8),               public          :: shiftWarm(Naux)
     integer,                    public          :: Nst  ! number of stored imaginary-time slices (0..Ltrot)
+    integer,                    public          :: Nwrap
     integer,                    public          :: Nbin
     integer,                    public          :: Nsweep
     integer,                    public          :: ISIZE, IRANK, IERR
@@ -53,7 +54,7 @@ contains
             read(20,*) RT, RU1, RU2, Nbos
             read(20,*) Nlx, Nly, Ltrot, Beta
             read(20,*) NlxTherm, NlyTherm, LtrotTherm
-            read(20,*) Nbin, Nsweep, shiftLoc
+            read(20,*) Nwrap, Nbin, Nsweep, shiftLoc
             read(20,*) is_tau, Nthermal
             read(20,*) is_warm, Nwarm, shiftWarm(1), shiftWarm(2)
             ! read(20,*) is_global, Nglobal, shiftGlb(1), shiftGlb(2)
@@ -82,6 +83,7 @@ contains
         call MPI_BCAST(NlxTherm, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(NlyTherm, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(LtrotTherm, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(Nwrap, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nbin, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nwarm, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         ! call MPI_BCAST(Nglobal, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
@@ -100,7 +102,14 @@ contains
         Dtau = Beta / dble(Ltrot)
         Ndim = Lq * Norb
         NdimTherm = LqTherm * Norb
-        Nst = Ltrot
+        if (Nwrap <= 0) then
+            write(6,*) "Nwrap must be positive"; stop
+        endif
+        if (Ltrot <= 0) then
+            Nst = 0
+        else
+            Nst = (Ltrot + Nwrap - 1) / Nwrap
+        endif
         return
     end subroutine Params_set
 
@@ -177,6 +186,7 @@ contains
             write(50,*) 'Beta                                           :', Beta
             write(50,*) 'Trotter number                                 :', Ltrot
             write(50,*) '=>Dtau                                         :', Dtau
+            write(50,*) 'N_Ortho                                        :', Nwrap
             write(50,*) 'Wavefunction storage/normalization stride      : every time slice'
             write(50,*) '# Bins                                         :', Nbin
             write(50,*) '# Nsweep in one bin                            :', Nsweep

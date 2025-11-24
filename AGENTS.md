@@ -99,12 +99,12 @@ This section tracks the ongoing refactor to move from a Green’s-function-propa
    - Acceptance updates both `UUR` and `overlap` consistently.
 
 3. **Propagate both wavefunctions explicitly (DONE)**  
-   - `LocalU_prop_L` uses the order: compute overlap → Metropolis over sites → propagate `Gbar`/`UUL`/`UUR` (L: `mmult_L` with +1, `mmult_R` with -1).  
-   - `LocalU_prop_R` uses the order: propagate `Gbar`/`UUL`/`UUR` (R: `mmult_R` with +1, `mmult_L` with -1) → compute overlap → Metropolis over sites.  
+   - `LocalU_prop_L`: compute overlap → Metropolis over sites → propagate `Gbar`/`UUL`/`UUR` (L: `mmult_L` +1, `mmult_R` -1).  
+   - `LocalU_prop_R`: propagate `Gbar`/`UUL`/`UUR` (R: `mmult_R` +1, `mmult_L` -1) → compute overlap → Metropolis over sites.  
    - All other propagation routines simultaneously advance `UUL`/`UUR` (no per-U WrList helpers). Wrapping steps re-orthonormalise and log differences between propagated vectors and stored lists to monitor drift.
 
 4. **Verify local updates without `Gbar` (DONE)**  
-   - Per-slice vector diff logging (`Wrap_L/R`) checks consistency of stored vs propagated wavefunctions; `Gbar` still maintained in parallel for cross-checks.
+   - Wrapping now occurs every `Nwrap` slices (plus `nt=Ltrot`), with stored/propagated vector diffs logged; `Gbar` maintained in parallel for cross-checks.
 
 5. **Remove `Gbar` from equal-time measurements (TODO)**  
    - In `obser_equal.f90` (`Obs_equal_calc`), reconstruct `G`/`Gbar` using `UUL`, `UUR`, and `overlap` following the formulas in `readme.md` instead of using stored `Gbar`.  

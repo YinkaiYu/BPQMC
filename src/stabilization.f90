@@ -144,7 +144,7 @@ contains
         if (nt < 1 .or. nt > Ltrot) then
             write(6,*) "incorrect preortho time slice, NT = ", nt; stop
         endif
-        nt_st = nt
+        nt_st = (nt - 1) / Nwrap + 1
         call stab_UR(Prop)
         WrList%URlist(1:Ndim, 1, nt_st) = Prop%UUR(1:Ndim, 1)
         if (nt == Ltrot) then
@@ -167,7 +167,7 @@ contains
         if (nt < 1 .or. nt > Ltrot) then
             write(6,*) "incorrect ortholeft time slice, NT = ", nt; stop
         endif
-        nt_st = nt
+        nt_st = (nt - 1) / Nwrap + 1
         call stab_UR(Prop)
         dif_wr = norm_diff_vec(Prop%UUR(:,1), WrList%URlist(:,1,nt_st), Ndim)
         if (dif_wr > norm_threshold) write(6,*) "wrap_L UR diff at nt=", nt, " diff=", dif_wr, " rank=", IRANK
@@ -199,7 +199,7 @@ contains
         if (nt < 1 .or. nt > Ltrot) then
             write(6,*) "incorrect orthoright time slice, NT = ", nt; stop
         endif
-        nt_st = nt
+        nt_st = (nt - 1) / Nwrap + 1
         call stab_UL(Prop)
         dif_wr = norm_diff_vec(Prop%UUL(1,:), WrList%ULlist(1,1:Ndim,nt_st), Ndim)
         if (dif_wr > norm_threshold) write(6,*) "wrap_R UL diff at nt=", nt, " diff=", dif_wr, " rank=", IRANK
@@ -230,7 +230,7 @@ contains
         if (nt <= 0 .or. nt > Ltrot) then
             write(6,*) "incorrect orthobig time slice, NT = ", nt; stop
         endif
-        nt_st = nt
+        nt_st = (nt - 1) / Nwrap + 1
         Prop%UUL(1, 1:Ndim) = WrList%ULlist(1, 1:Ndim, nt_st)
         call stab_UR(Prop)
         
