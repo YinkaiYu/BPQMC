@@ -106,10 +106,9 @@ This section tracks the ongoing refactor to move from a Green’s-function-propa
 4. **Verify local updates without `Gbar` (DONE)**  
    - Wrapping now occurs every `Nwrap` slices (plus `nt=Ltrot`), with stored/propagated vector diffs logged; `Gbar` maintained in parallel for cross-checks.
 
-5. **Remove `Gbar` from equal-time measurements (TODO)**  
-   - In `obser_equal.f90` (`Obs_equal_calc`), reconstruct `G`/`Gbar` using `UUL`, `UUR`, and `overlap` following the formulas in `readme.md` instead of using stored `Gbar`.  
-   - Pay special attention to the `Ltrot == 0` branch in `local_sweep.f90` to ensure that measurements at zero imaginary-time length are still handled correctly.  
-   - Perform parallel checks: compare reconstructed `Gbar` with the still-maintained `Gbar` to verify correctness.
+5. **Remove `Gbar` from equal-time measurements (DONE)**  
+   - `obser_equal.f90` now reconstructs `G`/`Gbar` directly from `UUL`, `UUR`, and the propagated `overlap` (rank-1 outer product); the `Ltrot == 0` path uses the same reconstruction.  
+   - The measurement path no longer depends on the stored `Gbar`; reconstruction is now the sole source.
 
 6. **Clean up remaining `Gbar` dependencies (TODO)**  
    - Search the codebase for any other uses of `Gbar` (e.g. global updates, imaginary-time correlation functions).  

@@ -94,37 +94,31 @@ contains
 ! Local: 
         complex(kind=8), dimension(Ndim, Ndim) :: Grupc, Grup
         complex(kind=8), dimension(Ndim, Ndim) :: Grdoc, Grdo
-        complex(kind=8), dimension(Ndim) :: PL1, PL2, PR1, PR2
-        complex(kind=8) :: overlap1, overlap2, alpha1, alpha2, beta1, beta2
+        complex(kind=8), dimension(Ndim, Ndim) :: Gbar_recon
+        complex(kind=8) :: overlap_used, alpha
         integer :: i, j, no1, no2, ii, jj, imj, nb, no
-        real(kind=8) :: GGfactor, num_per_site, num_per_cell
+        real(kind=8) :: GGfactor, num_per_site
         complex(kind=8) :: den_temp(Lq, Norb, Norb), den_temp_up(Lq, Norb, Norb), den_temp_do(Lq, Norb, Norb)
         complex(kind=8) :: temp_upup, temp_dodo, temp_updo, temp_doup, temp_up, temp_do
-        complex(kind=8), external :: ZDOTU
+        external :: ZGERU
+
+        overlap_used = Prop%overlap
+        ! Reconstruct rank-1 Gbar = (N_b / overlap) * (UUR * UUL)
+        alpha = dcmplx(dble(Nbos), 0.d0) / overlap_used
+        Gbar_recon = dcmplx(0.d0, 0.d0)
+        call ZGERU(Ndim, Ndim, alpha, Prop%UUR(1,1), 1, Prop%UUL(1,1), 1, Gbar_recon, Ndim)
+
+        Grup    = Gbar_recon + ZKRON                 !   Gr(i, j)    = <b_i b^+_j > = Gbar + I  
+        Grupc   = transpose(Gbar_recon)              !   Grc(i, j)   = <b^+_i b_j > = transpose(Gbar)
         
-        Grup    = Prop%Gbar + ZKRON                 !   Gr(i, j)    = <b_i b^+_j > = Gbar + I  
-        Grupc   = transpose(Prop%Gbar)              !   Grc(i, j)   = <b^+_i b_j > = transpose(Gbar)
-        
-        Grdo    = dconjg(Prop%Gbar + ZKRON)         !   Gr(i, j)    = <c_i c^+_j > = conjg(Gbar + I)
-        Grdoc   = dconjg(transpose(Prop%Gbar))      !   Grc(i, j)   = <c^+_i c_j > = conjg(transpose(Gbar))
+        Grdo    = dconjg(Grup)                       !   Gr(i, j)    = <c_i c^+_j > = conjg(Gbar + I)
+        Grdoc   = dconjg(Grupc)                      !   Grc(i, j)   = <c^+_i c_j > = conjg(transpose(Gbar))
 
         GGfactor = dble(Nbos-1) / dble(Nbos)
-        num_per_cell = dble(Nbos) / dble(Lq)
         num_per_site = dble(Nbos) / dble(Norb*Lq)
         den_temp = dcmplx(0.d0, 0.d0)
         den_temp_up = dcmplx(0.d0, 0.d0)
         den_temp_do = dcmplx(0.d0, 0.d0)
-
-        PR1 = Prop%UUR(1:Ndim, 1)
-        PL1 = Prop%UUL(1, 1:Ndim)
-        PR2 = dconjg(PR1)
-        PL2 = dconjg(PL1)
-        overlap1 = ZDOTU(Ndim, PR1, 1, PL1, 1)
-        overlap2 = dconjg(overlap1)
-        alpha1 = dcmplx(dble(Nbos), 0.d0) / overlap1
-        alpha2 = dcmplx(dble(Nbos), 0.d0) / overlap2
-        beta1 = alpha1 * dcmplx(dble(Nbos-1), 0.d0) / overlap1
-        beta2 = alpha2 * dcmplx(dble(Nbos-1), 0.d0) / overlap2
         
         do ii = 1, Ndim
             this%density_up = this%density_up + real( Grupc(ii,ii) ) / dble(Lq)
