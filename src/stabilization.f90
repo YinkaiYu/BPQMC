@@ -25,7 +25,6 @@ contains
         ! PQMC version: normalize right vector B(tau,0)P using LAPACK
         class(Propagator), intent(inout) :: Prop
         real(kind=8) :: norm_val
-        complex(kind=8), external :: ZDOTU
         
         ! LAPACK function interfaces
         real(kind=8), external :: DZNRM2
@@ -33,15 +32,10 @@ contains
         
         ! Calculate ||B(tau,0)P|| using LAPACK DZNRM2
         norm_val = DZNRM2(Ndim, Prop%UUR(1,1), 1)
+        if (norm_val < 1.d-8) write(6,*) "Warning: very small norm in stab_UR, norm=", norm_val
         
         ! Normalize: P_R = B(tau,0)P / ||B(tau,0)P||
-        if (norm_val > 1.d-14) then
-            call ZDSCAL(Ndim, 1.d0/norm_val, Prop%UUR(1,1), 1)
-            Prop%overlap = ZDOTU(Ndim, Prop%UUL(1,1), 1, Prop%UUR(1,1), 1)
-        else
-            write(6,*) "Warning: very small norm in stab_UR, norm=", norm_val
-        endif
-        
+        call ZDSCAL(Ndim, 1.d0/norm_val, Prop%UUR(1,1), 1)
         return
     end subroutine stab_UR
     
@@ -49,7 +43,6 @@ contains
         ! PQMC version: normalize left vector P^dagger B(2theta,tau) using LAPACK
         class(Propagator), intent(inout) :: Prop
         real(kind=8) :: norm_val
-        complex(kind=8), external :: ZDOTU
         
         ! LAPACK function interfaces
         real(kind=8), external :: DZNRM2
@@ -57,15 +50,10 @@ contains
         
         ! Calculate ||P^dagger B(2theta,tau)|| using LAPACK DZNRM2
         norm_val = DZNRM2(Ndim, Prop%UUL(1,1), 1)
+        if (norm_val < 1.d-8) write(6,*) "Warning: very small norm in stab_UL, norm=", norm_val
         
         ! Normalize: P_L^dagger = P^dagger B(2theta,tau) / ||P^dagger B(2theta,tau)||
-        if (norm_val > 1.d-14) then
-            call ZDSCAL(Ndim, 1.d0/norm_val, Prop%UUL(1,1), 1)
-            Prop%overlap = ZDOTU(Ndim, Prop%UUL(1,1), 1, Prop%UUR(1,1), 1)
-        else
-            write(6,*) "Warning: very small norm in stab_UL, norm=", norm_val
-        endif
-        
+        call ZDSCAL(Ndim, 1.d0/norm_val, Prop%UUL(1,1), 1)
         return
     end subroutine stab_UL
     
@@ -101,10 +89,10 @@ contains
         endif
         nt_st = (nt - 1) / Nwrap + 1
         call stab_UR(Prop)
+        call stab_UL(Prop)
         dif_wr = norm_diff_vec(Prop%UUR(:,1), WrList%URlist(:,1,nt_st), Ndim)
         if (dif_wr > norm_threshold) write(6,*) "wrap_L UR diff at nt=", nt, " diff=", dif_wr, " rank=", IRANK
         Prop%UUR(1:Ndim, 1) = WrList%URlist(1:Ndim, 1, nt_st)
-        call stab_UL(Prop)
         WrList%ULlist(1, 1:Ndim, nt_st) = Prop%UUL(1, 1:Ndim)
         return
     end subroutine Wrap_L
@@ -124,10 +112,10 @@ contains
         endif
         nt_st = (nt - 1) / Nwrap + 1
         call stab_UL(Prop)
+        call stab_UR(Prop)
         dif_wr = norm_diff_vec(Prop%UUL(1,:), WrList%ULlist(1,1:Ndim,nt_st), Ndim)
         if (dif_wr > norm_threshold) write(6,*) "wrap_R UL diff at nt=", nt, " diff=", dif_wr, " rank=", IRANK
         Prop%UUL(1, 1:Ndim) = WrList%ULlist(1, 1:Ndim, nt_st)
-        call stab_UR(Prop)
         WrList%URlist(1:Ndim, 1, nt_st) = Prop%UUR(1:Ndim, 1)
         return
     end subroutine Wrap_R
@@ -147,8 +135,9 @@ contains
             write(6,*) "incorrect orthobig time slice, NT = ", nt; stop
         endif
         nt_st = (nt - 1) / Nwrap + 1
-        Prop%UUL(1, 1:Ndim) = WrList%ULlist(1, 1:Ndim, nt_st)
         call stab_UR(Prop)
+        call stab_UL(Prop)
+        Prop%UUL(1, 1:Ndim) = WrList%ULlist(1, 1:Ndim, nt_st)
         
         if (.not. warned_wrap_tau) then
             write(6,*) "Wrap_tau: PQMC time-dependent Green's function not fully implemented"

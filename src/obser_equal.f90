@@ -95,15 +95,17 @@ contains
         complex(kind=8), dimension(Ndim, Ndim) :: Grupc, Grup
         complex(kind=8), dimension(Ndim, Ndim) :: Grdoc, Grdo
         complex(kind=8), dimension(Ndim, Ndim) :: Gbar
-        complex(kind=8) :: alpha
+        complex(kind=8) :: alpha, overlap
         integer :: i, j, no1, no2, ii, jj, imj, nb, no
         real(kind=8) :: GGfactor, num_per_site
         complex(kind=8) :: den_temp(Lq, Norb, Norb), den_temp_up(Lq, Norb, Norb), den_temp_do(Lq, Norb, Norb)
         complex(kind=8) :: temp_upup, temp_dodo, temp_updo, temp_doup, temp_up, temp_do
+        complex(kind=8), external :: ZDOTU
         external :: ZGERU
 
         ! Reconstruct rank-1 Gbar = (N_b / overlap) * (UUR * UUL)
-        alpha = dcmplx(dble(Nbos), 0.d0) / Prop%overlap
+        overlap = ZDOTU(Ndim, Prop%UUL(1,1), 1, Prop%UUR(1,1), 1)
+        alpha = dcmplx(dble(Nbos), 0.d0) / overlap
         Gbar = dcmplx(0.d0, 0.d0)
         call ZGERU(Ndim, Ndim, alpha, Prop%UUR(1,1), 1, Prop%UUL(1,1), 1, Gbar, Ndim)
 
