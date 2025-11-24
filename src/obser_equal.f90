@@ -94,22 +94,21 @@ contains
 ! Local: 
         complex(kind=8), dimension(Ndim, Ndim) :: Grupc, Grup
         complex(kind=8), dimension(Ndim, Ndim) :: Grdoc, Grdo
-        complex(kind=8), dimension(Ndim, Ndim) :: Gbar_recon
-        complex(kind=8) :: overlap_used, alpha
+        complex(kind=8), dimension(Ndim, Ndim) :: Gbar
+        complex(kind=8) :: alpha
         integer :: i, j, no1, no2, ii, jj, imj, nb, no
         real(kind=8) :: GGfactor, num_per_site
         complex(kind=8) :: den_temp(Lq, Norb, Norb), den_temp_up(Lq, Norb, Norb), den_temp_do(Lq, Norb, Norb)
         complex(kind=8) :: temp_upup, temp_dodo, temp_updo, temp_doup, temp_up, temp_do
         external :: ZGERU
 
-        overlap_used = Prop%overlap
         ! Reconstruct rank-1 Gbar = (N_b / overlap) * (UUR * UUL)
-        alpha = dcmplx(dble(Nbos), 0.d0) / overlap_used
-        Gbar_recon = dcmplx(0.d0, 0.d0)
-        call ZGERU(Ndim, Ndim, alpha, Prop%UUR(1,1), 1, Prop%UUL(1,1), 1, Gbar_recon, Ndim)
+        alpha = dcmplx(dble(Nbos), 0.d0) / Prop%overlap
+        Gbar = dcmplx(0.d0, 0.d0)
+        call ZGERU(Ndim, Ndim, alpha, Prop%UUR(1,1), 1, Prop%UUL(1,1), 1, Gbar, Ndim)
 
-        Grup    = Gbar_recon + ZKRON                 !   Gr(i, j)    = <b_i b^+_j > = Gbar + I  
-        Grupc   = transpose(Gbar_recon)              !   Grc(i, j)   = <b^+_i b_j > = transpose(Gbar)
+        Grup    = Gbar + ZKRON                 !   Gr(i, j)    = <b_i b^+_j > = Gbar + I  
+        Grupc   = transpose(Gbar)              !   Grc(i, j)   = <b^+_i b_j > = transpose(Gbar)
         
         Grdo    = dconjg(Grup)                       !   Gr(i, j)    = <c_i c^+_j > = conjg(Gbar + I)
         Grdoc   = dconjg(Grupc)                      !   Grc(i, j)   = <c^+_i c_j > = conjg(transpose(Gbar))
