@@ -85,8 +85,7 @@ contains
         call this%reset(.false.)
         WrList%URlist = dcmplx(0.d0, 0.d0); WrList%ULlist = dcmplx(0.d0, 0.d0)
         if (Ltrot == 0) then
-            ! Direct calculation for Ltrot == 0 case
-            call stab_green(Prop%Gbar, Prop, 0)
+            ! Direct calculation for Ltrot == 0 case (no Gbar path needed)
         else
             do nt = 1, Ltrot
                 if (abs(RU1) > Zero) call propU_pre(Op_U1, Prop, 1, nt)

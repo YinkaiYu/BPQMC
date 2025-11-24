@@ -37,13 +37,10 @@ contains
         integer, intent(in) :: ii, ntau, nf
 !   Local: 
         real(kind=8), external :: ranf
-        complex(kind=8), external :: ZDOTU
-        external :: ZSCAL
         real(kind=8) :: phi_old, phi_new
         real(kind=8) :: xflip, Xdif, random
         real(kind=8) :: ratio_abs
         complex(kind=8) :: ratio_Pfa, ratio_exp, r_b
-        complex(kind=8) :: one_plus_delta
         complex(kind=8) :: delta_term, log_r_b
         complex(kind=8) :: uur_old
 
@@ -64,18 +61,10 @@ contains
         log_r_b = clog1p(delta_term)
         ratio_Pfa = exp(dcmplx(dble(Nbos), 0.d0) * log_r_b)
         ratio_abs = abs(ratio_exp * ratio_Pfa * dconjg(ratio_Pfa))
-! Update Gbar and phi if accepted
+! Update rank-1 state and phi if accepted
         random = ranf(iseed)
         if (ratio_abs .gt. random) then
             call Op_U%Acc_U_local%count(.true.)
-
-            ! PQMC Gbar update: Gbar' = (1+Δ)/r_b * Gbar
-            ! Step 1: Apply (1+Δ_i) to row ii only
-            one_plus_delta = dcmplx(1.d0,0.d0) + Op_U%Delta
-            call ZSCAL(Ndim, one_plus_delta, Prop%Gbar(ii,1), Ndim)
-            
-            ! Step 2: Apply factor 1/r_b to entire matrix
-            call ZSCAL(Ndim*Ndim, dcmplx(1.d0,0.d0)/r_b, Prop%Gbar, 1)
 
             Prop%UUR(ii,1) = (dcmplx(1.d0,0.d0) + Op_U%Delta) * uur_old
             Prop%overlap = Prop%overlap + Op_U%Delta * uur_old * Prop%UUL(1,ii)
@@ -99,8 +88,6 @@ contains
             call LocalU_metro(Op_U, Prop, iseed, nf, ii, ntau)
         enddo
         do ii = Ndim, 1, -1
-            call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
-            call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
             call Op_U%mmult_L(Prop%UUL, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
             call Op_U%mmult_R(Prop%UUR, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
         enddo
@@ -115,8 +102,6 @@ contains
         complex(kind=8), external :: ZDOTU
         integer :: ii
         do ii = 1, Ndim
-            call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
-            call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
             call Op_U%mmult_R(Prop%UUR, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
             call Op_U%mmult_L(Prop%UUL, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
         enddo

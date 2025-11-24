@@ -114,9 +114,9 @@ This section tracks the ongoing refactor to move from a Green’s-function-propa
    - Imaginary-time (`dynamics.f90`) now seeds time-sliced Greens via reconstructed rank-1 `G` instead of stored `Gbar`.  
    - Global update path (`globalK.f90`) is stubbed as disabled for the rank-1 flow so compilation does not rely on `Gbar`.
 
-7. **Remove redundant `Gbar` maintenance (TODO)**  
-   - Once all functional dependencies on `Gbar` are removed and verified, strip out the parallel `Gbar` updates from propagation and local-update routines.  
-   - Verify that the resulting implementation uses only rank-1 wavefunctions and overlaps in the main Monte Carlo loop, and that performance scales as expected (matrix–vector only, no matrix–matrix updates).
+7. **Remove redundant `Gbar` maintenance (DONE)**  
+   - Local propagation and Metropolis updates no longer multiply/update `Gbar`; only rank-1 `UUL/UUR/overlap` are propagated (`localU.f90`, `multiply.f90`, `local_sweep.f90`, `stabilization.f90`).  
+   - `Prop%Gbar` is left allocated for compatibility but is no longer touched in the hot path; Monte Carlo now runs purely on vector operations.
 
 8. **Documentation and cleanup (TODO)**  
    - Update `readme.md` and any in-code comments to reflect the final design (rank-1 propagation, overlap handling, storage strategy).  

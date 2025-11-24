@@ -147,10 +147,6 @@ contains
         nt_st = (nt - 1) / Nwrap + 1  ! ceil(nt / Nwrap)
         call stab_UR(Prop)
         WrList%URlist(1:Ndim, 1, nt_st) = Prop%UUR(1:Ndim, 1)
-        if (nt == Ltrot) then
-            Prop%Gbar = dcmplx(0.d0, 0.d0)
-            call stab_green(Prop%Gbar, Prop, nt)
-        endif
         return
     end subroutine Wrap_pre
     
@@ -162,7 +158,7 @@ contains
         character(len=*), optional, intent(in) :: flag
         ! Local: 
         integer :: nt_st
-        real(kind=8) :: dif, dif_wr
+        real(kind=8) :: dif_wr
         if (Nst <= 0) return
         if (nt < 1 .or. nt > Ltrot) then
             write(6,*) "incorrect ortholeft time slice, NT = ", nt; stop
@@ -173,15 +169,6 @@ contains
         if (dif_wr > norm_threshold) write(6,*) "wrap_L UR diff at nt=", nt, " diff=", dif_wr, " rank=", IRANK
         Prop%UUR(1:Ndim, 1) = WrList%URlist(1:Ndim, 1, nt_st)
         call stab_UL(Prop)
-        if (nt .ne. Ltrot) then
-            Gr_tmp%Gr00 = dcmplx(0.d0, 0.d0)
-            call stab_green(Gr_tmp%Gr00, Prop, nt)
-            dif = compare_mat(Gr_tmp%Gr00, Prop%Gbar)
-            if (dif > Prop%Xmaxm) Prop%Xmaxm = dif
-            if (dif .ge. 5.5d-5) write(6,*) nt, dif, "left ortho unstable in RANK ", IRANK
-            if (present(flag)) Prop%Xmeanm = Prop%Xmeanm + dif
-            Prop%Gbar = Gr_tmp%Gr00
-        endif
         WrList%ULlist(1, 1:Ndim, nt_st) = Prop%UUL(1, 1:Ndim)
         return
     end subroutine Wrap_L
@@ -194,7 +181,7 @@ contains
         character(len=*), optional, intent(in) :: flag
         ! Local: 
         integer :: nt_st
-        real(kind=8) :: dif, dif_wr
+        real(kind=8) :: dif_wr
         if (Nst <= 0) return
         if (nt < 1 .or. nt > Ltrot) then
             write(6,*) "incorrect orthoright time slice, NT = ", nt; stop
@@ -205,13 +192,6 @@ contains
         if (dif_wr > norm_threshold) write(6,*) "wrap_R UL diff at nt=", nt, " diff=", dif_wr, " rank=", IRANK
         Prop%UUL(1, 1:Ndim) = WrList%ULlist(1, 1:Ndim, nt_st)
         call stab_UR(Prop)
-        Gr_tmp%Gr00 = dcmplx(0.d0, 0.d0)
-        call stab_green(Gr_tmp%Gr00, Prop, nt)
-        dif = compare_mat(Gr_tmp%Gr00, Prop%Gbar)
-        if (dif > Prop%Xmaxm) Prop%Xmaxm = dif
-        if (dif .ge. 5.5d-5) write(6,*) nt, dif, "right ortho unstable in RANK ", IRANK
-        if (present(flag)) Prop%Xmeanm = Prop%Xmeanm + dif
-        Prop%Gbar = Gr_tmp%Gr00
         WrList%URlist(1:Ndim, 1, nt_st) = Prop%UUR(1:Ndim, 1)
         return
     end subroutine Wrap_R
