@@ -1,4 +1,4 @@
-TARGET = bosonDQMC.out
+TARGET = BPQMC.out
 OBJS = calc_basic.o lattice.o fields.o\
        non_interact.o operator_Hubbard.o initial_state.o model.o process_matrix.o\
        multiply.o obser_equal.o obser_tau.o stabilization.o\

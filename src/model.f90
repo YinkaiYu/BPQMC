@@ -39,7 +39,7 @@ contains
 ! initiate initial state wave function
         allocate(Init)
         call Init%make()
-        call Init%set(Latt)
+        call Init%set(Latt, iseed)
         write(50,*) 'ground state energy                            :', Init%energy_ground
         write(50,*) 'energy gap to first excited state              :', Init%energy_gap
         return

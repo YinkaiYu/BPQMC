@@ -2,6 +2,7 @@ module LocalSweep_mod
     use Dynamics_mod
     use LocalU_mod
     use ObserEqual_mod
+    use Stabilize_mod
     implicit none
     
     public
@@ -82,16 +83,14 @@ contains
         class(WrapList), intent(inout) :: WrList
         integer :: nt
         call this%reset(.false.)
-        call Wrap_pre(Prop, WrList, 0)
+        WrList%URlist = dcmplx(0.d0, 0.d0); WrList%ULlist = dcmplx(0.d0, 0.d0)
         if (Ltrot == 0) then
-            ! Direct calculation for Ltrot == 0 case
-            call stab_green(Prop%Gbar, Prop, 0)
+            ! Direct calculation for Ltrot == 0 case (no Gbar path needed)
         else
             do nt = 1, Ltrot
                 if (abs(RU1) > Zero) call propU_pre(Op_U1, Prop, 1, nt)
                 if (abs(RU2) > Zero) call propU_pre(Op_U2, Prop, 2, nt)
                 call propT_pre(Prop)
-                ! Wrap at regular intervals and ensure final wrap at nt=Ltrot
                 if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_pre(Prop, WrList, nt)
             enddo
         endif
@@ -104,7 +103,6 @@ contains
         integer, intent(inout) :: iseed, Nobs
         integer :: nt
         do nt = Ltrot, 1, -1
-            ! Wrap at regular intervals and ensure wrap at nt=Ltrot
             if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_L(Prop, WrList, nt, "S")
             if (nt == Ltrot/2) then  ! Calculate observables only at middle imaginary time
                 call Obs_equal%calc(Prop, nt)
@@ -114,7 +112,6 @@ contains
             if (abs(RU2) > Zero) call LocalU_prop_L(Op_U2, Prop, iseed, 2, nt)
             if (abs(RU1) > Zero) call LocalU_prop_L(Op_U1, Prop, iseed, 1, nt)
         enddo
-        call Wrap_L(Prop, WrList, 0, "S")
         return
     end subroutine Local_sweep_L
     
@@ -129,12 +126,10 @@ contains
             call Dyn%sweep_R(Obs_tau, WrList)
             Nobst = Nobst + 1
         endif
-        call Wrap_R(Prop, WrList, 0, "S")
         do nt = 1, Ltrot
             if (abs(RU1) > Zero) call LocalU_prop_R(Op_U1, Prop, iseed, 1, nt)
             if (abs(RU2) > Zero) call LocalU_prop_R(Op_U2, Prop, iseed, 2, nt)
             call propT_R(Prop)
-            ! Wrap at regular intervals and ensure final wrap at nt=Ltrot
             if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_R(Prop, WrList, nt, "S")
             if (nt == Ltrot/2) then  ! Calculate observables only at middle imaginary time
                 call Obs_equal%calc(Prop, nt)

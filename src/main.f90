@@ -1,4 +1,4 @@
-program bosonDQMC
+program BPQMC
     use LocalSweep_mod
     ! use GlobalUpdate_mod
     use FourierTrans_mod
@@ -80,4 +80,4 @@ program bosonDQMC
     call Model_clear(iseed) ! conf-out
     
     call MPI_FINALIZE(IERR)
-end program bosonDQMC
+end program BPQMC

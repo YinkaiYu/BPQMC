@@ -7,7 +7,7 @@ module ProcessMatrix
     type :: Propagator ! allocated in one spin-orbital sector for PQMC
         complex(kind=8), dimension(:,:), allocatable :: UUR  ! (Ndim, 1) - B(tau,0)P
         complex(kind=8), dimension(:,:), allocatable :: UUL  ! (1, Ndim) - P^dagger B(2theta,tau)
-        complex(kind=8), dimension(:,:), allocatable :: Gbar ! (Ndim, Ndim) - stores G-I
+        complex(kind=8) :: overlap                        ! scalar P_L^dagger P_R
         real(kind=8) :: Xmaxm, Xmeanm
     contains
         procedure :: make => Prop_make
@@ -25,7 +25,7 @@ module ProcessMatrix
     end type PropGreen
     
     type, public :: WrapList
-        complex(kind=8), dimension(:,:,:), allocatable :: URlist, ULlist  ! (Ndim,1,0:Nst), (1,Ndim,0:Nst)
+        complex(kind=8), dimension(:,:,:), allocatable :: URlist, ULlist  ! (Ndim,1,1:Nst), (1,Ndim,1:Nst)
         ! Note: VRlist, VLlist, DRlist, DLlist removed for PQMC algorithm
     contains
         procedure :: make => Wrlist_make
@@ -38,10 +38,9 @@ contains
         class(Propagator), intent(inout) :: this
         class(Initial), intent(in) :: Init_obj
         allocate(this%UUR(Ndim, 1), this%UUL(1, Ndim))
-        allocate(this%Gbar(Ndim, Ndim))
         this%UUR = Init_obj%PR  ! Initialize with trial wave function
         this%UUL = Init_obj%PL  ! Initialize with trial wave function
-        this%Gbar = dcmplx(0.d0, 0.d0)  ! Initialize Gbar = G - I = 0 at initial state
+        this%overlap = sum(this%UUL(1, 1:Ndim) * this%UUR(1:Ndim, 1))
         this%Xmaxm = 0.d0; this%Xmeanm = 0.d0
         return
     end subroutine Prop_make
@@ -51,14 +50,14 @@ contains
         class(Propagator), intent(in) :: that
         this%UUL = that%UUL
         this%UUR = that%UUR
-        this%Gbar = that%Gbar
+        this%overlap = that%overlap
         this%Xmaxm = that%Xmaxm; this%Xmeanm = that%Xmeanm
         return
     end subroutine Prop_assign
     
     subroutine Prop_clear(this)
         type(Propagator), intent(inout) :: this
-        deallocate(this%UUR, this%UUL, this%Gbar)
+        deallocate(this%UUR, this%UUL)
         return
     end subroutine Prop_clear
     
@@ -93,7 +92,7 @@ contains
     
     subroutine Wrlist_make(this)
         class(WrapList), intent(inout) :: this
-        allocate(this%URlist(Ndim, 1, 0:Nst), this%ULlist(1, Ndim, 0:Nst))
+        allocate(this%URlist(Ndim, 1, max(Nst, 1)), this%ULlist(1, Ndim, max(Nst, 1)))
         this%URlist = dcmplx(0.d0, 0.d0); this%ULlist = dcmplx(0.d0, 0.d0)
         return
     end subroutine Wrlist_make

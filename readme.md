@@ -1,67 +1,61 @@
 # Bosonic Projector QMC
 
-试探波函数（ $N_b$ 个粒子处在同一个态）
+This note summarises the rank-1 projector algorithm used in the bosonic PQMC codebase.  The simulation propagates only the left/right trial vectors and their overlap, so all local updates are matrix–vector operations ($O(N^2)$); equal-time Green’s functions are reconstructed on demand at measurement times.
 
-$$|\Phi_T\rangle = \frac{1}{\sqrt{N_b!}} \left( \sum_i a_i^\dagger P_i \right)^{N_b} |0\rangle \;\;\equiv\;\; \frac{1}{\sqrt{N_b!}} \left( a^\dagger P \right)^{N_b} |0\rangle$$
+## Rank-1 trial state
 
-该形式对高斯型算符封闭
+All $N_b$ bosons occupy the same orbital:
 
-$$e^{-a^\dagger T a}  \frac{1}{\sqrt{N_b!}} \left( a^\dagger P \right)^{N_b} |0\rangle= \frac{1}{\sqrt{N_b!}} \left( a^\dagger e^{-T} P \right)^{N_b} |0\rangle$$
+$$|\Phi_T\rangle = \frac{1}{\sqrt{N_b!}} \left( \sum_i a_i^\dagger P_i \right)^{N_b} |0\rangle \;\;\equiv\;\; \frac{1}{\sqrt{N_b!}} \left( a^\dagger P \right)^{N_b} |0\rangle.$$
 
-虚时传播子
+The form is closed under Gaussian operators:
 
-$$U(\tau_2,\tau_1) = e^{-a^\dagger h(\tau_2) a} \cdots e^{-a^\dagger h(\tau_1)a}$$
+$$e^{-a^\dagger T a}  \frac{1}{\sqrt{N_b!}} \left( a^\dagger P \right)^{N_b} |0\rangle= \frac{1}{\sqrt{N_b!}} \left( a^\dagger e^{-T} P \right)^{N_b} |0\rangle.$$
 
-$$B(\tau_2,\tau_1) = e^{-h(\tau_2)} \cdots e^{-h(\tau_1)}$$
+Consequently the imaginary-time propagator
 
-构型权重
+$$U(\tau_2,\tau_1) = e^{-a^\dagger h(\tau_2) a} \cdots e^{-a^\dagger h(\tau_1)a}, \qquad
+B(\tau_2,\tau_1) = e^{-h(\tau_2)} \cdots e^{-h(\tau_1)}$$
 
-$$P\left[\phi\right] = e^{-\tfrac{1}{2}\left|\vec{\phi}\right|^2}  \langle \Phi_T | U(2\theta,0) | \Phi_T \rangle$$
+acts on $P$ as a single column vector.
 
-$$= e^{-\tfrac{1}{2}\left|\vec{\phi}\right|^2} \left[ P^\dagger B(2\theta,0) P \right]^{N_b}$$
+## Configuration weight
 
-等时格林函数
+Given a Hubbard-Stratonovich field configuration $\phi$,
 
-$$G_{ij}(\tau) = \delta_{ij} + N_b  \frac{\big[ B(\tau,0)P \big]_i  \big[ P^\dagger B(2\theta,\tau) \big]_j}{P^\dagger B(2\theta,\tau) B(\tau,0) P}$$
+$$P\left[\phi\right] = e^{-\tfrac{1}{2}\left|\vec{\phi}\right|^2}  \langle \Phi_T | U(2\theta,0) | \Phi_T \rangle
+= e^{-\tfrac{1}{2}\left|\vec{\phi}\right|^2} \left[ P^\dagger B(2\theta,0) P \right]^{N_b}.$$
 
-构型更新权重比值 (local update:  $\phi_i(\tau) \to \phi_i'(\tau)$ )
+During the sweep we store only the right vector $P_R(\tau)=B(\tau,0)P$ and the left vector $P_L^\dagger(\tau)=P^\dagger B(2\theta,\tau)$.  Their norms are tracked separately for stability, so no $N\times N$ matrices are needed until a measurement.
+
+## Local update ratio
+
+For a local update $\phi_i(\tau) \to \phi_i'(\tau)$, let $\Delta = \mathrm{diag}(0,\dots,\Delta_i,\dots,0)$ with $\Delta_i = e^{-(h_i' - h_i)} - 1$.  The Metropolis ratio reads
 
 $$\frac{P[\phi']}{P[\phi]}= e^{-\tfrac{1}{2}(\phi_i'^2 - \phi_i^2)}\left[\frac{P^\dagger B(2\theta,\tau)(1+\Delta)B(\tau,0)P}{P^\dagger B(2\theta,\tau)B(\tau,0)P}\right]^{N_b}$$
 
-$$= e^{-\tfrac{1}{2}(\phi_i'^2 - \phi_i^2)}\left[1 + \frac{\Delta_i}{N_b}(G_{ii}-1)\right]^{N_b}$$
+$$=\exp\left[ -\tfrac{1}{2}(\phi_i'^2 - \phi_i^2) + N_b \log \left( 1 + \frac{\Delta_i \big[ P_R(\tau) \big]_i  \big[ P_L^\dagger(\tau) \big]_i}{P^\dagger B(2\theta,0) P} \right) \right],$$
 
-其中
-$$\Delta = \mathrm{diag}(0,\dots,\Delta_i,\dots,0),\qquad\Delta_i = e^{-(h_i' - h_i)} - 1$$
+where the numerator only requires the two propagated vectors.  This keeps the propagation cost at $O(N^2)$.
 
-可见 $\bar{G} \equiv G - I$ 储存了态中所有有用信息，快速更新：
+## Equal-time Green’s function for measurements
 
-$$\bar{G}' = \frac{1+\Delta}{r_b}\bar{G}$$
+The full Green’s function is reconstructed only when observables are evaluated (typically at $\tau=\theta$):
 
-其中 $r_b = \frac{P^\dagger B(2\theta,\tau)(1+\Delta)B(\tau,0)P}{P^\dagger B(2\theta,\tau)B(\tau,0)P} = 1 + \frac{\Delta_i}{N_b}\bar{G}_{ii}$
+$$G_{ij} \equiv \langle a_i a_j^\dagger \rangle = \delta_{ij} + N_b  \frac{\big[ B(\theta,0)P \big]_i  \big[ P^\dagger B(2\theta,\theta) \big]_j}{P^\dagger B(2\theta,0) P},$$
 
-其虚时演化为
+$$\bar{G}_{ij} \equiv (G - I)_{ij} = N_b  \frac{\big[ B(\theta,0)P \big]_i  \big[ P^\dagger B(2\theta,\theta) \big]_j}{P^\dagger B(2\theta,0) P}.$$
 
-$$\bar{G}(\tau+1) = B(\tau+1,\tau)  \bar{G}  B(\tau+1,\tau)^{-1}$$
+With normalized vectors (see below), this simplifies to
 
-## 附：数值稳定性
+$$\bar{G} = N_b  \frac{P_R P_L^\dagger}{P_L^\dagger P_R},$$
 
-归一化
+which is a rank-1 matrix that can be formed on demand for measurements.
 
-$$P_R = \frac{B(\tau,0)P}{|B(\tau,0)P|} = \frac{B(\tau,0)P}{Z_R}$$
+## Numerical stabilization
 
-其中 $B(\tau,0)P$ 是 $N$ 行 1 列向量， $Z_R^2 = \sum_i \big[ B(\tau,0)P \big]_i  \big[ B(\tau,0)P \big]_i^*$
+To control the norms of $P_R$ and $P_L^\dagger$, periodically rescale them:
 
-同理
+$$P_R = \frac{B(\tau,0)P}{|B(\tau,0)P|} = \frac{B(\tau,0)P}{Z_R}, \qquad Z_R^2 = \sum_i \big| \big[ B(\tau,0)P \big]_i \big|^2,$$
 
-$$P_L^\dagger = \frac{P^\dagger B(2\theta,\tau)}{|P^\dagger B(2\theta,\tau)|}= \frac{P^\dagger B(2\theta,\tau)}{Z_L}$$
-
-
-于是
-
-$$\bar{G} = N_b  \frac{B(\tau,0)P  P^\dagger B(2\theta,\tau)}{P^\dagger B(2\theta,\tau) B(\tau,0)P}$$
-
-$$= N_b  \frac{Z_R P_R  Z_L P_L^\dagger}{Z_L P_L^\dagger  Z_R P_R}$$
-
-$$= N_b  \frac{P_R P_L^\dagger}{P_L^\dagger P_R}$$
-
-每隔一段时间用上述式子正规化一下 $\bar{G}$ 即可。
+$$P_L^\dagger = \frac{P^\dagger B(2\theta,\tau)}{|P^\dagger B(2\theta,\tau)|}= \frac{P^\dagger B(2\theta,\tau)}{Z_L}, \qquad Z_L^2 = \sum_i \big| \big[ P^\dagger B(2\theta,\tau) \big]_i \big|^2.$$

@@ -21,11 +21,8 @@ contains
         integer, intent(in) :: nf, nt
         integer :: ii
         do ii = Ndim, 1, -1
-            call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
-            call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
-        enddo
-        do ii = Ndim, 1, -1
             call Op_U%mmult_L(Prop%UUL, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
+            call Op_U%mmult_R(Prop%UUR, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
         enddo
         return
     end subroutine propU_L
@@ -36,11 +33,8 @@ contains
         integer, intent(in) :: nf, nt
         integer :: ii
         do ii = 1, Ndim
-            call Op_U%mmult_R(Prop%Gbar, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
-            call Op_U%mmult_L(Prop%Gbar, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
-        enddo
-        do ii = 1, Ndim
             call Op_U%mmult_R(Prop%UUR, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
+            call Op_U%mmult_L(Prop%UUL, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
         enddo
         return
     end subroutine propU_R
@@ -56,9 +50,8 @@ contains
             call Op_U%mmult_L(Propgr%Gr0t, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
             call Op_U%mmult_R(Propgr%Grtt, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
             call Op_U%mmult_L(Propgr%Grtt, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
-        enddo
-        do ii = 1, Ndim
             call Op_U%mmult_R(Prop%UUR, Latt, Conf%phi_list(nf, ii, nt), ii, 1)
+            call Op_U%mmult_L(Prop%UUL, Latt, Conf%phi_list(nf, ii, nt), ii, -1)
         enddo
         return
     end subroutine propgrU_R
@@ -71,17 +64,15 @@ contains
     
     subroutine propT_L(Prop)
         class(Propagator), intent(inout) :: Prop
-        call Op_T%mmult_L(Prop%Gbar, 1)
-        call Op_T%mmult_R(Prop%Gbar, -1)
         call Op_T%mmult_L(Prop%UUL, 1)
+        call Op_T%mmult_R(Prop%UUR, -1)
         return
     end subroutine propT_L
     
     subroutine propT_R(Prop)
         class(Propagator), intent(inout) :: Prop
-        call Op_T%mmult_R(Prop%Gbar, 1)
-        call Op_T%mmult_L(Prop%Gbar, -1)
         call Op_T%mmult_R(Prop%UUR, 1)
+        call Op_T%mmult_L(Prop%UUL, -1)
         return
     end subroutine propT_R
     
@@ -93,6 +84,7 @@ contains
         call Op_T%mmult_R(Propgr%Grtt, 1)
         call Op_T%mmult_L(Propgr%Grtt, -1)
         call Op_T%mmult_R(Prop%UUR, 1)
+        call Op_T%mmult_L(Prop%UUL, -1)
         return
     end subroutine propgrT_R
 end module Multiply_mod

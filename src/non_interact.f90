@@ -36,7 +36,7 @@ contains
         class(kagomeLattice), intent(in) :: Latt
 ! Local: 
         complex(kind=8) :: Z
-        integer :: ii, jj, nb
+        integer :: ii, jj, nb, no
 ! integer :: i, j
         
         HamT = dcmplx(0.d0, 0.d0)
@@ -50,6 +50,15 @@ contains
             enddo
         enddo
 
+! add chemical potential bias
+        if ( abs(imbalance)>Zero ) then
+            do ii = 1, Ndim
+                no = Latt%dim_list(ii,2)
+                if (no==1) HamT(ii,ii) = HamT(ii,ii) + dcmplx(-imbalance, 0.d0)
+                ! if (no==2) HamT(ii,ii) = HamT(ii,ii) + dcmplx( 0.d0, 0.d0)
+                if (no==3) HamT(ii,ii) = HamT(ii,ii) + dcmplx( imbalance, 0.d0)
+            enddo
+        endif
 
 ! write(6,*) 'HamT'
 ! write(6, "(A)", advance="no") '        '  
@@ -76,9 +85,14 @@ contains
 ! Local: 
 !        real(kind=8) :: degen, en_free
         integer :: i, nl, nr
-        complex(kind=8), dimension(Ndim, Ndim) :: HamT, Hlp1, Hlp1dag, temp1, temp2
-        real(kind=8), dimension(Ndim) :: WC
-        complex(kind=8), dimension(Ndim) :: dmat1, dmat2
+        complex(kind=8), allocatable :: HamT(:,:), Hlp1(:,:), Hlp1dag(:,:), temp1(:,:), temp2(:,:)
+        real(kind=8), allocatable :: WC(:)
+        complex(kind=8), allocatable :: dmat1(:), dmat2(:)
+
+        allocate(HamT(Ndim, Ndim), Hlp1(Ndim, Ndim), Hlp1dag(Ndim, Ndim))
+        allocate(temp1(Ndim, Ndim), temp2(Ndim, Ndim))
+        allocate(WC(Ndim))
+        allocate(dmat1(Ndim), dmat2(Ndim))
         
         call def_hamT(HamT, Latt)
         call diag(HamT, Hlp1, WC)
@@ -102,6 +116,12 @@ contains
         enddo
         call mmult(this%expT_P, temp1, Hlp1dag) ! output
         call mmult(this%expT_M, temp2, Hlp1dag) ! output
+
+        deallocate(dmat2, dmat1)
+        deallocate(WC)
+        deallocate(temp2, temp1)
+        deallocate(Hlp1dag, Hlp1, HamT)
+        
         return
     end subroutine opT_set
     

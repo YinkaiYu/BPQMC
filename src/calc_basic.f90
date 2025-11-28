@@ -20,6 +20,7 @@ module CalcBasic ! Global parameters
     real(kind=8),           public,     save    :: RT
     real(kind=8),           public,     save    :: RU1, RU2
     integer,                public,     save    :: Nbos
+    real(kind=8),           public,     save    :: imbalance ! chemical potential imbalance 
 ! update parameters
     real(kind=8),           public              :: shiftLoc
     ! logical,                public              :: is_global ! global update switch: Wolff-shift joint update
@@ -29,24 +30,28 @@ module CalcBasic ! Global parameters
     integer,                public              :: iniType ! type of initial phonon field configuration
     real(kind=8),           public              :: iniAmpl ! Gaussian amplitude of initial phonon fields
     real(kind=8),           public              :: iniBias(Naux) ! initial phonon field balance position
+    integer,                public              :: iniHam  ! initial Hamiltonian twist mode
+    real(kind=8),           public              :: iniTwist ! twist amplitude for initial Hamiltonian
 ! process control parameters
     logical,                    public          :: is_tau ! whether to calculate time-sliced Green function
     integer,                    public          :: Nthermal ! calculate time-sliced Green function from the (Nthermal + 1)-th bin
     logical,                    public          :: is_warm ! bosonic warm-up switch
     integer,                    public          :: Nwarm
     real(kind=8),               public          :: shiftWarm(Naux)
-    integer,                    public          :: Nst
+    integer,                    public          :: Nst  ! number of stored imaginary-time slices (0..Ltrot)
     integer,                    public          :: Nwrap
     integer,                    public          :: Nbin
     integer,                    public          :: Nsweep
     integer,                    public          :: ISIZE, IRANK, IERR
+! utilities
+    real(kind=8),               public          :: norm_threshold
     
 contains
     subroutine read_input()
         include 'mpif.h'
         if (IRANK == 0) then
             open(unit=20, file='paramC_sets.txt', status='unknown')
-            read(20,*) RU1, RU2, Nbos
+            read(20,*) RT, RU1, RU2, Nbos
             read(20,*) Nlx, Nly, Ltrot, Beta
             read(20,*) NlxTherm, NlyTherm, LtrotTherm
             read(20,*) Nwrap, Nbin, Nsweep, shiftLoc
@@ -54,10 +59,12 @@ contains
             read(20,*) is_warm, Nwarm, shiftWarm(1), shiftWarm(2)
             ! read(20,*) is_global, Nglobal, shiftGlb(1), shiftGlb(2)
             read(20,*) iniType, iniAmpl, iniBias(1), iniBias(2)
+            read(20,*) iniHam, iniTwist, imbalance
             close(20)
         endif 
 !   MPI process: parallelization
         call MPI_BCAST(Beta, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(RT, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(RU1, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(RU2, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nbos, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
@@ -67,6 +74,9 @@ contains
         call MPI_BCAST(iniAmpl, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(iniBias, Naux, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(iniType, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(iniHam, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(iniTwist, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(imbalance, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nlx, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nly, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Ltrot, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
@@ -82,24 +92,39 @@ contains
         call MPI_BCAST(is_tau, 1, MPI_Logical, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(is_warm, 1, MPI_Logical, 0, MPI_COMM_WORLD, IERR)
         ! call MPI_BCAST(is_global, 1, MPI_Logical, 0, MPI_COMM_WORLD, IERR)
+        norm_threshold = 1.d-6
         return
     end subroutine read_input
     
     subroutine Params_set()
-        RT = 1.d0 
         Lq = Nlx * Nly
         LqTherm = NlxTherm * NlyTherm
         Dtau = Beta / dble(Ltrot)
         Ndim = Lq * Norb
         NdimTherm = LqTherm * Norb
-        if (mod(Ltrot, Nwrap) == 0) then
-            Nst = Ltrot / Nwrap
+        if (Nwrap <= 0) then
+            write(6,*) "Nwrap must be positive"; stop
+        endif
+        if (Ltrot <= 0) then
+            Nst = 0
         else
-            ! Support non-divisible Ltrot/Nwrap: allocate extra space for remaining time slices
-            Nst = Ltrot / Nwrap + 1
+            Nst = (Ltrot + Nwrap - 1) / Nwrap  ! ceil(Ltrot / Nwrap)
         endif
         return
     end subroutine Params_set
+
+    real(kind=8) function norm_diff_vec(vec1, vec2, n)
+        complex(kind=8), intent(in) :: vec1(:), vec2(:)
+        integer, intent(in) :: n
+        integer :: i
+        real(kind=8) :: acc
+        acc = 0.d0
+        do i = 1, n
+            acc = acc + abs(vec1(i) - vec2(i))**2
+        enddo
+        norm_diff_vec = sqrt(acc)
+        return
+    end function norm_diff_vec
     
     integer function nranf(iseed, N)
         integer, intent(inout) :: iseed
@@ -155,6 +180,9 @@ contains
             endif
             write(50,*) 'Choosing initial distribution type             :', iniType
             write(50,*) 'Magnitude of Gaussian distribution             :', iniAmpl
+            write(50,*) 'Initial Hamiltonian mode (0=none,1=twist,...)  :', iniHam
+            write(50,*) 'Initial Hamiltonian twist amplitude            :', iniTwist
+            write(50,*) 'Hamiltonian chemical potential imbalance       :', imbalance
             write(50,*) 'Beta                                           :', Beta
             write(50,*) 'Trotter number                                 :', Ltrot
             write(50,*) '=>Dtau                                         :', Dtau
@@ -162,9 +190,6 @@ contains
             write(50,*) '# Bins                                         :', Nbin
             write(50,*) '# Nsweep in one bin                            :', Nsweep
             write(50,*) '# Cores                                        :', ISIZE
-            if (mod(Ltrot, Nwrap) .NE. 0) then
-                write(50,*) 'Ltrot is not a multiple of Nwrap'; stop
-            endif
         endif
         return
     end subroutine write_info
