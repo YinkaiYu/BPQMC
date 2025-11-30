@@ -69,10 +69,10 @@ contains
             enddo
         enddo
         
-        Latt%a1_v(1) = 2.d0;    Latt%a1_v(2) = 0.d0
-        Latt%a2_v(1) = 1.d0;    Latt%a2_v(2) = sqrt(3.d0) 
-        Latt%b1_v(1) = PI;      Latt%b1_v(2) = - PI / sqrt(3.d0)
-        Latt%b2_v(1) = 0.d0;    Latt%b2_v(2) = 2.d0 * PI / sqrt(3.d0)
+        Latt%a1_v(1) = 1.d0;    Latt%a1_v(2) = 0.d0
+        Latt%a2_v(1) = 0.5d0;   Latt%a2_v(2) = 0.5d0 * sqrt(3.d0) 
+        Latt%b1_v(1) = 2.d0*PI; Latt%b1_v(2) = - 2.d0*PI / sqrt(3.d0)
+        Latt%b2_v(1) = 0.d0;    Latt%b2_v(2) = 4.d0 * PI / sqrt(3.d0)
         
         allocate(Latt%xk_v(Lq, 2), Latt%aimj_v(Lq, 2), Latt%k_dot_r(Lq, Lq))
         do ii = 1, Lq

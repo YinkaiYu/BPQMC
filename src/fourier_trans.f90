@@ -350,16 +350,16 @@ contains
         write(80,*) Obs%numsquare_do
         close(80)
 
-        C3breaking = real(sum(Obs%C3_corr))
-        C3breaking_up = real(sum(Obs%C3_corr_up))
+        ! C3breaking = real(sum(Obs%C3_corr))
+        ! C3breaking_up = real(sum(Obs%C3_corr_up))
             
-        open(unit=80, file='C3breaking', status='unknown', action="write", position="append")
-        write(80,*) C3breaking
-        close(80)
+        ! open(unit=80, file='C3breaking', status='unknown', action="write", position="append")
+        ! write(80,*) C3breaking
+        ! close(80)
 
-        open(unit=80, file='C3breaking_up', status='unknown', action="write", position="append")
-        write(80,*) C3breaking_up
-        close(80)
+        ! open(unit=80, file='C3breaking_up', status='unknown', action="write", position="append")
+        ! write(80,*) C3breaking_up
+        ! close(80)
 
         dentot_corr_up = dcmplx(0.d0, 0.d0)
         dentot_corr_do = dcmplx(0.d0, 0.d0)
@@ -380,8 +380,8 @@ contains
         call Fourier_R_to_K(Obs%SF_corr_up, SF_structure_up, Latt)
         call Fourier_R_to_K(Obs%SF_corr_do, SF_structure_do, Latt)
         call Fourier_R_to_K(Obs%PF_corr, PF_structure, Latt)
-        call Fourier_R_to_K(Obs%C3_corr, C3_structure, Latt)
-        call Fourier_R_to_K(Obs%C3_corr_up, C3_structure_up, Latt)
+        ! call Fourier_R_to_K(Obs%C3_corr, C3_structure, Latt)
+        ! call Fourier_R_to_K(Obs%C3_corr_up, C3_structure_up, Latt)
         call Fourier_R_to_K(dentot_corr, dentot_structure, Latt)
         call Fourier_R_to_K(dentot_corr_up, dentot_structure_up, Latt)
         call Fourier_R_to_K(dentot_corr_do, dentot_structure_do, Latt)
@@ -415,10 +415,10 @@ contains
         call this%write_k(SF_structure_do, filek, indexzero )
         filek = 'PF_Gamma'
         call this%write_k(PF_structure, filek, indexzero )
-        filek = 'C3_Gamma'
-        call this%write_k(C3_structure, filek, indexzero )
-        filek = 'C3_up_Gamma'
-        call this%write_k(C3_structure_up, filek, indexzero )
+        ! filek = 'C3_Gamma'
+        ! call this%write_k(C3_structure, filek, indexzero )
+        ! filek = 'C3_up_Gamma'
+        ! call this%write_k(C3_structure_up, filek, indexzero )
         filek = 'dentot_Gamma'
         call this%write_k(dentot_structure, filek, indexzero )
         filek = 'dentot_up_Gamma'
@@ -430,8 +430,8 @@ contains
         call this%write_k(SF_structure, filek, index_K )
         filek = 'PF_K'
         call this%write_k(PF_structure, filek, index_K )
-        filek = 'C3_K'
-        call this%write_k(C3_structure, filek, index_K )
+        ! filek = 'C3_K'
+        ! call this%write_k(C3_structure, filek, index_K )
         filek = 'dentot_K'
         call this%write_k(dentot_structure, filek, index_K )
 
@@ -439,8 +439,8 @@ contains
         call this%write_k(SF_structure, filek, index_M )
         filek = 'PF_M'
         call this%write_k(PF_structure, filek, index_M )
-        filek = 'C3_M'
-        call this%write_k(C3_structure, filek, index_M )
+        ! filek = 'C3_M'
+        ! call this%write_k(C3_structure, filek, index_M )
         filek = 'dentot_M'
         call this%write_k(dentot_structure, filek, index_M )
 
@@ -452,10 +452,10 @@ contains
         call this%write_cmplx(Obs%SF_corr_do, filek)
         filek = 'PF_corr'
         call this%write_cmplx(Obs%PF_corr, filek)
-        filek = 'C3_corr'
-        call this%write_cmplx(Obs%C3_corr, filek)
-        filek = 'C3_corr_up'
-        call this%write_cmplx(Obs%C3_corr_up, filek)
+        ! filek = 'C3_corr'
+        ! call this%write_cmplx(Obs%C3_corr, filek)
+        ! filek = 'C3_corr_up'
+        ! call this%write_cmplx(Obs%C3_corr_up, filek)
         filek = 'dentot_corr'
         call this%write_cmplx(dentot_corr, filek)
         filek = 'dentot_corr_up'
@@ -471,10 +471,10 @@ contains
         call this%write_reciprocal(SF_structure_do, filek)
         filek = 'PF_structure'
         call this%write_reciprocal(PF_structure, filek)
-        filek = 'C3_structure'
-        call this%write_reciprocal(C3_structure, filek)
-        filek = 'C3_structure_up'
-        call this%write_reciprocal(C3_structure_up, filek)
+        ! filek = 'C3_structure'
+        ! call this%write_reciprocal(C3_structure, filek)
+        ! filek = 'C3_structure_up'
+        ! call this%write_reciprocal(C3_structure_up, filek)
         filek = 'dentot_structure'
         call this%write_reciprocal(dentot_structure, filek)
         filek = 'dentot_structure_up'
@@ -576,13 +576,13 @@ contains
         call MPI_REDUCE(Obs%PF_corr, Collect1cmplx, N, MPI_complex16, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
         if (IRANK == 0) Obs%PF_corr = Collect1cmplx/dcmplx(dble(ISIZE),0.d0)
 
-        Collect1cmplx = dcmplx(0.d0, 0.d0)
-        call MPI_REDUCE(Obs%C3_corr, Collect1cmplx, N, MPI_complex16, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
-        if (IRANK == 0) Obs%C3_corr = Collect1cmplx/dcmplx(dble(ISIZE),0.d0)
+        ! Collect1cmplx = dcmplx(0.d0, 0.d0)
+        ! call MPI_REDUCE(Obs%C3_corr, Collect1cmplx, N, MPI_complex16, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
+        ! if (IRANK == 0) Obs%C3_corr = Collect1cmplx/dcmplx(dble(ISIZE),0.d0)
 
-        Collect1cmplx = dcmplx(0.d0, 0.d0)
-        call MPI_REDUCE(Obs%C3_corr_up, Collect1cmplx, N, MPI_complex16, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
-        if (IRANK == 0) Obs%C3_corr_up = Collect1cmplx/dcmplx(dble(ISIZE),0.d0)
+        ! Collect1cmplx = dcmplx(0.d0, 0.d0)
+        ! call MPI_REDUCE(Obs%C3_corr_up, Collect1cmplx, N, MPI_complex16, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
+        ! if (IRANK == 0) Obs%C3_corr_up = Collect1cmplx/dcmplx(dble(ISIZE),0.d0)
 
         if (IRANK == 0) call this%write_obs_equal(Obs)
         return

@@ -113,7 +113,7 @@ contains
         real(kind=8), external :: ranf
         real(kind=8) :: twist_val
         complex(kind=8) :: Z
-        integer :: ii, jj, nb, no
+        integer :: ii, jj, nb, no, i, j
         
         select case (iniHam)
         case (3) ! twist with chemical potential bias
