@@ -10,7 +10,7 @@ module ObserEqual_mod
         complex(kind=8), dimension(:), allocatable      :: PF_corr
         complex(kind=8), dimension(:), allocatable      :: C3_corr, C3_corr_up
         real(kind=8)                                    :: density_up,  density_do
-        real(kind=8)                                    :: kinetic, doubleOcc, squareOcc, nearestOcc
+        real(kind=8)                                    :: kinetic, doubleOcc, squareOcc, nearestOcc, IPR
         real(kind=8)                                    :: num_up, num_do, numsquare_up, numsquare_do
     contains
         procedure :: make   => Obs_equal_make
@@ -51,6 +51,7 @@ contains
         this%kinetic     = 0.d0
         this%doubleOcc   = 0.d0
         this%squareOcc   = 0.d0
+        this%IPR         = 0.d0
         this%nearestOcc  = 0.d0
         this%num_up      = 0.d0
         this%num_do      = 0.d0
@@ -77,6 +78,7 @@ contains
         this%kinetic     = this%kinetic     * znorm
         this%doubleOcc   = this%doubleOcc   * znorm
         this%squareOcc   = this%squareOcc   * znorm
+        this%IPR         = this%IPR         * znorm
         this%nearestOcc  = this%nearestOcc  * znorm
         this%den_corr_updo = this%den_corr_updo * znorm
         this%num_up      = this%num_up * znorm
@@ -126,6 +128,7 @@ contains
             this%density_do = this%density_do + real( Grdoc(ii,ii) ) / dble(Lq)
             this%doubleOcc  = this%doubleOcc  + real( Grupc(ii,ii) * Grdoc(ii,ii) ) / dble(Lq)
             this%squareOcc  = this%squareOcc  + ( GGfactor * real( Grupc(ii,ii) * Grupc(ii,ii) + Grdoc(ii,ii) * Grdoc(ii,ii) ) + real( Grupc(ii,ii) + Grdoc(ii,ii) ) ) / dble(Lq)
+            this%IPR        = this%IPR        + real( Grupc(ii,ii) * Grupc(ii,ii) ) / dble(Nbos**2)
             this%num_up = this%num_up + real( Grupc(ii,ii) ) 
             this%num_do = this%num_do + real( Grdoc(ii,ii) ) 
         enddo
