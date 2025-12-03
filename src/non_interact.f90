@@ -104,8 +104,8 @@ contains
         dmat1 = dcmplx(0.d0, 0.d0)
         dmat2 = dcmplx(0.d0, 0.d0)
         forall( i = 1:Ndim )
-            dmat1(i) = dcmplx(exp(- Dtau * WC(i)), 0.d0)
-            dmat2(i) = dcmplx(exp( Dtau * WC(i)), 0.d0)
+            dmat1(i) = dcmplx(exp(- 0.5d0 * Dtau * WC(i)), 0.d0)
+            dmat2(i) = dcmplx(exp(  0.5d0 * Dtau * WC(i)), 0.d0)
         endforall
         Hlp1dag = dconjg(transpose(Hlp1))
         do nr = 1, Ndim

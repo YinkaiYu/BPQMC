@@ -88,6 +88,7 @@ contains
             ! Direct calculation for Ltrot == 0 case (no Gbar path needed)
         else
             do nt = 1, Ltrot
+                call propT_pre(Prop)
                 if (abs(RU1) > Zero) call propU_pre(Op_U1, Prop, 1, nt)
                 if (abs(RU2) > Zero) call propU_pre(Op_U2, Prop, 2, nt)
                 call propT_pre(Prop)
@@ -111,6 +112,7 @@ contains
             call propT_L(Prop)
             if (abs(RU2) > Zero) call LocalU_prop_L(Op_U2, Prop, iseed, 2, nt)
             if (abs(RU1) > Zero) call LocalU_prop_L(Op_U1, Prop, iseed, 1, nt)
+            call propT_L(Prop)
         enddo
         return
     end subroutine Local_sweep_L
@@ -127,6 +129,7 @@ contains
             Nobst = Nobst + 1
         endif
         do nt = 1, Ltrot
+            call propT_R(Prop)
             if (abs(RU1) > Zero) call LocalU_prop_R(Op_U1, Prop, iseed, 1, nt)
             if (abs(RU2) > Zero) call LocalU_prop_R(Op_U2, Prop, iseed, 2, nt)
             call propT_R(Prop)
