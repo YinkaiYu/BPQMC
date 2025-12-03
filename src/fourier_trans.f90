@@ -330,6 +330,10 @@ contains
         write(80,*) Obs%squareOcc
         close(80)
 
+        open(unit=80, file='IPR', status='unknown', action="write", position="append")
+        write(80,*) Obs%IPR
+        close(80)
+
         open(unit=80, file='nearestOcc', status='unknown', action="write", position="append")
         write(80,*) Obs%nearestOcc
         close(80)
@@ -523,6 +527,10 @@ contains
         Collect0 = 0.d0
         call MPI_REDUCE(Obs%squareOcc, Collect0, 1, MPI_real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
         if (IRANK == 0) Obs%squareOcc = Collect0/dble(ISIZE)
+
+        Collect0 = 0.d0
+        call MPI_REDUCE(Obs%IPR, Collect0, 1, MPI_real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
+        if (IRANK == 0) Obs%IPR = Collect0/dble(ISIZE)
 
         Collect0 = 0.d0
         call MPI_REDUCE(Obs%nearestOcc, Collect0, 1, MPI_real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
