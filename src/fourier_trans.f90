@@ -295,6 +295,7 @@ contains
         class(ObserEqual), intent(in) :: Obs
         complex(kind=8) :: correlation_up(Lq, Norb, Norb), correlation_do(Lq, Norb, Norb), correlation_updo(Lq)
         complex(kind=8) :: dentot_corr(Lq), dentot_corr_up(Lq), dentot_corr_do(Lq), SF_corr(Lq), temp_corr(Lq)
+        complex(kind=8) :: denden_corr(Lq), ntot, denden_structure(Lq)
         complex(kind=8) :: SF_structure(Lq), SF_structure_up(Lq), SF_structure_do(Lq),PF_structure(Lq), C3_structure(Lq), C3_structure_up(Lq), dentot_structure(Lq), dentot_structure_up(Lq), dentot_structure_do(Lq)
         character(len=25) :: filek
         integer :: indexzero, no1, no2, i, index_K, index_M, nx, ny
@@ -377,6 +378,9 @@ contains
         dentot_corr = dentot_corr_up + dentot_corr_do + Obs%den_corr_updo + Obs%den_corr_updo
         SF_corr = Obs%SF_corr_up + Obs%SF_corr_do
 
+        ntot = dcmplx(2.d0 * dble(Nbos) / dble(Norb*Lq), 0.d0)
+        denden_corr = dentot_corr + ntot
+
         call Fourier_R_to_K(Obs%den_corr_up, correlation_up, Latt)
         call Fourier_R_to_K(Obs%den_corr_do, correlation_do, Latt)
         call Fourier_R_to_K(Obs%den_corr_updo, correlation_updo, Latt)
@@ -389,6 +393,7 @@ contains
         call Fourier_R_to_K(dentot_corr, dentot_structure, Latt)
         call Fourier_R_to_K(dentot_corr_up, dentot_structure_up, Latt)
         call Fourier_R_to_K(dentot_corr_do, dentot_structure_do, Latt)
+        call Fourier_R_to_K(denden_corr, denden_structure, Latt)
         SF_structure = SF_structure_up + SF_structure_do
 
         do no1 = 1, Norb
@@ -429,6 +434,8 @@ contains
         call this%write_k(dentot_structure_up, filek, indexzero )
         filek = 'dentot_do_Gamma'
         call this%write_k(dentot_structure_do, filek, indexzero )
+        filek = 'denden_Gamma'
+        call this%write_k(denden_structure, filek, indexzero )
 
         filek = 'SF_K'
         call this%write_k(SF_structure, filek, index_K )
@@ -438,6 +445,8 @@ contains
         ! call this%write_k(C3_structure, filek, index_K )
         filek = 'dentot_K'
         call this%write_k(dentot_structure, filek, index_K )
+        filek = 'denden_K'
+        call this%write_k(denden_structure, filek, index_K )
 
         filek = 'SF_M'
         call this%write_k(SF_structure, filek, index_M )
@@ -447,6 +456,8 @@ contains
         ! call this%write_k(C3_structure, filek, index_M )
         filek = 'dentot_M'
         call this%write_k(dentot_structure, filek, index_M )
+        filek = 'denden_M'
+        call this%write_k(denden_structure, filek, index_M )
 
         filek = 'SF_corr'
         call this%write_cmplx(SF_corr, filek)
@@ -466,6 +477,8 @@ contains
         call this%write_cmplx(dentot_corr_up, filek)
         filek = 'dentot_corr_do'
         call this%write_cmplx(dentot_corr_do, filek)
+        filek = 'denden_corr'
+        call this%write_cmplx(denden_corr, filek)
 
         filek = 'SF_structure'
         call this%write_reciprocal(SF_structure, filek)
@@ -485,6 +498,8 @@ contains
         call this%write_reciprocal(dentot_structure_up, filek)
         filek = 'dentot_structure_do'
         call this%write_reciprocal(dentot_structure_do, filek)
+        filek = 'denden_structure'
+        call this%write_reciprocal(denden_structure, filek)
 
         ! filek = 'green'
         ! call this%write_cmplx(Obs%single_corr, filek)
