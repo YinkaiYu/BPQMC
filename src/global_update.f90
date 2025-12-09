@@ -1,6 +1,8 @@
 module GlobalUpdate_mod ! a combination of shift&Wolff update
     use GlobalK_mod
     use Stabilize_mod
+    use DQMC_Model_mod
+    use CalcBasic
     implicit none
     
     public
@@ -37,6 +39,32 @@ module GlobalUpdate_mod ! a combination of shift&Wolff update
     real(kind=8), dimension(:,:,:), allocatable :: phi_new
     
 contains
+
+    integer function dimt_neighbor(iit, nf) result(jjt)
+        ! Return the neighbor of a space-time site (ii,nt) for the Wolff stack.
+        ! nf = 1..Nbond and nf = Nbond+1..2*Nbond share the same spatial neighbors
+        ! nf = 2*Nbond+1, 2*Nbond+2 give temporal forward/backward neighbors
+        integer, intent(in) :: iit, nf
+        integer :: ii, nt, jj, nf_loc
+        if (nf < 1 .or. nf > 2*Nbond+2) then
+            write(6,*) "dimt_neighbor: invalid neighbor index nf=", nf
+            jjt = iit
+            return
+        endif
+        ii = Latt%dimt_list(iit, 1)
+        nt = Latt%dimt_list(iit, 2)
+        if (nf <= 2*Nbond) then
+            nf_loc = nf
+            if (nf_loc > Nbond) nf_loc = nf_loc - Nbond
+            jj = Latt%L_bonds(ii, nf_loc)
+            jjt = Latt%inv_dimt_list(jj, nt)
+        elseif (nf == 2*Nbond+1) then
+            jjt = Latt%inv_dimt_list(ii, npbc(nt+1, Ltrot))
+        else
+            jjt = Latt%inv_dimt_list(ii, npbc(nt-1, Ltrot))
+        endif
+        return
+    end function dimt_neighbor
     subroutine Wolff_init(this)
         class(WolffContainer), intent(inout) :: this
         allocate(this%is_marked(Lq*Ltrot))
@@ -104,7 +132,7 @@ contains
 ! approach the adjacent sites if unmarked, and add them into the stack with probability.
                 eff_bond = 0
                 do nf = 1, 2*Nbond+2
-                    jjt = Latt%LT_bonds(iit, nf)
+                    jjt = dimt_neighbor(iit, nf)
                     if (.not. this%is_marked(jjt)) then
                         eff_bond = eff_bond + 1
                         jj = Latt%dimt_list(jjt, 1)

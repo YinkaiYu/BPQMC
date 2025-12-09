@@ -4,7 +4,7 @@ module MyLattice ! definition on space geometry
     
     type, public :: kagomeLattice
         integer, dimension(:,:), allocatable :: dim_list, inv_dim_list, cell_list, inv_cell_list, dimt_list, inv_dimt_list
-        integer, dimension(:,:), allocatable :: L_bonds, LT_bonds, imj
+        integer, dimension(:,:), allocatable :: L_bonds, imj
         real(kind=8), dimension(:,:), allocatable :: xk_v, aimj_v, k_dot_r
         real(kind=8) :: a1_v(2), a2_v(2), b1_v(2), b2_v(2)
     contains
@@ -95,7 +95,7 @@ contains
             ZKRON(i, i) = dcmplx(1.d0, 0.d0)
         enddo !define delta function
 
-        allocate(Latt%L_Bonds(Ndim, 0:Nbond), Latt%LT_bonds(Ndim*Ltrot, 0:(Nbond+2)))
+        allocate(Latt%L_Bonds(Ndim, 0:Nbond))
 !define the nearest neighbor bonds
         do no = 1, Norb
             do iy = 1, Nly
@@ -131,6 +131,7 @@ contains
                 enddo
             enddo
         enddo
+<<<<<<< HEAD
 ! define the nearest neighbors on space-time
         do nt = 1, Ltrot
             do ii = 1, Ndim
@@ -142,13 +143,29 @@ contains
                 Latt%LT_bonds(iit, 4) = Latt%inv_dimt_list(ii, npbc(nt-1, Ltrot))
             enddo
         enddo
+=======
+!        ! Space-time neighbor list Latt%LT_bonds is intentionally disabled to save memory.
+!        ! Global updates (if re-enabled) should rebuild neighbors on the fly instead.
+! ! define the nearest neighbors on space-time
+!        do nt = 1, Ltrot
+!            do ii = 1, Ndim
+!                iit = Latt%inv_dimt_list(ii, nt)
+!                Latt%LT_bonds(iit, 0) = iit
+!                Latt%LT_bonds(iit, 1) = Latt%inv_dimt_list(Latt%L_bonds(ii, 1), nt)
+!                Latt%LT_bonds(iit, 2) = Latt%inv_dimt_list(Latt%L_bonds(ii, 2), nt)
+!                Latt%LT_bonds(iit, 3) = Latt%inv_dimt_list(Latt%L_bonds(ii, 3), nt)
+!                Latt%LT_bonds(iit, 4) = Latt%inv_dimt_list(ii, npbc(nt+1, Ltrot))
+!                Latt%LT_bonds(iit, 5) = Latt%inv_dimt_list(ii, npbc(nt-1, Ltrot))
+!            enddo
+!        enddo
+>>>>>>> 7f9cfcc (取消LT_bonds的内存分配，节省内存)
 	    return
     end subroutine Lattice_make
     
     subroutine Lattice_clear(this)
         type(kagomeLattice), intent(inout) :: this
         deallocate(this%dim_list, this%inv_dim_list, this%cell_list, this%inv_cell_list, this%dimt_list, this%inv_dimt_list)
-        deallocate(this%L_bonds, this%LT_bonds, this%imj)
+        deallocate(this%L_bonds, this%imj)
         deallocate(this%xk_v, this%aimj_v, this%k_dot_r)
         deallocate(ZKRON)
         return
