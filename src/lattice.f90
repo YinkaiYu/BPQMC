@@ -131,19 +131,6 @@ contains
                 enddo
             enddo
         enddo
-<<<<<<< HEAD
-! define the nearest neighbors on space-time
-        do nt = 1, Ltrot
-            do ii = 1, Ndim
-                iit = Latt%inv_dimt_list(ii, nt)
-                Latt%LT_bonds(iit, 0) = iit
-                Latt%LT_bonds(iit, 1) = Latt%inv_dimt_list(Latt%L_bonds(ii, 1), nt)
-                Latt%LT_bonds(iit, 2) = Latt%inv_dimt_list(Latt%L_bonds(ii, 2), nt)
-                Latt%LT_bonds(iit, 3) = Latt%inv_dimt_list(ii, npbc(nt+1, Ltrot))
-                Latt%LT_bonds(iit, 4) = Latt%inv_dimt_list(ii, npbc(nt-1, Ltrot))
-            enddo
-        enddo
-=======
 !        ! Space-time neighbor list Latt%LT_bonds is intentionally disabled to save memory.
 !        ! Global updates (if re-enabled) should rebuild neighbors on the fly instead.
 ! ! define the nearest neighbors on space-time
@@ -158,7 +145,6 @@ contains
 !                Latt%LT_bonds(iit, 5) = Latt%inv_dimt_list(ii, npbc(nt-1, Ltrot))
 !            enddo
 !        enddo
->>>>>>> 7f9cfcc (取消LT_bonds的内存分配，节省内存)
 	    return
     end subroutine Lattice_make
     
