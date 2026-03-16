@@ -25,6 +25,7 @@ module CalcBasic ! Global parameters
     real(kind=8),           public              :: shiftLoc
     logical,                public              :: is_global ! HMC switch; false => local update
     integer,                public              :: Nfrog
+    integer,                public              :: NfrogJitter
     real(kind=8),           public              :: hmc_dt
 ! initial state parameters
     integer,                public              :: iniType ! type of initial phonon field configuration
@@ -49,6 +50,8 @@ module CalcBasic ! Global parameters
 contains
     subroutine read_input()
         include 'mpif.h'
+        character(len=256) :: hmc_line
+        integer :: ios
         if (IRANK == 0) then
             open(unit=20, file='paramC_sets.txt', status='unknown')
             read(20,*) RT, RU1, RU2, Nbos
@@ -57,7 +60,13 @@ contains
             read(20,*) Nwrap, Nbin, Nsweep, shiftLoc
             read(20,*) is_tau, Nthermal
             read(20,*) is_warm, Nwarm, shiftWarm(1), shiftWarm(2)
-            read(20,*) is_global, Nfrog, hmc_dt
+            read(20,'(A)') hmc_line
+            NfrogJitter = 0
+            read(hmc_line, *, iostat=ios) is_global, Nfrog, hmc_dt, NfrogJitter
+            if (ios /= 0) then
+                NfrogJitter = 0
+                read(hmc_line, *) is_global, Nfrog, hmc_dt
+            endif
             read(20,*) iniType, iniAmpl, iniBias(1), iniBias(2)
             read(20,*) iniHam, iniTwist, imbalance
             close(20)
@@ -87,6 +96,7 @@ contains
         call MPI_BCAST(Nbin, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nwarm, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nfrog, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(NfrogJitter, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nthermal, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nsweep, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(is_tau, 1, MPI_Logical, 0, MPI_COMM_WORLD, IERR)
@@ -115,6 +125,9 @@ contains
             endif
             if (Nfrog <= 0) then
                 write(6,*) "Nfrog must be positive in HMC mode"; stop
+            endif
+            if (NfrogJitter < 0) then
+                write(6,*) "NfrogJitter must be non-negative in HMC mode"; stop
             endif
             if (hmc_dt <= 0.d0) then
                 write(6,*) "hmc_dt must be positive in HMC mode"; stop
@@ -185,6 +198,7 @@ contains
             if (is_global) then
                 write(50,*) 'Sampler                                        :', 'HMC'
                 write(50,*) 'Leapfrog steps                                :', Nfrog
+                write(50,*) 'Leapfrog jitter                               :', NfrogJitter
                 write(50,*) 'Leapfrog step size                             :', hmc_dt
             else
                 write(50,*) 'Sampler                                        :', 'Local'

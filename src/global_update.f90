@@ -11,6 +11,7 @@ module GlobalUpdate_mod
 
     public
     private :: HMC_force_prop_L, HMC_set_overlap, HMC_log_overlap_abs2
+    private :: HMC_draw_nfrog
     private :: HMC_rng_gaussian, HMC_measure_sweep_L, HMC_measure_sweep_R
 
     type :: GlobalUpdate
@@ -183,16 +184,17 @@ contains
         return
     end subroutine Global_sample_momentum
 
-    subroutine Global_leapfrog(this, action_new)
+    subroutine Global_leapfrog(this, action_new, nsteps)
         class(GlobalUpdate), intent(inout) :: this
         real(kind=8), intent(out) :: action_new
+        integer, intent(in) :: nsteps
         integer :: nlf
 
         this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_cur
-        do nlf = 1, Nfrog
+        do nlf = 1, nsteps
             Conf%phi_list = Conf%phi_list + hmc_dt * this%momentum
             call this%eval_state(action_new, this%force_trial)
-            if (nlf == Nfrog) then
+            if (nlf == nsteps) then
                 this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_trial
             else
                 this%momentum = this%momentum + hmc_dt * this%force_trial
@@ -206,6 +208,7 @@ contains
         integer, intent(inout) :: iseed
         class(AccCounter), intent(inout) :: Counter
         real(kind=8) :: action_new, ham_old, ham_new, delta_h, ratio, random
+        integer :: nsteps
         logical :: accepted
         real(kind=8), external :: ranf
 
@@ -214,7 +217,8 @@ contains
         call this%sample_momentum(iseed)
         ham_old = 0.5d0 * sum(this%momentum * this%momentum) + this%action_cur
 
-        call this%leapfrog(action_new)
+        nsteps = HMC_draw_nfrog(iseed)
+        call this%leapfrog(action_new, nsteps)
         ham_new = 0.5d0 * sum(this%momentum * this%momentum) + action_new
 
         delta_h = ham_old - ham_new
@@ -236,6 +240,22 @@ contains
         endif
         return
     end subroutine Global_step
+
+    integer function HMC_draw_nfrog(iseed) result(nsteps)
+        integer, intent(inout) :: iseed
+        integer :: lower, upper, span
+
+        if (NfrogJitter <= 0) then
+            nsteps = Nfrog
+            return
+        endif
+
+        lower = max(1, Nfrog - NfrogJitter)
+        upper = Nfrog + NfrogJitter
+        span = upper - lower + 1
+        nsteps = lower - 1 + nranf(iseed, span)
+        return
+    end function HMC_draw_nfrog
 
     subroutine Global_measure_config(this, toggle, Nobs, Nobst)
         class(GlobalUpdate), intent(inout) :: this
