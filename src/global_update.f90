@@ -25,6 +25,7 @@ module GlobalUpdate_mod
     contains
         procedure :: init => Global_init
         procedure :: clear => Global_clear
+        procedure :: debug_eval => Global_debug_eval
         procedure, private :: reset => Global_reset
         procedure, private :: prepare_work => Global_prepare_work
         procedure, private :: ensure_state => Global_ensure_state
@@ -43,6 +44,7 @@ module GlobalUpdate_mod
     type(ObserEqual), allocatable :: Obs_equal_hmc
     type(Dynamics) :: Dyn
     type(AccCounter) :: Acc_HMC, Acc_HMC_warm
+    real(kind=8), parameter :: overlap_floor = 1.d-300
 
 contains
     subroutine Global_init(this, Init_obj)
@@ -92,6 +94,17 @@ contains
         return
     end subroutine Global_clear
 
+    subroutine Global_debug_eval(this, action, force, ok)
+        class(GlobalUpdate), intent(inout) :: this
+        real(kind=8), intent(out) :: action
+        real(kind=8), dimension(Naux, Ndim, Ltrot), intent(out) :: force
+        logical, intent(out) :: ok
+
+        call this%eval_state(action, force)
+        ok = .true.
+        return
+    end subroutine Global_debug_eval
+
     subroutine Global_reset(this, toggle)
         class(GlobalUpdate), intent(inout) :: this
         logical, intent(in) :: toggle
@@ -112,37 +125,26 @@ contains
 
     subroutine Global_ensure_state(this)
         class(GlobalUpdate), intent(inout) :: this
-        logical :: ok
 
         if (this%state_ready) return
-        call this%eval_state(this%action_cur, this%force_cur, ok)
-        if (.not. ok) then
-            write(6,*) "HMC failed to evaluate the current configuration"
-            stop
-        endif
+        call this%eval_state(this%action_cur, this%force_cur)
         this%state_ready = .true.
         return
     end subroutine Global_ensure_state
 
-    subroutine Global_eval_state(this, action, force, ok)
+    subroutine Global_eval_state(this, action, force)
         class(GlobalUpdate), intent(inout) :: this
         real(kind=8), intent(out) :: action
         real(kind=8), dimension(Naux, Ndim, Ltrot), intent(out) :: force
-        logical, intent(out) :: ok
         integer :: nt
         real(kind=8) :: log_overlap_abs2
 
         force = 0.d0
         action = 0.5d0 * sum(Conf%phi_list * Conf%phi_list)
-        ok = .true.
 
         call this%prepare_work()
         if (Ltrot == 0) then
-            log_overlap_abs2 = HMC_log_overlap_abs2(this%prop_work, ok)
-            if (.not. ok) then
-                action = upbound
-                return
-            endif
+            call HMC_log_overlap_abs2(this%prop_work, log_overlap_abs2)
             action = action - dble(Nbos) * log_overlap_abs2
             return
         endif
@@ -154,27 +156,15 @@ contains
             if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_pre(this%prop_work, this%wr_work, nt)
         enddo
 
-        log_overlap_abs2 = HMC_log_overlap_abs2(this%prop_work, ok)
-        if (.not. ok) then
-            action = upbound
-            force = 0.d0
-            return
-        endif
+        call HMC_log_overlap_abs2(this%prop_work, log_overlap_abs2)
         action = action - dble(Nbos) * log_overlap_abs2
 
         do nt = Ltrot, 1, -1
             if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_L(this%prop_work, this%wr_work, nt, "H")
             call propT_L(this%prop_work)
-            if (abs(RU2) > Zero) call HMC_force_prop_L(Op_U2, this%prop_work, 2, nt, force, ok)
-            if (.not. ok) exit
-            if (abs(RU1) > Zero) call HMC_force_prop_L(Op_U1, this%prop_work, 1, nt, force, ok)
-            if (.not. ok) exit
+            if (abs(RU2) > Zero) call HMC_force_prop_L(Op_U2, this%prop_work, 2, nt, force)
+            if (abs(RU1) > Zero) call HMC_force_prop_L(Op_U1, this%prop_work, 1, nt, force)
         enddo
-
-        if (.not. ok) then
-            action = upbound
-            force = 0.d0
-        endif
         return
     end subroutine Global_eval_state
 
@@ -193,18 +183,15 @@ contains
         return
     end subroutine Global_sample_momentum
 
-    subroutine Global_leapfrog(this, action_new, ok)
+    subroutine Global_leapfrog(this, action_new)
         class(GlobalUpdate), intent(inout) :: this
         real(kind=8), intent(out) :: action_new
-        logical, intent(out) :: ok
         integer :: nlf
 
-        ok = .true.
         this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_cur
         do nlf = 1, Nfrog
             Conf%phi_list = Conf%phi_list + hmc_dt * this%momentum
-            call this%eval_state(action_new, this%force_trial, ok)
-            if (.not. ok) return
+            call this%eval_state(action_new, this%force_trial)
             if (nlf == Nfrog) then
                 this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_trial
             else
@@ -219,7 +206,7 @@ contains
         integer, intent(inout) :: iseed
         class(AccCounter), intent(inout) :: Counter
         real(kind=8) :: action_new, ham_old, ham_new, delta_h, ratio, random
-        logical :: ok, accepted
+        logical :: accepted
         real(kind=8), external :: ranf
 
         call this%ensure_state()
@@ -227,12 +214,8 @@ contains
         call this%sample_momentum(iseed)
         ham_old = 0.5d0 * sum(this%momentum * this%momentum) + this%action_cur
 
-        call this%leapfrog(action_new, ok)
-        if (ok) then
-            ham_new = 0.5d0 * sum(this%momentum * this%momentum) + action_new
-        else
-            ham_new = upbound
-        endif
+        call this%leapfrog(action_new)
+        ham_new = 0.5d0 * sum(this%momentum * this%momentum) + action_new
 
         delta_h = ham_old - ham_new
         if (delta_h >= 0.d0) then
@@ -242,7 +225,7 @@ contains
         endif
 
         random = ranf(iseed)
-        accepted = ok .and. (ratio > random)
+        accepted = (ratio > random)
         call Counter%count(accepted)
         if (accepted) then
             this%action_cur = action_new
@@ -346,27 +329,20 @@ contains
         return
     end subroutine Global_therm_print
 
-    subroutine HMC_force_prop_L(Op_U, Prop, nf, ntau, force, ok)
+    subroutine HMC_force_prop_L(Op_U, Prop, nf, ntau, force)
         type(OperatorHubbard), intent(inout) :: Op_U
         class(Propagator), intent(inout) :: Prop
         integer, intent(in) :: nf, ntau
         real(kind=8), dimension(Naux, Ndim, Ltrot), intent(inout) :: force
-        logical, intent(inout) :: ok
         complex(kind=8) :: alpha, gdiag, scale
         integer :: ii
 
-        if (.not. ok) return
         call HMC_set_overlap(Prop)
-        if (abs(Prop%overlap) < 1.d-14) then
-            ok = .false.
-            return
-        endif
-
         alpha = Op_U%get_alpha()
-        scale = dcmplx(dble(Nbos), 0.d0) / Prop%overlap
+        scale = dcmplx(dble(Nbos), 0.d0) / HMC_safe_overlap(Prop%overlap)
         do ii = Ndim, 1, -1
             gdiag = scale * Prop%UUR(ii, 1) * Prop%UUL(1, ii)
-            force(nf, ii, ntau) = -Conf%phi_list(nf, ii, ntau) - 2.d0 * real(alpha * gdiag)
+            force(nf, ii, ntau) = -Conf%phi_list(nf, ii, ntau) + 2.d0 * real(alpha * gdiag)
         enddo
 
         do ii = Ndim, 1, -1
@@ -424,22 +400,31 @@ contains
         return
     end subroutine HMC_set_overlap
 
-    real(kind=8) function HMC_log_overlap_abs2(Prop, ok) result(log_overlap_abs2)
+    subroutine HMC_log_overlap_abs2(Prop, log_overlap_abs2)
         class(Propagator), intent(inout) :: Prop
-        logical, intent(out) :: ok
+        real(kind=8), intent(out) :: log_overlap_abs2
         real(kind=8) :: overlap_abs
 
         call HMC_set_overlap(Prop)
-        overlap_abs = abs(Prop%overlap)
-        if (overlap_abs < 1.d-14) then
-            ok = .false.
-            log_overlap_abs2 = -upbound
-            return
-        endif
-        ok = .true.
+        overlap_abs = max(abs(Prop%overlap), overlap_floor)
         log_overlap_abs2 = 2.d0 * (Prop%log_norm_ur + Prop%log_norm_ul + log(overlap_abs))
         return
-    end function HMC_log_overlap_abs2
+    end subroutine HMC_log_overlap_abs2
+
+    pure complex(kind=8) function HMC_safe_overlap(overlap) result(safe_overlap)
+        complex(kind=8), intent(in) :: overlap
+        real(kind=8) :: overlap_abs
+
+        overlap_abs = abs(overlap)
+        if (overlap_abs >= overlap_floor) then
+            safe_overlap = overlap
+        elseif (overlap_abs > 0.d0) then
+            safe_overlap = overlap * (overlap_floor / overlap_abs)
+        else
+            safe_overlap = dcmplx(overlap_floor, 0.d0)
+        endif
+        return
+    end function HMC_safe_overlap
 
     real(kind=8) function HMC_rng_gaussian(iseed) result(X)
         integer, intent(inout) :: iseed
