@@ -8,9 +8,12 @@ module ProcessMatrix
         complex(kind=8), dimension(:,:), allocatable :: UUR  ! (Ndim, 1) - B(tau,0)P
         complex(kind=8), dimension(:,:), allocatable :: UUL  ! (1, Ndim) - P^dagger B(2theta,tau)
         complex(kind=8) :: overlap                        ! scalar P_L^dagger P_R
+        real(kind=8) :: log_norm_ur                      ! cumulative discarded log norms of UUR
+        real(kind=8) :: log_norm_ul                      ! cumulative discarded log norms of UUL
         real(kind=8) :: Xmaxm, Xmeanm
     contains
         procedure :: make => Prop_make
+        procedure :: reset => Prop_reset
         procedure :: asgn => Prop_assign
         final :: Prop_clear
     end type Propagator
@@ -26,9 +29,11 @@ module ProcessMatrix
     
     type, public :: WrapList
         complex(kind=8), dimension(:,:,:), allocatable :: URlist, ULlist  ! (Ndim,1,1:Nst), (1,Ndim,1:Nst)
+        real(kind=8), dimension(:), allocatable :: log_ur_list, log_ul_list
         ! Note: VRlist, VLlist, DRlist, DLlist removed for PQMC algorithm
     contains
         procedure :: make => Wrlist_make
+        procedure :: reset => Wrlist_reset
         procedure :: asgn => Wrlist_assign
         final :: Wrlist_clear
     end type WrapList
@@ -38,12 +43,22 @@ contains
         class(Propagator), intent(inout) :: this
         class(Initial), intent(in) :: Init_obj
         allocate(this%UUR(Ndim, 1), this%UUL(1, Ndim))
-        this%UUR = Init_obj%PR  ! Initialize with trial wave function
-        this%UUL = Init_obj%PL  ! Initialize with trial wave function
-        this%overlap = sum(this%UUL(1, 1:Ndim) * this%UUR(1:Ndim, 1))
-        this%Xmaxm = 0.d0; this%Xmeanm = 0.d0
+        call this%reset(Init_obj)
         return
     end subroutine Prop_make
+
+    subroutine Prop_reset(this, Init_obj)
+        class(Propagator), intent(inout) :: this
+        class(Initial), intent(in) :: Init_obj
+        this%UUR = Init_obj%PR
+        this%UUL = Init_obj%PL
+        this%overlap = sum(this%UUL(1, 1:Ndim) * this%UUR(1:Ndim, 1))
+        this%log_norm_ur = 0.d0
+        this%log_norm_ul = 0.d0
+        this%Xmaxm = 0.d0
+        this%Xmeanm = 0.d0
+        return
+    end subroutine Prop_reset
     
     subroutine Prop_assign(this, that)
         class(Propagator), intent(inout) :: this
@@ -51,6 +66,8 @@ contains
         this%UUL = that%UUL
         this%UUR = that%UUR
         this%overlap = that%overlap
+        this%log_norm_ur = that%log_norm_ur
+        this%log_norm_ul = that%log_norm_ul
         this%Xmaxm = that%Xmaxm; this%Xmeanm = that%Xmeanm
         return
     end subroutine Prop_assign
@@ -93,20 +110,33 @@ contains
     subroutine Wrlist_make(this)
         class(WrapList), intent(inout) :: this
         allocate(this%URlist(Ndim, 1, max(Nst, 1)), this%ULlist(1, Ndim, max(Nst, 1)))
-        this%URlist = dcmplx(0.d0, 0.d0); this%ULlist = dcmplx(0.d0, 0.d0)
+        allocate(this%log_ur_list(max(Nst, 1)), this%log_ul_list(max(Nst, 1)))
+        call this%reset()
         return
     end subroutine Wrlist_make
+
+    subroutine Wrlist_reset(this)
+        class(WrapList), intent(inout) :: this
+        this%URlist = dcmplx(0.d0, 0.d0)
+        this%ULlist = dcmplx(0.d0, 0.d0)
+        this%log_ur_list = 0.d0
+        this%log_ul_list = 0.d0
+        return
+    end subroutine Wrlist_reset
 
     subroutine Wrlist_assign(this, that)
         class(WrapList), intent(inout) :: this
         class(WrapList), intent(in) :: that
-        this%URlist = that%URlist; this%ULlist = that%ULlist
+        this%URlist = that%URlist
+        this%ULlist = that%ULlist
+        this%log_ur_list = that%log_ur_list
+        this%log_ul_list = that%log_ul_list
         return
     end subroutine Wrlist_assign
     
     subroutine Wrlist_clear(this)
         type(WrapList), intent(inout) :: this
-        deallocate(this%URlist, this%ULlist)
+        deallocate(this%URlist, this%ULlist, this%log_ur_list, this%log_ul_list)
         return
     end subroutine Wrlist_clear
 end module ProcessMatrix

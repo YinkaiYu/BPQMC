@@ -83,7 +83,7 @@ contains
         class(WrapList), intent(inout) :: WrList
         integer :: nt
         call this%reset(.false.)
-        WrList%URlist = dcmplx(0.d0, 0.d0); WrList%ULlist = dcmplx(0.d0, 0.d0)
+        call WrList%reset()
         if (Ltrot == 0) then
             ! Direct calculation for Ltrot == 0 case (no Gbar path needed)
         else

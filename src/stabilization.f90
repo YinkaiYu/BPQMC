@@ -33,6 +33,7 @@ contains
         ! Calculate ||B(tau,0)P|| using LAPACK DZNRM2
         norm_val = DZNRM2(Ndim, Prop%UUR(1,1), 1)
         if (norm_val < 1.d-8) write(6,*) "Warning: very small norm in stab_UR, norm=", norm_val
+        Prop%log_norm_ur = Prop%log_norm_ur + log(norm_val)
         
         ! Normalize: P_R = B(tau,0)P / ||B(tau,0)P||
         call ZDSCAL(Ndim, 1.d0/norm_val, Prop%UUR(1,1), 1)
@@ -51,6 +52,7 @@ contains
         ! Calculate ||P^dagger B(2theta,tau)|| using LAPACK DZNRM2
         norm_val = DZNRM2(Ndim, Prop%UUL(1,1), 1)
         if (norm_val < 1.d-8) write(6,*) "Warning: very small norm in stab_UL, norm=", norm_val
+        Prop%log_norm_ul = Prop%log_norm_ul + log(norm_val)
         
         ! Normalize: P_L^dagger = P^dagger B(2theta,tau) / ||P^dagger B(2theta,tau)||
         call ZDSCAL(Ndim, 1.d0/norm_val, Prop%UUL(1,1), 1)
@@ -71,6 +73,7 @@ contains
         nt_st = (nt - 1) / Nwrap + 1  ! ceil(nt / Nwrap)
         call stab_UR(Prop)
         WrList%URlist(1:Ndim, 1, nt_st) = Prop%UUR(1:Ndim, 1)
+        WrList%log_ur_list(nt_st) = Prop%log_norm_ur
         return
     end subroutine Wrap_pre
     
@@ -93,7 +96,9 @@ contains
         dif_wr = norm_diff_vec(Prop%UUR(:,1), WrList%URlist(:,1,nt_st), Ndim)
         if (dif_wr > norm_threshold) write(6,*) "wrap_L UR diff at nt=", nt, " diff=", dif_wr, " rank=", IRANK
         Prop%UUR(1:Ndim, 1) = WrList%URlist(1:Ndim, 1, nt_st)
+        Prop%log_norm_ur = WrList%log_ur_list(nt_st)
         WrList%ULlist(1, 1:Ndim, nt_st) = Prop%UUL(1, 1:Ndim)
+        WrList%log_ul_list(nt_st) = Prop%log_norm_ul
         return
     end subroutine Wrap_L
     
@@ -116,7 +121,9 @@ contains
         dif_wr = norm_diff_vec(Prop%UUL(1,:), WrList%ULlist(1,1:Ndim,nt_st), Ndim)
         if (dif_wr > norm_threshold) write(6,*) "wrap_R UL diff at nt=", nt, " diff=", dif_wr, " rank=", IRANK
         Prop%UUL(1, 1:Ndim) = WrList%ULlist(1, 1:Ndim, nt_st)
+        Prop%log_norm_ul = WrList%log_ul_list(nt_st)
         WrList%URlist(1:Ndim, 1, nt_st) = Prop%UUR(1:Ndim, 1)
+        WrList%log_ur_list(nt_st) = Prop%log_norm_ur
         return
     end subroutine Wrap_R
 
@@ -138,6 +145,7 @@ contains
         call stab_UR(Prop)
         call stab_UL(Prop)
         Prop%UUL(1, 1:Ndim) = WrList%ULlist(1, 1:Ndim, nt_st)
+        Prop%log_norm_ul = WrList%log_ul_list(nt_st)
         
         if (.not. warned_wrap_tau) then
             write(6,*) "Wrap_tau: PQMC time-dependent Green's function not fully implemented"

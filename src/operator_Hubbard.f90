@@ -23,6 +23,7 @@ module OperatorHubbard_mod
         type(AccCounter), public :: Acc_U_local, Acc_U_therm
     contains
         procedure           :: set          => opU_set
+        procedure           :: get_alpha    => opU_get_alpha
         procedure, private  :: get_exp      => opU_get_exp
         procedure           :: get_delta    => opU_get_delta
         procedure           :: mmult_R      => opU_mmult_R
@@ -38,6 +39,13 @@ contains
         if ( RU >  Zero ) this%alpha = dcmplx( 0.d0, sqrt( 2.d0 * RU * Dtau) )
         return
     end subroutine opU_set
+
+    pure function opU_get_alpha(this) result(alpha)
+        class(OperatorHubbard), intent(in) :: this
+        complex(kind=8) :: alpha
+        alpha = this%alpha
+        return
+    end function opU_get_alpha
     
     subroutine opU_get_exp(this, phi, nflag)
         class(OperatorHubbard), intent(inout) :: this
