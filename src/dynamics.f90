@@ -66,7 +66,7 @@ contains
         do nt = 1, Ltrot
             call Obs%calc(PropGr, nt)
             if (abs(RU1) > Zero) call propgrU_R(Op_U1, Prop_d, PropGr, 1, nt)
-            if (abs(RU2) > Zero) call propgrU_R(Op_U2, Prop_d, PropGr, 1, nt)
+            if (abs(RU2) > Zero) call propgrU_R(Op_U2, Prop_d, PropGr, 2, nt)
             call propgrT_R(Prop_d, PropGr)
             call Wrap_tau(Prop_d, PropGr, WrList, nt)
         enddo
