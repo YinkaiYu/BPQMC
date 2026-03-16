@@ -3,7 +3,7 @@ OBJS = calc_basic.o lattice.o fields.o\
        non_interact.o operator_Hubbard.o initial_state.o model.o process_matrix.o\
        multiply.o obser_equal.o obser_tau.o stabilization.o\
        localU.o\
-       dynamics.o local_sweep.o\
+       dynamics.o local_sweep.o global_update.o\
        fourier_trans.o main.o
   
 .SUFFIXES: .f90 
@@ -13,4 +13,3 @@ $(TARGET): $(OBJS)
 	$(FC) $(LF) -o $(TARGET) $(OBJS) $(LIBS)
 clean:
 	rm  -f $(OBJS)
-

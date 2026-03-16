@@ -110,6 +110,9 @@ contains
             write(6,*) "Nwrap must be positive"; stop
         endif
         if (is_global) then
+            if (Ltrot <= 0) then
+                write(6,*) "Ltrot must be positive in HMC mode"; stop
+            endif
             if (Nfrog <= 0) then
                 write(6,*) "Nfrog must be positive in HMC mode"; stop
             endif

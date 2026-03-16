@@ -24,7 +24,7 @@ contains
     subroutine stab_UR(Prop)
         ! PQMC version: normalize right vector B(tau,0)P using LAPACK
         class(Propagator), intent(inout) :: Prop
-        real(kind=8) :: norm_val
+        real(kind=8) :: norm_val, norm_safe
         
         ! LAPACK function interfaces
         real(kind=8), external :: DZNRM2
@@ -33,17 +33,18 @@ contains
         ! Calculate ||B(tau,0)P|| using LAPACK DZNRM2
         norm_val = DZNRM2(Ndim, Prop%UUR(1,1), 1)
         if (norm_val < 1.d-8) write(6,*) "Warning: very small norm in stab_UR, norm=", norm_val
-        Prop%log_norm_ur = Prop%log_norm_ur + log(norm_val)
+        norm_safe = max(norm_val, 1.d-300)
+        Prop%log_norm_ur = Prop%log_norm_ur + log(norm_safe)
         
         ! Normalize: P_R = B(tau,0)P / ||B(tau,0)P||
-        call ZDSCAL(Ndim, 1.d0/norm_val, Prop%UUR(1,1), 1)
+        call ZDSCAL(Ndim, 1.d0/norm_safe, Prop%UUR(1,1), 1)
         return
     end subroutine stab_UR
     
     subroutine  stab_UL(Prop)
         ! PQMC version: normalize left vector P^dagger B(2theta,tau) using LAPACK
         class(Propagator), intent(inout) :: Prop
-        real(kind=8) :: norm_val
+        real(kind=8) :: norm_val, norm_safe
         
         ! LAPACK function interfaces
         real(kind=8), external :: DZNRM2
@@ -52,10 +53,11 @@ contains
         ! Calculate ||P^dagger B(2theta,tau)|| using LAPACK DZNRM2
         norm_val = DZNRM2(Ndim, Prop%UUL(1,1), 1)
         if (norm_val < 1.d-8) write(6,*) "Warning: very small norm in stab_UL, norm=", norm_val
-        Prop%log_norm_ul = Prop%log_norm_ul + log(norm_val)
+        norm_safe = max(norm_val, 1.d-300)
+        Prop%log_norm_ul = Prop%log_norm_ul + log(norm_safe)
         
         ! Normalize: P_L^dagger = P^dagger B(2theta,tau) / ||P^dagger B(2theta,tau)||
-        call ZDSCAL(Ndim, 1.d0/norm_val, Prop%UUL(1,1), 1)
+        call ZDSCAL(Ndim, 1.d0/norm_safe, Prop%UUL(1,1), 1)
         return
     end subroutine stab_UL
     

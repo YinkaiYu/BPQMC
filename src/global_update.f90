@@ -1,368 +1,454 @@
-module GlobalUpdate_mod ! a combination of shift&Wolff update
-    use GlobalK_mod
-    use Stabilize_mod
-    use DQMC_Model_mod
+module GlobalUpdate_mod
     use CalcBasic
+    use DQMC_Model_mod
+    use Dynamics_mod
+    use MakeInitialState, only: Initial
+    use Multiply_mod
+    use ObserEqual_mod
+    use OperatorHubbard_mod, only: AccCounter, OperatorHubbard
+    use Stabilize_mod
     implicit none
-    
+
     public
-    private :: spin_reflect, action_dif, Wolff, phi_new
-    
-    type WolffContainer
-        logical, dimension(:), allocatable :: is_marked
-        integer, dimension(:), allocatable :: new_adjoined
-        integer :: count ! counter of the stack
-        real(kind=8) :: size_cluster
-    contains
-        procedure :: init => Wolff_init
-        procedure :: reset => Wolff_reset
-        procedure :: flip => Wolff_flip
-        final :: Wolff_clear
-    end type WolffContainer
-    
+    private :: HMC_force_prop_L, HMC_set_overlap, HMC_log_overlap_abs2
+    private :: HMC_rng_gaussian, HMC_measure_sweep_L, HMC_measure_sweep_R
+
     type :: GlobalUpdate
-        type(Propagator), allocatable, private :: prop
-        type(WrapList), allocatable, private :: wrlist
+        type(Propagator), allocatable, private :: prop_work
+        type(WrapList), allocatable, private :: wr_work
+        real(kind=8), dimension(:,:,:), allocatable, private :: force_cur
+        real(kind=8), dimension(:,:,:), allocatable, private :: force_trial
+        real(kind=8), dimension(:,:,:), allocatable, private :: momentum
+        real(kind=8), dimension(:,:,:), allocatable, private :: phi_backup
+        real(kind=8), private :: action_cur
+        logical, private :: state_ready
     contains
         procedure :: init => Global_init
         procedure :: clear => Global_clear
         procedure, private :: reset => Global_reset
-        procedure, private :: flip => Global_flip
-        procedure, private :: sweep_L => Global_sweep_L
-        procedure, private :: sweep_R => Global_sweep_R
+        procedure, private :: prepare_work => Global_prepare_work
+        procedure, private :: ensure_state => Global_ensure_state
+        procedure, private :: eval_state => Global_eval_state
+        procedure, private :: sample_momentum => Global_sample_momentum
+        procedure, private :: leapfrog => Global_leapfrog
+        procedure, private :: step => Global_step
+        procedure, private :: measure_config => Global_measure_config
+        procedure :: therm => Global_therm
         procedure :: sweep => Global_sweep
         procedure, nopass :: ctrl_print => Global_control_print
+        procedure, nopass :: ctrl_print_t => Global_therm_print
     end type GlobalUpdate
-    
-    type(AccCounter) :: Acc_U_global
-    type(WolffContainer), allocatable :: Wolff
-    real(kind=8), dimension(:,:,:), allocatable :: phi_new
-    
-contains
 
-    integer function dimt_neighbor(iit, nf) result(jjt)
-        ! Return the neighbor of a space-time site (ii,nt) for the Wolff stack.
-        ! nf = 1..Nbond and nf = Nbond+1..2*Nbond share the same spatial neighbors
-        ! nf = 2*Nbond+1, 2*Nbond+2 give temporal forward/backward neighbors
-        integer, intent(in) :: iit, nf
-        integer :: ii, nt, jj, nf_loc
-        if (nf < 1 .or. nf > 2*Nbond+2) then
-            write(6,*) "dimt_neighbor: invalid neighbor index nf=", nf
-            jjt = iit
-            return
-        endif
-        ii = Latt%dimt_list(iit, 1)
-        nt = Latt%dimt_list(iit, 2)
-        if (nf <= 2*Nbond) then
-            nf_loc = nf
-            if (nf_loc > Nbond) nf_loc = nf_loc - Nbond
-            jj = Latt%L_bonds(ii, nf_loc)
-            jjt = Latt%inv_dimt_list(jj, nt)
-        elseif (nf == 2*Nbond+1) then
-            jjt = Latt%inv_dimt_list(ii, npbc(nt+1, Ltrot))
-        else
-            jjt = Latt%inv_dimt_list(ii, npbc(nt-1, Ltrot))
-        endif
-        return
-    end function dimt_neighbor
-    subroutine Wolff_init(this)
-        class(WolffContainer), intent(inout) :: this
-        allocate(this%is_marked(Lq*Ltrot))
-        this%is_marked = .false.
-        allocate(this%new_adjoined(Lq*Ltrot))
-        this%new_adjoined = -1
-        this%count = 0
-        this%size_cluster = 0.d0
-        return
-    end subroutine Wolff_init
-    
-    subroutine Wolff_reset(this)
-        class(WolffContainer), intent(inout) :: this
-        this%is_marked = .false.
-        this%new_adjoined = -1
-        this%count = 0
-        return
-    end subroutine Wolff_reset
-    
-    subroutine Wolff_clear(this)
-        type(WolffContainer), intent(inout) :: this
-        deallocate(this%is_marked)
-        deallocate(this%new_adjoined)
-        return
-    end subroutine Wolff_clear
-    
-    subroutine Wolff_flip(this, iseed, size_cluster)
-! Arguments:
-        class(WolffContainer), intent(inout) :: this
-        integer, intent(inout) :: iseed
-        integer, intent(out) :: size_cluster
-! Local:
-        real(kind=8), external :: ranf
-        real(kind=8) :: theta, xflip, random, ratio, dif
-        real(kind=8), dimension(Naux) :: vec_old, vec_new, vec_j
-        integer :: iit0, iit, jjt, ii, nti, jj, ntj, n, nf, eff_bond
-! randomly choose the initial space-time site iit0 = (ii0, ntau0) of the cluster
-        xflip = ranf(iseed)
-        iit0 = nranf(iseed, Lq*Ltrot)
-! randomly choose the unit vector theta to perform the reflection
-        xflip = ranf(iseed)
-        theta = xflip * 2 * PI
-! initialize the stack: add the first site into the stack
-        this%count = 1
-        this%new_adjoined(this%count) = iit0
-        size_cluster = 1
-! The process stops if the stack is exhausted
-        if (this%count > 0) then
-! choose the first site in new_adjoined, and pop it up from new_adjoined
-            iit = this%new_adjoined(1)
-            do n = 1, this%count
-                this%new_adjoined(n) = this%new_adjoined(n+1)
-            enddo
-            this%count = this%count - 1
-! iit should not be marked for now in principle; otherwise there is an error
-            if (.not. this%is_marked(iit)) then
-! iit is now being processed. Any site processed should be marked and thus not to be processed again
-                this%is_marked(iit) = .true.
-! as a part of the cluster, it is now flipped
-                ii = Latt%dimt_list(iit, 1)
-                nti = Latt%dimt_list(iit, 2)
-                vec_old(:) = Conf%phi_list(:, ii, nti)
-                vec_new = spin_reflect(vec_old, theta)
-                phi_new(:, ii, nti) = vec_new(:) ! output
-! approach the adjacent sites if unmarked, and add them into the stack with probability.
-                eff_bond = 0
-                do nf = 1, 2*Nbond+2
-                    jjt = dimt_neighbor(iit, nf)
-                    if (.not. this%is_marked(jjt)) then
-                        eff_bond = eff_bond + 1
-                        jj = Latt%dimt_list(jjt, 1)
-                        ntj = Latt%dimt_list(jjt, 2)
-                        vec_j(:) = Conf%phi_list(:, jj, ntj)
-                        if (nf .le. 2*Nbond) then ! space-adjacent
-                            dif = action_dif(vec_new, vec_old, vec_j, .true.)
-                            ratio = exp(-dif)
-                        else ! temporal-adjacent
-                            dif = action_dif(vec_new, vec_old, vec_j, .false.)
-                            ratio = 1.d0 - exp(-dif)
-                        endif
-                        random = ranf(iseed)
-                        if (ratio .gt. random) then
-                            this%count = this%count + 1
-                            this%new_adjoined(this%count) = jjt
-                            size_cluster = size_cluster + 1
-                        endif
-                    endif
-                enddo
-                if (eff_bond == 0) write(6,*) "Wolff: All the adjacent sites of iit=", iit, " have been marked; size_cluster=", size_cluster
-            else
-                write(6,*) "ERROR: the site popped from the stack has already been marked"; stop
-            endif
-        endif
-        return
-    end subroutine Wolff_flip
-    
-    pure function action_dif(vec_new, vec_old, vec_j, is_space)
-        real(kind=8) :: action_dif
-        real(kind=8), dimension(Naux), intent(in) :: vec_new, vec_old, vec_j
-        logical, intent(in) :: is_space
-        real(kind=8), dimension(Naux) :: vec_tmp
-        real(kind=8) :: action_new, action_old
-! vec_new, vec_old for the marked site iit; vec_j for the unmarked site jjt
-        if (is_space) then ! space-adjacent sites
-            vec_tmp = vec_new - vec_j
-            action_new = sqr_vec(vec_tmp)
-            vec_tmp = vec_old - vec_j
-            action_old = sqr_vec(vec_tmp)
-        else ! temporal-adjacent sites
-            vec_tmp = vec_new - vec_j
-            vec_tmp = vec_tmp / (Dtau)
-            action_new = sqr_vec(vec_tmp)
-            vec_tmp = vec_old - vec_j
-            vec_tmp = vec_tmp / (Dtau)
-            action_old = sqr_vec(vec_tmp)
-        endif
-        action_dif = (action_new - action_old) * Dtau / 2.0
-        return
-    end function action_dif
-    
-    pure function spin_reflect(vec, theta)
-        real(kind=8), dimension(Naux) :: spin_reflect
-        real(kind=8), dimension(Naux), intent(in) :: vec
-        real(kind=8), intent(in) :: theta
-        real(kind=8) :: inner_prod
-        inner_prod = vec(1)*cos(theta) + vec(2)*sin(theta)
-        spin_reflect(1) = vec(1) - 2.0 * cos(theta) * inner_prod
-        spin_reflect(2) = vec(2) - 2.0 * sin(theta) * inner_prod
-        return
-    end function spin_reflect
-    
-    subroutine Global_init(this)
+    type(ObserTau), allocatable :: Obs_tau_hmc
+    type(ObserEqual), allocatable :: Obs_equal_hmc
+    type(Dynamics) :: Dyn
+    type(AccCounter) :: Acc_HMC, Acc_HMC_warm
+
+contains
+    subroutine Global_init(this, Init_obj)
         class(GlobalUpdate), intent(inout) :: this
-        allocate(phi_new(Naux, Lq, Ltrot))
-        phi_new = 0.d0
-        allocate(this%prop)
-        call this%prop%make()
-        allocate(this%wrlist)
-        call this%wrlist%make()
-        call Acc_U_global%init()
-        allocate(Wolff)
-        call Wolff%init()
+        class(Initial), intent(in) :: Init_obj
+
+        allocate(this%prop_work)
+        call this%prop_work%make(Init_obj)
+        allocate(this%wr_work)
+        call this%wr_work%make()
+        allocate(this%force_cur(Naux, Ndim, Ltrot))
+        allocate(this%force_trial(Naux, Ndim, Ltrot))
+        allocate(this%momentum(Naux, Ndim, Ltrot))
+        allocate(this%phi_backup(Naux, Ndim, Ltrot))
+
+        this%force_cur = 0.d0
+        this%force_trial = 0.d0
+        this%momentum = 0.d0
+        this%phi_backup = 0.d0
+        this%action_cur = 0.d0
+        this%state_ready = .false.
+
+        allocate(Obs_equal_hmc)
+        call Obs_equal_hmc%make()
+        if (is_tau) then
+            allocate(Obs_tau_hmc)
+            call Obs_tau_hmc%make()
+            call Dyn%init(Init_obj)
+        endif
+
+        call Acc_HMC%init()
+        call Acc_HMC_warm%init()
         return
     end subroutine Global_init
-    
+
     subroutine Global_clear(this)
         class(GlobalUpdate), intent(inout) :: this
-        deallocate(phi_new)
-        deallocate(this%prop)
-        deallocate(this%wrlist)
-        deallocate(Wolff)
+
+        if (allocated(Obs_equal_hmc)) deallocate(Obs_equal_hmc)
+        if (is_tau) then
+            if (allocated(Obs_tau_hmc)) deallocate(Obs_tau_hmc)
+            call Dyn%clear()
+        endif
+        deallocate(this%prop_work)
+        deallocate(this%wr_work)
+        deallocate(this%force_cur, this%force_trial, this%momentum, this%phi_backup)
         return
     end subroutine Global_clear
-    
-    subroutine Global_reset(this, Prop, WrList)
+
+    subroutine Global_reset(this, toggle)
         class(GlobalUpdate), intent(inout) :: this
-        class(Propagator), intent(in) :: Prop
-        class(WrapList), intent(in) :: WrList
-        phi_new = Conf%phi_list
-        call this%prop%asgn(Prop)
-        call this%wrlist%asgn(WrList)
-        call Acc_U_global%reset()
+        logical, intent(in) :: toggle
+
+        call Acc_HMC%reset()
+        call Obs_equal_hmc%reset()
+        if (toggle) call Obs_tau_hmc%reset()
         return
     end subroutine Global_reset
-    
-    subroutine Global_flip(this, iseed, size_cluster)
+
+    subroutine Global_prepare_work(this)
         class(GlobalUpdate), intent(inout) :: this
-        integer, intent(inout) :: iseed
-        integer, intent(out) :: size_cluster
-! Local: 
-        real(kind=8) :: xflip, X
-        real(kind=8), external :: ranf
-        integer :: ns
-        
-        call Wolff%reset()
-        call Wolff%flip(iseed, size_cluster) ! update phi_new and size_cluster
-        do ns = 1, Naux
-            xflip = ranf(iseed)
-            X = dble( (xflip - 0.5) * abs(shiftGlb(ns)) )
-            phi_new(ns, 1:Lq, 1:Ltrot) = phi_new(ns, 1:Lq, 1:Ltrot) + X
-        enddo
+
+        call this%prop_work%reset(Init)
+        call this%wr_work%reset()
         return
-    end subroutine Global_flip
-    
-    subroutine Global_sweep_L(this, Prop, WrList, iseed, size_cluster, is_beta)
+    end subroutine Global_prepare_work
+
+    subroutine Global_ensure_state(this)
         class(GlobalUpdate), intent(inout) :: this
-        class(Propagator), intent(inout) :: Prop
-        class(WrapList), intent(inout) :: WrList
-        integer, intent(inout) :: iseed
-        integer, intent(out) :: size_cluster
-        logical, intent(inout) :: is_beta
-! Local: 
-        real(kind=8), external :: ranf
-        real(kind=8) :: ratio_boson, ratio_fermion, ratio_re, random
-        integer :: nt
-        
-        ratio_fermion = 1.d0
-        call this%flip(iseed, size_cluster)
-        do nt = Ltrot, 1, -1
-            call Wrap_L(this%prop, this%wrlist, nt)
-            call propT_L(this%prop)
-            if (U1 > Zero) call GlobalK_prop_L(this%prop, ratio_fermion, phi_new, nt)
-        enddo
-        ratio_boson = Conf%bosonratio(phi_new)
-        ratio_re = ratio_fermion * ratio_boson
-        random = ranf(iseed)
-        if (ratio_re .ge. random) then
-            call Acc_U_global%count(.true.)
-            Conf%phi_list = phi_new
-            call Prop%asgn(this%prop)
-            call WrList%asgn(this%wrlist)
-            is_beta = .false.
-        else
-            call Acc_U_global%count(.false.)
-            phi_new = Conf%phi_list
-            call this%prop%asgn(Prop)
-            call this%wrlist%asgn(WrList)
-            is_beta = .true. 
+        logical :: ok
+
+        if (this%state_ready) return
+        call this%eval_state(this%action_cur, this%force_cur, ok)
+        if (.not. ok) then
+            write(6,*) "HMC failed to evaluate the current configuration"
+            stop
         endif
+        this%state_ready = .true.
         return
-    end subroutine Global_sweep_L
-    
-    subroutine Global_sweep_R(this, Prop, WrList, iseed, size_cluster, is_beta)
+    end subroutine Global_ensure_state
+
+    subroutine Global_eval_state(this, action, force, ok)
         class(GlobalUpdate), intent(inout) :: this
-        class(Propagator), intent(inout) :: Prop
-        class(WrapList), intent(inout) :: WrList
-        integer, intent(inout) :: iseed
-        integer, intent(out) :: size_cluster
-        logical, intent(inout) :: is_beta
-! Local: 
-        real(kind=8), external :: ranf
-        real(kind=8) :: ratio_boson, ratio_fermion, ratio_re, random
+        real(kind=8), intent(out) :: action
+        real(kind=8), dimension(Naux, Ndim, Ltrot), intent(out) :: force
+        logical, intent(out) :: ok
         integer :: nt
-        
-        ratio_fermion = 1.d0
-        call this%flip(iseed, size_cluster)
-        do nt = 1, Ltrot
-            if (U1 > Zero) call GlobalK_prop_R(this%prop, ratio_fermion, phi_new, nt)
-            call propT_R(this%prop)
-            call Wrap_R(this%prop, this%wrlist, nt)
-        enddo
-        ratio_boson = Conf%bosonratio(phi_new)
-        ratio_re = ratio_fermion * ratio_boson
-        random = ranf(iseed)
-        if (ratio_re .ge. random) then
-            call Acc_U_global%count(.true.)
-            Conf%phi_list = phi_new
-            call Prop%asgn(this%prop)
-            call WrList%asgn(this%wrlist)
-            is_beta = .true.
-        else
-            call Acc_U_global%count(.false.)
-            phi_new = Conf%phi_list
-            call this%prop%asgn(Prop)
-            call this%wrlist%asgn(WrList)
-            is_beta = .false. 
-        endif
-        return
-    end subroutine Global_sweep_R
-    
-    subroutine Global_sweep(this, Prop, WrList, iseed, is_beta)
-        class(GlobalUpdate), intent(inout) :: this
-        class(Propagator), intent(inout) :: Prop
-        class(WrapList), intent(inout) :: WrList
-        integer, intent(inout) :: iseed
-        logical, intent(inout) :: is_beta
-        integer :: ngl, size_count
-        real(kind=8) :: size_cluster
-        
-        call this%reset(Prop, WrList)
-        size_cluster = 0.d0
-        do ngl = 1, Nglobal
-            if (is_beta) then
-                call this%sweep_L(Prop, WrList, iseed, size_count, is_beta)
-            else
-                call this%sweep_R(Prop, WrList, iseed, size_count, is_beta)
+        real(kind=8) :: log_overlap_abs2
+
+        force = 0.d0
+        action = 0.5d0 * sum(Conf%phi_list * Conf%phi_list)
+        ok = .true.
+
+        call this%prepare_work()
+        if (Ltrot == 0) then
+            log_overlap_abs2 = HMC_log_overlap_abs2(this%prop_work, ok)
+            if (.not. ok) then
+                action = upbound
+                return
             endif
-            size_cluster = size_cluster + dble(size_count)
+            action = action - dble(Nbos) * log_overlap_abs2
+            return
+        endif
+
+        do nt = 1, Ltrot
+            if (abs(RU1) > Zero) call propU_pre(Op_U1, this%prop_work, 1, nt)
+            if (abs(RU2) > Zero) call propU_pre(Op_U2, this%prop_work, 2, nt)
+            call propT_pre(this%prop_work)
+            if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_pre(this%prop_work, this%wr_work, nt)
         enddo
-        call Acc_U_global%ratio()
-        size_cluster = size_cluster / dble(Nglobal)
-        Wolff%size_cluster = Wolff%size_cluster + size_cluster
+
+        log_overlap_abs2 = HMC_log_overlap_abs2(this%prop_work, ok)
+        if (.not. ok) then
+            action = upbound
+            force = 0.d0
+            return
+        endif
+        action = action - dble(Nbos) * log_overlap_abs2
+
+        do nt = Ltrot, 1, -1
+            if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_L(this%prop_work, this%wr_work, nt, "H")
+            call propT_L(this%prop_work)
+            if (abs(RU2) > Zero) call HMC_force_prop_L(Op_U2, this%prop_work, 2, nt, force, ok)
+            if (.not. ok) exit
+            if (abs(RU1) > Zero) call HMC_force_prop_L(Op_U1, this%prop_work, 1, nt, force, ok)
+            if (.not. ok) exit
+        enddo
+
+        if (.not. ok) then
+            action = upbound
+            force = 0.d0
+        endif
+        return
+    end subroutine Global_eval_state
+
+    subroutine Global_sample_momentum(this, iseed)
+        class(GlobalUpdate), intent(inout) :: this
+        integer, intent(inout) :: iseed
+        integer :: nt, ii, nf
+
+        do nt = 1, Ltrot
+            do ii = 1, Ndim
+                do nf = 1, Naux
+                    this%momentum(nf, ii, nt) = HMC_rng_gaussian(iseed)
+                enddo
+            enddo
+        enddo
+        return
+    end subroutine Global_sample_momentum
+
+    subroutine Global_leapfrog(this, action_new, ok)
+        class(GlobalUpdate), intent(inout) :: this
+        real(kind=8), intent(out) :: action_new
+        logical, intent(out) :: ok
+        integer :: nlf
+
+        ok = .true.
+        this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_cur
+        do nlf = 1, Nfrog
+            Conf%phi_list = Conf%phi_list + hmc_dt * this%momentum
+            call this%eval_state(action_new, this%force_trial, ok)
+            if (.not. ok) return
+            if (nlf == Nfrog) then
+                this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_trial
+            else
+                this%momentum = this%momentum + hmc_dt * this%force_trial
+            endif
+        enddo
+        return
+    end subroutine Global_leapfrog
+
+    subroutine Global_step(this, iseed, Counter)
+        class(GlobalUpdate), intent(inout) :: this
+        integer, intent(inout) :: iseed
+        class(AccCounter), intent(inout) :: Counter
+        real(kind=8) :: action_new, ham_old, ham_new, delta_h, ratio, random
+        logical :: ok, accepted
+        real(kind=8), external :: ranf
+
+        call this%ensure_state()
+        this%phi_backup = Conf%phi_list
+        call this%sample_momentum(iseed)
+        ham_old = 0.5d0 * sum(this%momentum * this%momentum) + this%action_cur
+
+        call this%leapfrog(action_new, ok)
+        if (ok) then
+            ham_new = 0.5d0 * sum(this%momentum * this%momentum) + action_new
+        else
+            ham_new = upbound
+        endif
+
+        delta_h = ham_old - ham_new
+        if (delta_h >= 0.d0) then
+            ratio = 1.d0
+        else
+            ratio = exp(delta_h)
+        endif
+
+        random = ranf(iseed)
+        accepted = ok .and. (ratio > random)
+        call Counter%count(accepted)
+        if (accepted) then
+            this%action_cur = action_new
+            this%force_cur = this%force_trial
+            this%state_ready = .true.
+        else
+            Conf%phi_list = this%phi_backup
+        endif
+        return
+    end subroutine Global_step
+
+    subroutine Global_measure_config(this, toggle, Nobs, Nobst)
+        class(GlobalUpdate), intent(inout) :: this
+        logical, intent(in) :: toggle
+        integer, intent(inout) :: Nobs, Nobst
+        integer :: nt
+
+        call this%prepare_work()
+        if (Ltrot == 0) then
+            call Obs_equal_hmc%calc(this%prop_work, 0)
+            Nobs = Nobs + 1
+            return
+        endif
+
+        do nt = 1, Ltrot
+            if (abs(RU1) > Zero) call propU_pre(Op_U1, this%prop_work, 1, nt)
+            if (abs(RU2) > Zero) call propU_pre(Op_U2, this%prop_work, 2, nt)
+            call propT_pre(this%prop_work)
+            if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_pre(this%prop_work, this%wr_work, nt)
+        enddo
+
+        call HMC_measure_sweep_L(this%prop_work, this%wr_work, Nobs)
+        if (toggle) then
+            call HMC_set_overlap(this%prop_work)
+            call Dyn%reset(this%prop_work)
+            call Dyn%sweep_R(Obs_tau_hmc, this%wr_work)
+            Nobst = Nobst + 1
+        endif
+        call HMC_measure_sweep_R(this%prop_work, this%wr_work, Nobs)
+        return
+    end subroutine Global_measure_config
+
+    subroutine Global_therm(this, iseed)
+        class(GlobalUpdate), intent(inout) :: this
+        integer, intent(inout) :: iseed
+
+        call Acc_HMC_warm%reset()
+        call this%step(iseed, Acc_HMC_warm)
+        call Acc_HMC_warm%ratio()
+        return
+    end subroutine Global_therm
+
+    subroutine Global_sweep(this, Prop, WrList, iseed, is_beta, toggle)
+        class(GlobalUpdate), intent(inout) :: this
+        class(Propagator), intent(inout) :: Prop
+        class(WrapList), intent(inout) :: WrList
+        integer, intent(inout) :: iseed
+        logical, intent(inout) :: is_beta
+        logical, intent(in) :: toggle
+        integer :: Nobs, Nobst, nsw
+
+        call this%reset(toggle)
+        Nobs = 0
+        Nobst = 0
+        do nsw = 1, Nsweep
+            call this%step(iseed, Acc_HMC)
+            call this%measure_config(toggle, Nobs, Nobst)
+        enddo
+
+        call Obs_equal_hmc%ave(Nobs)
+        if (toggle) call Obs_tau_hmc%ave(Nobst)
+        call Acc_HMC%ratio()
         return
     end subroutine Global_sweep
-    
-    subroutine Global_control_print()
+
+    subroutine Global_control_print(toggle)
         include 'mpif.h'
+        logical, intent(in) :: toggle
         real(kind=8) :: collect
+
         collect = 0.d0
-        call MPI_Reduce(Acc_U_global%acc, collect, 1, MPI_Real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
-        if (IRANK == 0) Acc_U_global%acc = collect / dble(ISIZE * Nbin)
-        collect = 0
-        call MPI_Reduce(Wolff%size_cluster, collect, 1, MPI_Real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
-        if (IRANK == 0) Wolff%size_cluster = collect / dble(ISIZE * Nbin)
+        call MPI_Reduce(Acc_HMC%acc, collect, 1, MPI_Real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
         if (IRANK == 0) then
-            write(50,*) 'Average size of Wolff cluster                  :', Wolff%size_cluster
-            write(50,*) 'Accept_Kglobal                                 :', Acc_U_global%acc
+            Acc_HMC%acc = collect / dble(ISIZE * Nbin)
+            write(50,*) 'Accept_HMC                                     :', Acc_HMC%acc
         endif
+        if (toggle) call Dyn%ctrl_print()
         return
     end subroutine Global_control_print
+
+    subroutine Global_therm_print()
+        include 'mpif.h'
+        real(kind=8) :: collect
+
+        collect = 0.d0
+        call MPI_Reduce(Acc_HMC_warm%acc, collect, 1, MPI_Real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
+        if (IRANK == 0) then
+            Acc_HMC_warm%acc = collect / dble(ISIZE * Nwarm)
+            write(50,*) 'Thermalize HMC Accept Ratio                    :', Acc_HMC_warm%acc
+        endif
+        return
+    end subroutine Global_therm_print
+
+    subroutine HMC_force_prop_L(Op_U, Prop, nf, ntau, force, ok)
+        type(OperatorHubbard), intent(inout) :: Op_U
+        class(Propagator), intent(inout) :: Prop
+        integer, intent(in) :: nf, ntau
+        real(kind=8), dimension(Naux, Ndim, Ltrot), intent(inout) :: force
+        logical, intent(inout) :: ok
+        complex(kind=8) :: alpha, gdiag, scale
+        integer :: ii
+
+        if (.not. ok) return
+        call HMC_set_overlap(Prop)
+        if (abs(Prop%overlap) < 1.d-14) then
+            ok = .false.
+            return
+        endif
+
+        alpha = Op_U%get_alpha()
+        scale = dcmplx(dble(Nbos), 0.d0) / Prop%overlap
+        do ii = Ndim, 1, -1
+            gdiag = scale * Prop%UUR(ii, 1) * Prop%UUL(1, ii)
+            force(nf, ii, ntau) = -Conf%phi_list(nf, ii, ntau) - 2.d0 * real(alpha * gdiag)
+        enddo
+
+        do ii = Ndim, 1, -1
+            call Op_U%mmult_L(Prop%UUL, Latt, Conf%phi_list(nf, ii, ntau), ii, 1)
+            call Op_U%mmult_R(Prop%UUR, Latt, Conf%phi_list(nf, ii, ntau), ii, -1)
+        enddo
+        return
+    end subroutine HMC_force_prop_L
+
+    subroutine HMC_measure_sweep_L(Prop, WrList, Nobs)
+        class(Propagator), intent(inout) :: Prop
+        class(WrapList), intent(inout) :: WrList
+        integer, intent(inout) :: Nobs
+        integer :: nt
+
+        do nt = Ltrot, 1, -1
+            if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_L(Prop, WrList, nt, "M")
+            if (nt == Ltrot/2) then
+                call HMC_set_overlap(Prop)
+                call Obs_equal_hmc%calc(Prop, nt)
+                Nobs = Nobs + 1
+            endif
+            call propT_L(Prop)
+            if (abs(RU2) > Zero) call propU_L(Op_U2, Prop, 2, nt)
+            if (abs(RU1) > Zero) call propU_L(Op_U1, Prop, 1, nt)
+        enddo
+        return
+    end subroutine HMC_measure_sweep_L
+
+    subroutine HMC_measure_sweep_R(Prop, WrList, Nobs)
+        class(Propagator), intent(inout) :: Prop
+        class(WrapList), intent(inout) :: WrList
+        integer, intent(inout) :: Nobs
+        integer :: nt
+
+        do nt = 1, Ltrot
+            if (abs(RU1) > Zero) call propU_R(Op_U1, Prop, 1, nt)
+            if (abs(RU2) > Zero) call propU_R(Op_U2, Prop, 2, nt)
+            call propT_R(Prop)
+            if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_R(Prop, WrList, nt, "M")
+            if (nt == Ltrot/2) then
+                call HMC_set_overlap(Prop)
+                call Obs_equal_hmc%calc(Prop, nt)
+                Nobs = Nobs + 1
+            endif
+        enddo
+        return
+    end subroutine HMC_measure_sweep_R
+
+    subroutine HMC_set_overlap(Prop)
+        class(Propagator), intent(inout) :: Prop
+        complex(kind=8), external :: ZDOTU
+
+        Prop%overlap = ZDOTU(Ndim, Prop%UUL(1,1), 1, Prop%UUR(1,1), 1)
+        return
+    end subroutine HMC_set_overlap
+
+    real(kind=8) function HMC_log_overlap_abs2(Prop, ok) result(log_overlap_abs2)
+        class(Propagator), intent(inout) :: Prop
+        logical, intent(out) :: ok
+        real(kind=8) :: overlap_abs
+
+        call HMC_set_overlap(Prop)
+        overlap_abs = abs(Prop%overlap)
+        if (overlap_abs < 1.d-14) then
+            ok = .false.
+            log_overlap_abs2 = -upbound
+            return
+        endif
+        ok = .true.
+        log_overlap_abs2 = 2.d0 * (Prop%log_norm_ur + Prop%log_norm_ul + log(overlap_abs))
+        return
+    end function HMC_log_overlap_abs2
+
+    real(kind=8) function HMC_rng_gaussian(iseed) result(X)
+        integer, intent(inout) :: iseed
+        real(kind=8) :: X1, X2
+        real(kind=8), external :: ranf
+
+        X1 = max(ranf(iseed), 1.d-12)
+        X2 = ranf(iseed)
+        X = sqrt(-2.d0 * log(X1)) * cos(2.d0 * PI * X2)
+        return
+    end function HMC_rng_gaussian
 end module GlobalUpdate_mod
