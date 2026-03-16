@@ -1,0 +1,238 @@
+from __future__ import annotations
+
+import math
+import os
+import re
+import shutil
+import subprocess
+from dataclasses import dataclass, replace
+from pathlib import Path
+from statistics import mean
+
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_BINARY = ROOT / "src" / "BPQMC.out"
+ACCEPT_RE = re.compile(r"^\s*([A-Za-z0-9_ ]+?)\s*:\s*([0-9Ee+\-.]+)\s*$")
+
+
+@dataclass(frozen=True)
+class RunConfig:
+    name: str
+    rt: float
+    ru1: float
+    ru2: float
+    nbos: int
+    nlx: int
+    nly: int
+    ltrot: int
+    beta: float
+    nlx_therm: int | None = None
+    nly_therm: int | None = None
+    ltrot_therm: int | None = None
+    nwrap: int = 2
+    nbin: int = 16
+    nsweep: int = 4
+    shift_loc: float = 1.0
+    is_tau: bool = False
+    nthermal: int = 0
+    is_warm: bool = False
+    nwarm: int = 0
+    shift_warm_1: float = 1.0
+    shift_warm_2: float = 1.0
+    ini_type: int = 2
+    ini_ampl: float = 0.1
+    ini_bias_1: float = 0.0
+    ini_bias_2: float = 0.0
+    ini_ham: int = 0
+    ini_twist: float = 1.0e-4
+    imbalance: float = 0.0
+
+    def with_sampling(self, *, nbin: int | None = None, nsweep: int | None = None, is_warm: bool | None = None, nwarm: int | None = None) -> "RunConfig":
+        return replace(
+            self,
+            nbin=self.nbin if nbin is None else nbin,
+            nsweep=self.nsweep if nsweep is None else nsweep,
+            is_warm=self.is_warm if is_warm is None else is_warm,
+            nwarm=self.nwarm if nwarm is None else nwarm,
+        )
+
+    def therm_dims(self) -> tuple[int, int, int]:
+        return (
+            self.nlx if self.nlx_therm is None else self.nlx_therm,
+            self.nly if self.nly_therm is None else self.nly_therm,
+            self.ltrot if self.ltrot_therm is None else self.ltrot_therm,
+        )
+
+
+def default_parameter_sets() -> dict[str, RunConfig]:
+    return {
+        "weak_u2": RunConfig(
+            name="weak_u2",
+            rt=1.0,
+            ru1=0.0,
+            ru2=1.0,
+            nbos=6,
+            nlx=2,
+            nly=2,
+            ltrot=8,
+            beta=1.6,
+            nwrap=2,
+            nbin=24,
+            nsweep=6,
+        ),
+        "mixed_u1_u2": RunConfig(
+            name="mixed_u1_u2",
+            rt=1.0,
+            ru1=-0.4,
+            ru2=1.6,
+            nbos=6,
+            nlx=2,
+            nly=2,
+            ltrot=10,
+            beta=2.0,
+            nwrap=2,
+            nbin=24,
+            nsweep=6,
+        ),
+        "strong_u2": RunConfig(
+            name="strong_u2",
+            rt=1.0,
+            ru1=0.0,
+            ru2=3.0,
+            nbos=6,
+            nlx=2,
+            nly=2,
+            ltrot=12,
+            beta=2.4,
+            nwrap=3,
+            nbin=24,
+            nsweep=6,
+        ),
+    }
+
+
+def fortran_bool(value: bool) -> str:
+    return ".true." if value else ".false."
+
+
+def write_param_file(path: Path, cfg: RunConfig, *, is_global: bool, nfrog: int, hmc_dt: float) -> None:
+    nlx_therm, nly_therm, ltrot_therm = cfg.therm_dims()
+    lines = [
+        f"{cfg.rt} {cfg.ru1} {cfg.ru2} {cfg.nbos}",
+        f"{cfg.nlx} {cfg.nly} {cfg.ltrot} {cfg.beta}",
+        f"{nlx_therm} {nly_therm} {ltrot_therm}",
+        f"{cfg.nwrap} {cfg.nbin} {cfg.nsweep} {cfg.shift_loc}",
+        f"{fortran_bool(cfg.is_tau)} {cfg.nthermal}",
+        f"{fortran_bool(cfg.is_warm)} {cfg.nwarm} {cfg.shift_warm_1} {cfg.shift_warm_2}",
+        f"{fortran_bool(is_global)} {nfrog} {hmc_dt}",
+        f"{cfg.ini_type} {cfg.ini_ampl} {cfg.ini_bias_1} {cfg.ini_bias_2}",
+        f"{cfg.ini_ham} {cfg.ini_twist} {cfg.imbalance}",
+    ]
+    path.write_text("\n".join(lines) + "\n", encoding="ascii")
+
+
+def write_seed_files(run_dir: Path, seed: int) -> None:
+    (run_dir / "confin.txt").write_text("0\n", encoding="ascii")
+    seeds = [seed + offset for offset in range(8)]
+    (run_dir / "seeds.txt").write_text("\n".join(str(item) for item in seeds) + "\n", encoding="ascii")
+
+
+def prepare_run_dir(run_dir: Path, cfg: RunConfig, *, is_global: bool, nfrog: int, hmc_dt: float, seed: int, binary: Path = DEFAULT_BINARY) -> None:
+    if run_dir.exists():
+        shutil.rmtree(run_dir)
+    run_dir.mkdir(parents=True)
+    shutil.copy2(binary, run_dir / "BPQMC.out")
+    write_seed_files(run_dir, seed)
+    write_param_file(run_dir / "paramC_sets.txt", cfg, is_global=is_global, nfrog=nfrog, hmc_dt=hmc_dt)
+
+
+def run_case(run_dir: Path, *, np_ranks: int = 1) -> None:
+    with (run_dir / "output.log").open("w", encoding="ascii") as stream:
+        subprocess.run(
+            ["mpirun", "-np", str(np_ranks), "./BPQMC.out"],
+            cwd=run_dir,
+            stdout=stream,
+            stderr=subprocess.STDOUT,
+            check=True,
+        )
+
+
+def parse_info_metrics(run_dir: Path) -> dict[str, float]:
+    metrics: dict[str, float] = {}
+    info_path = run_dir / "info.txt"
+    for line in info_path.read_text(encoding="ascii").splitlines():
+        match = ACCEPT_RE.match(line)
+        if match:
+            key = "_".join(match.group(1).split())
+            metrics[key] = float(match.group(2))
+    return metrics
+
+
+def read_scalar_series(run_dir: Path, name: str) -> list[float]:
+    path = run_dir / name
+    if not path.exists():
+        raise FileNotFoundError(path)
+    values = []
+    for line in path.read_text(encoding="ascii").splitlines():
+        stripped = line.strip()
+        if stripped:
+            values.append(float(stripped.split()[0]))
+    return values
+
+
+def read_complex_series_real(run_dir: Path, name: str) -> list[float]:
+    path = run_dir / name
+    if not path.exists():
+        raise FileNotFoundError(path)
+    values = []
+    for line in path.read_text(encoding="ascii").splitlines():
+        stripped = line.strip()
+        if stripped:
+            values.append(float(stripped.split()[0]))
+    return values
+
+
+def series_mean(values: list[float]) -> float:
+    return mean(values)
+
+
+def sample_stderr(values: list[float]) -> float:
+    n = len(values)
+    if n < 2:
+        return 0.0
+    avg = mean(values)
+    var = sum((value - avg) ** 2 for value in values) / (n - 1)
+    return math.sqrt(var / n)
+
+
+def lag1_autocorr(values: list[float]) -> float:
+    n = len(values)
+    if n < 2:
+        return 0.0
+    avg = mean(values)
+    centered = [value - avg for value in values]
+    denom = sum(value * value for value in centered)
+    if denom == 0.0:
+        return 0.0
+    numer = sum(centered[idx] * centered[idx + 1] for idx in range(n - 1))
+    return numer / denom
+
+
+def integrated_autocorr_time(values: list[float], max_lag: int | None = None) -> float:
+    n = len(values)
+    if n < 2:
+        return 0.5
+    avg = mean(values)
+    centered = [value - avg for value in values]
+    var = sum(value * value for value in centered) / n
+    if var == 0.0:
+        return 0.5
+    limit = n // 2 if max_lag is None else min(max_lag, n - 1)
+    tau = 0.5
+    for lag in range(1, limit + 1):
+        cov = sum(centered[idx] * centered[idx + lag] for idx in range(n - lag)) / (n - lag)
+        rho = cov / var
+        if lag > 1 and rho <= 0.0:
+            break
+        tau += rho
+    return max(tau, 0.5)

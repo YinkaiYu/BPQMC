@@ -4,6 +4,7 @@
 5           5           10          5.0
 .false.     0    
 .false.     500         1.0         1.0
+.false.     8           0.006
 2           0.1         0.0         0.0         
 0           0.0001      0.0
 
@@ -13,5 +14,6 @@ NlxTherm    NlyTherm    LtrotTherm
 Nwrap       Nbin        Nsweep      shiftLoc
 is_tau      Nthermal
 is_warm     Nwarm       shiftWarm1  shiftWarm2
+is_global   Nfrog       hmc_dt
 iniType     iniAmpl     iniBias1    iniBias2    
 iniHam      iniTwist    imbalance
