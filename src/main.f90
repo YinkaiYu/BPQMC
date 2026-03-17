@@ -20,7 +20,7 @@ program BPQMC
     call MPI_COMM_SIZE(MPI_COMM_WORLD, ISIZE, IERR)
     call MPI_COMM_RANK(MPI_COMM_WORLD, IRANK, IERR)
     
-    wall_1 = MPI_WTIME()
+    call CPU_TIME(wall_1)
 ! initiate
     call Model_init(iseed)
     allocate(Prop)
@@ -83,7 +83,7 @@ program BPQMC
         call MPI_Reduce(Prop%Xmeanm, collect, 1, MPI_Real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
         if (IRANK == 0) Prop%Xmeanm = collect / dble(N)
     endif
-    wall_2 = MPI_WTIME()
+    call CPU_TIME(wall_2)
     CPUT = wall_2 - wall_1
     collect = 0.d0
     call MPI_Reduce(CPUT, collect, 1, MPI_Real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
