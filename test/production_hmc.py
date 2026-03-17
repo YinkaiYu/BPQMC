@@ -74,12 +74,17 @@ def collect_run_means(run_dir: Path, thermal_cut: int) -> dict[str, float]:
 def summarize_perf(run_dir: Path, thermal_cut: int) -> dict[str, float]:
     values = read_scalar_series(run_dir, "doubleOcc")[thermal_cut:]
     info = parse_info_metrics(run_dir)
-    return {
+    summary = {
         "tau_int_doubleOcc": integrated_autocorr_time(values),
         "lag1_doubleOcc": lag1_autocorr(values),
         "ess_per_sec_doubleOcc": ess_per_second(values, info["Tot_CPU_time"]),
         "cpu_time": info["Tot_CPU_time"],
     }
+    if "HMC_DeltaH_mean" in info:
+        summary["hmc_deltaH_mean"] = info["HMC_DeltaH_mean"]
+    if "HMC_DeltaH_abs_max" in info:
+        summary["hmc_deltaH_abs_max"] = info["HMC_DeltaH_abs_max"]
+    return summary
 
 
 def compare_mode_stats(summary: dict[str, dict[str, list[float]]]) -> tuple[bool, list[dict[str, float | str | bool]]]:
@@ -161,7 +166,7 @@ def run_tune(args: argparse.Namespace) -> int:
     tuned_cases = []
     csv_rows = []
     for cfg in configs.values():
-        cfg = cfg.with_sampling(is_warm=True, nwarm=args.warm)
+        cfg = cfg.with_sampling(is_warm=args.warm > 0, nwarm=max(args.warm, 0))
         case_rows = []
         for idx, (nfrog, dt) in enumerate(grid):
             run_dir = work_root / "runs" / cfg.name / f"nf{nfrog}_dt{dt:.6f}".replace(".", "p")
@@ -172,7 +177,7 @@ def run_tune(args: argparse.Namespace) -> int:
                 nfrog=nfrog,
                 hmc_dt=dt,
                 hmc_jitter=args.hmc_jitter,
-                seed=args.seed_base + 1000 * idx,
+                seed=args.seed_base + args.seed_step * idx,
                 binary=binary,
             )
             run_case(run_dir, np_ranks=args.np)
@@ -189,6 +194,10 @@ def run_tune(args: argparse.Namespace) -> int:
                 "ess_per_sec_doubleOcc": ess_per_second(values, info["Tot_CPU_time"]),
                 "cpu_time": info["Tot_CPU_time"],
             }
+            if "HMC_DeltaH_mean" in info:
+                row["hmc_deltaH_mean"] = info["HMC_DeltaH_mean"]
+            if "HMC_DeltaH_abs_max" in info:
+                row["hmc_deltaH_abs_max"] = info["HMC_DeltaH_abs_max"]
             case_rows.append(row)
             csv_rows.append(row)
 
@@ -217,7 +226,7 @@ def run_tune(args: argparse.Namespace) -> int:
     write_csv(
         work_root / "production_tune.csv",
         csv_rows,
-        ["name", "nfrog", "hmc_dt", "hmc_jitter", "acceptance", "tau_int_doubleOcc", "lag1_doubleOcc", "ess_per_sec_doubleOcc", "cpu_time"],
+        ["name", "nfrog", "hmc_dt", "hmc_jitter", "acceptance", "tau_int_doubleOcc", "lag1_doubleOcc", "ess_per_sec_doubleOcc", "cpu_time", "hmc_deltaH_mean", "hmc_deltaH_abs_max"],
     )
     tuned_map = {
         case["name"]: {
@@ -316,6 +325,8 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 "acceptance_stderr": accept_err,
                 "local_tau_int_doubleOcc": case_summary["perf"]["local"]["tau_int_doubleOcc"],
                 "hmc_tau_int_doubleOcc": case_summary["perf"]["hmc"]["tau_int_doubleOcc"],
+                "hmc_deltaH_mean": case_summary["perf"]["hmc"].get("hmc_deltaH_mean", 0.0),
+                "hmc_deltaH_abs_max": case_summary["perf"]["hmc"].get("hmc_deltaH_abs_max", 0.0),
                 "local_ess_per_sec_doubleOcc": local_speed,
                 "hmc_ess_per_sec_doubleOcc": hmc_speed,
                 "speed_ratio_hmc_over_local": speed_ratio,
@@ -346,6 +357,8 @@ def run_benchmark(args: argparse.Namespace) -> int:
             "acceptance_stderr",
             "local_tau_int_doubleOcc",
             "hmc_tau_int_doubleOcc",
+            "hmc_deltaH_mean",
+            "hmc_deltaH_abs_max",
             "local_ess_per_sec_doubleOcc",
             "hmc_ess_per_sec_doubleOcc",
             "speed_ratio_hmc_over_local",
@@ -392,6 +405,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_common(tune)
     tune.add_argument("--grid", required=True, help="Comma-separated Nfrog:dt pairs.")
     tune.add_argument("--hmc-jitter", type=int, default=0)
+    tune.add_argument("--seed-step", type=int, default=0, help="Increment added to the base seed for each grid point.")
     tune.add_argument("--accept-min", type=float, default=0.70)
     tune.add_argument("--accept-max", type=float, default=0.85)
     tune.set_defaults(func=run_tune)
