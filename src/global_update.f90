@@ -13,6 +13,7 @@ module GlobalUpdate_mod
     public
     private :: HMC_force_prop_L, HMC_set_overlap, HMC_log_overlap_abs2
     private :: HMC_draw_nfrog
+    private :: HMC_flavor_active
     private :: HMC_rng_gaussian, HMC_measure_sweep_L, HMC_measure_sweep_R
     private :: HMC_monitor_init, HMC_monitor_close, HMC_monitor_step
     private :: HMC_trace_init, HMC_trace_close, HMC_trace_begin, HMC_trace_step
@@ -232,11 +233,15 @@ contains
         class(GlobalUpdate), intent(inout) :: this
         real(kind=8), intent(out) :: action
         real(kind=8), dimension(Naux, Ndim, Ltrot), intent(out) :: force
-        integer :: nt
+        integer :: nt, nf
         real(kind=8) :: log_overlap_abs2
 
         force = 0.d0
-        action = 0.5d0 * sum(Conf%phi_list * Conf%phi_list)
+        action = 0.d0
+        do nf = 1, Naux
+            if (.not. HMC_flavor_active(nf)) cycle
+            action = action + 0.5d0 * sum(Conf%phi_list(nf,:,:) * Conf%phi_list(nf,:,:))
+        enddo
 
         call this%prepare_work()
         if (Ltrot == 0) then
@@ -322,6 +327,7 @@ contains
         do nt = this%tau_begin, this%tau_end
             do ii = this%ii_begin, this%ii_end
                 do nf = 1, Naux
+                    if (.not. HMC_flavor_active(nf)) cycle
                     this%momentum(nf, ii, nt) = sigma_p * HMC_rng_gaussian(iseed)
                 enddo
             enddo
@@ -339,6 +345,7 @@ contains
             do nt = this%tau_begin, this%tau_end
                 do ii = this%ii_begin, this%ii_end
                     do nf = 1, Naux
+                        if (.not. HMC_flavor_active(nf)) cycle
                         this%momentum(nf, ii, nt) = this%momentum(nf, ii, nt) + 0.5d0 * hmc_dt * this%force_cur(nf, ii, nt)
                     enddo
                 enddo
@@ -350,6 +357,7 @@ contains
                 do nt = this%tau_begin, this%tau_end
                     do ii = this%ii_begin, this%ii_end
                         do nf = 1, Naux
+                            if (.not. HMC_flavor_active(nf)) cycle
                             Conf%phi_list(nf, ii, nt) = Conf%phi_list(nf, ii, nt) + (hmc_dt / hmc_mass) * this%momentum(nf, ii, nt)
                         enddo
                     enddo
@@ -361,6 +369,7 @@ contains
                     do nt = this%tau_begin, this%tau_end
                         do ii = this%ii_begin, this%ii_end
                             do nf = 1, Naux
+                                if (.not. HMC_flavor_active(nf)) cycle
                                 this%momentum(nf, ii, nt) = this%momentum(nf, ii, nt) + 0.5d0 * hmc_dt * this%force_cur(nf, ii, nt)
                             enddo
                         enddo
@@ -371,6 +380,7 @@ contains
                     do nt = this%tau_begin, this%tau_end
                         do ii = this%ii_begin, this%ii_end
                             do nf = 1, Naux
+                                if (.not. HMC_flavor_active(nf)) cycle
                                 this%momentum(nf, ii, nt) = this%momentum(nf, ii, nt) + hmc_dt * this%force_cur(nf, ii, nt)
                             enddo
                         enddo
@@ -452,6 +462,15 @@ contains
         nsteps = lower - 1 + nranf(iseed, span)
         return
     end function HMC_draw_nfrog
+
+    logical pure function HMC_flavor_active(nf)
+        integer, intent(in) :: nf
+
+        HMC_flavor_active = .false.
+        if (nf == 1) HMC_flavor_active = (abs(RU1) > Zero)
+        if (nf == 2) HMC_flavor_active = (abs(RU2) > Zero)
+        return
+    end function HMC_flavor_active
 
     subroutine Global_measure_config(this, toggle, Nobs, Nobst)
         class(GlobalUpdate), intent(inout) :: this
