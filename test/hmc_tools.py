@@ -234,6 +234,7 @@ def write_param_file(
     hmc_jitter: int = 0,
     hmc_mass: float = 1.0,
     hmc_block_tau: int = 0,
+    hmc_block_sites: int = 0,
 ) -> None:
     nlx_therm, nly_therm, ltrot_therm = cfg.therm_dims()
     lines = [
@@ -244,7 +245,7 @@ def write_param_file(
         f"{cfg.nwrap} {cfg.nbin} {cfg.nsweep} {cfg.shift_loc}",
         f"{fortran_bool(cfg.is_tau)} {cfg.nthermal}",
         f"{fortran_bool(cfg.is_warm)} {cfg.nwarm} {cfg.shift_warm_1} {cfg.shift_warm_2}",
-        f"{fortran_bool(is_global)} {nfrog} {hmc_dt} {hmc_jitter} {hmc_mass} {hmc_block_tau}",
+        f"{fortran_bool(is_global)} {nfrog} {hmc_dt} {hmc_jitter} {hmc_mass} {hmc_block_tau} {hmc_block_sites}",
         f"{cfg.ini_type} {cfg.ini_ampl} {cfg.ini_bias_1} {cfg.ini_bias_2}",
         f"{cfg.ini_ham} {cfg.ini_twist} {cfg.imbalance}",
     ]
@@ -275,6 +276,7 @@ def prepare_run_dir(
     hmc_jitter: int = 0,
     hmc_mass: float = 1.0,
     hmc_block_tau: int = 0,
+    hmc_block_sites: int = 0,
     binary: Path = DEFAULT_BINARY,
     confin_from: Path | None = None,
 ) -> None:
@@ -292,6 +294,7 @@ def prepare_run_dir(
         hmc_jitter=hmc_jitter,
         hmc_mass=hmc_mass,
         hmc_block_tau=hmc_block_tau,
+        hmc_block_sites=hmc_block_sites,
     )
 
 
