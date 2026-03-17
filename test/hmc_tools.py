@@ -349,6 +349,12 @@ def integrated_autocorr_time(values: list[float], max_lag: int | None = None) ->
 
 
 def effective_sample_size(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    span = max(values) - min(values)
+    scale = max(1.0, max(abs(value) for value in values))
+    if span <= 1.0e-12 * scale:
+        return 0.0
     tau = integrated_autocorr_time(values)
     return len(values) / (2.0 * tau)
 
