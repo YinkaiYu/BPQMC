@@ -25,6 +25,7 @@ module GlobalUpdate_mod
         real(kind=8), dimension(:,:,:), allocatable, private :: phi_backup
         real(kind=8), private :: action_cur
         logical, private :: state_ready
+        integer, private :: tau_begin, tau_end
     contains
         procedure, public :: init => Global_init
         procedure, public :: clear => Global_clear
@@ -36,6 +37,7 @@ module GlobalUpdate_mod
         procedure, private :: prepare_work => Global_prepare_work
         procedure, private :: ensure_state => Global_ensure_state
         procedure, private :: eval_state => Global_eval_state
+        procedure, private :: select_tau_block => Global_select_tau_block
         procedure, private :: sample_momentum => Global_sample_momentum
         procedure, private :: leapfrog => Global_leapfrog
         procedure, private :: step => Global_step
@@ -84,6 +86,8 @@ contains
         this%phi_backup = 0.d0
         this%action_cur = 0.d0
         this%state_ready = .false.
+        this%tau_begin = 1
+        this%tau_end = Ltrot
 
         allocate(Obs_equal_hmc)
         call Obs_equal_hmc%make()
@@ -142,6 +146,7 @@ contains
 
         phi_start = Conf%phi_list
         action_start = this%action_cur
+        call this%select_tau_block(iseed)
         call this%sample_momentum(iseed)
         momentum_start = this%momentum
 
@@ -251,6 +256,29 @@ contains
         return
     end subroutine Global_eval_state
 
+    subroutine Global_select_tau_block(this, iseed)
+        class(GlobalUpdate), intent(inout) :: this
+        integer, intent(inout) :: iseed
+        integer :: span
+
+        if (Ltrot <= 0) then
+            this%tau_begin = 1
+            this%tau_end = 0
+            return
+        endif
+
+        if (hmc_block_tau <= 0 .or. hmc_block_tau >= Ltrot) then
+            this%tau_begin = 1
+            this%tau_end = Ltrot
+            return
+        endif
+
+        span = Ltrot - hmc_block_tau + 1
+        this%tau_begin = nranf(iseed, span)
+        this%tau_end = this%tau_begin + hmc_block_tau - 1
+        return
+    end subroutine Global_select_tau_block
+
     subroutine Global_sample_momentum(this, iseed)
         class(GlobalUpdate), intent(inout) :: this
         integer, intent(inout) :: iseed
@@ -258,8 +286,9 @@ contains
         real(kind=8) :: sigma_p
 
         sigma_p = sqrt(hmc_mass)
+        this%momentum = 0.d0
 
-        do nt = 1, Ltrot
+        do nt = this%tau_begin, this%tau_end
             do ii = 1, Ndim
                 do nf = 1, Naux
                     this%momentum(nf, ii, nt) = sigma_p * HMC_rng_gaussian(iseed)
@@ -275,15 +304,27 @@ contains
         integer, intent(in) :: nsteps, stage_id
         integer :: nlf
 
-        this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_cur
+        if (this%tau_begin <= this%tau_end) then
+            this%momentum(:,:,this%tau_begin:this%tau_end) = this%momentum(:,:,this%tau_begin:this%tau_end) + &
+                0.5d0 * hmc_dt * this%force_cur(:,:,this%tau_begin:this%tau_end)
+        endif
         call HMC_trace_begin(stage_id, nsteps, this%action_cur, this%momentum, this%force_cur)
         do nlf = 1, nsteps
-            Conf%phi_list = Conf%phi_list + (hmc_dt / hmc_mass) * this%momentum
+            if (this%tau_begin <= this%tau_end) then
+                Conf%phi_list(:,:,this%tau_begin:this%tau_end) = Conf%phi_list(:,:,this%tau_begin:this%tau_end) + &
+                    (hmc_dt / hmc_mass) * this%momentum(:,:,this%tau_begin:this%tau_end)
+            endif
             call this%eval_state(action_new, this%force_cur)
             if (nlf == nsteps) then
-                this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_cur
+                if (this%tau_begin <= this%tau_end) then
+                    this%momentum(:,:,this%tau_begin:this%tau_end) = this%momentum(:,:,this%tau_begin:this%tau_end) + &
+                        0.5d0 * hmc_dt * this%force_cur(:,:,this%tau_begin:this%tau_end)
+                endif
             else
-                this%momentum = this%momentum + hmc_dt * this%force_cur
+                if (this%tau_begin <= this%tau_end) then
+                    this%momentum(:,:,this%tau_begin:this%tau_end) = this%momentum(:,:,this%tau_begin:this%tau_end) + &
+                        hmc_dt * this%force_cur(:,:,this%tau_begin:this%tau_end)
+                endif
             endif
             call HMC_trace_step(nlf, action_new, this%momentum, this%force_cur)
         enddo
@@ -302,6 +343,7 @@ contains
 
         call this%ensure_state()
         this%phi_backup = Conf%phi_list
+        call this%select_tau_block(iseed)
         call this%sample_momentum(iseed)
         ham_old = 0.5d0 * sum(this%momentum * this%momentum) / hmc_mass + this%action_cur
 
