@@ -91,6 +91,35 @@ def summarize_perf(run_dir: Path, thermal_cut: int) -> dict[str, float]:
     return summary
 
 
+def aggregate_tune_repeat_rows(repeat_rows: list[dict[str, float | int | str]]) -> dict[str, float | int | str]:
+    summary: dict[str, float | int | str] = {
+        "name": repeat_rows[0]["name"],
+        "nfrog": repeat_rows[0]["nfrog"],
+        "hmc_dt": repeat_rows[0]["hmc_dt"],
+        "hmc_jitter": repeat_rows[0]["hmc_jitter"],
+        "repeats": len(repeat_rows),
+    }
+    metric_keys = [
+        "acceptance",
+        "tau_int_doubleOcc",
+        "lag1_doubleOcc",
+        "ess_per_sec_doubleOcc",
+        "cpu_time",
+    ]
+    for key in metric_keys:
+        values = [float(row[key]) for row in repeat_rows]
+        summary[f"{key}_mean"] = series_mean(values)
+        summary[f"{key}_stderr"] = sample_stderr(values)
+    if "hmc_deltaH_mean" in repeat_rows[0]:
+        values = [float(row["hmc_deltaH_mean"]) for row in repeat_rows]
+        summary["hmc_deltaH_mean_mean"] = series_mean(values)
+        summary["hmc_deltaH_mean_stderr"] = sample_stderr(values)
+    if "hmc_deltaH_abs_max" in repeat_rows[0]:
+        values = [float(row["hmc_deltaH_abs_max"]) for row in repeat_rows]
+        summary["hmc_deltaH_abs_max"] = max(values)
+    return summary
+
+
 def compare_mode_stats(summary: dict[str, dict[str, list[float]]]) -> tuple[bool, list[dict[str, float | str | bool]]]:
     rows: list[dict[str, float | str | bool]] = []
     overall_ok = True
@@ -169,48 +198,58 @@ def run_tune(args: argparse.Namespace) -> int:
 
     tuned_cases = []
     csv_rows = []
+    repeat_csv_rows = []
     for cfg in configs.values():
         cfg = cfg.with_sampling(is_warm=args.warm > 0, nwarm=max(args.warm, 0))
         case_rows = []
         for idx, (nfrog, dt) in enumerate(grid):
-            run_dir = work_root / "runs" / cfg.name / f"nf{nfrog}_dt{format_dt_tag(dt)}"
-            prepare_run_dir(
-                run_dir,
-                cfg,
-                is_global=True,
-                nfrog=nfrog,
-                hmc_dt=dt,
-                hmc_jitter=args.hmc_jitter,
-                seed=args.seed_base + args.seed_step * idx,
-                binary=binary,
-            )
-            run_case(run_dir, np_ranks=args.np)
-            info = parse_info_metrics(run_dir)
-            values = read_scalar_series(run_dir, "doubleOcc")
-            row = {
-                "name": cfg.name,
-                "nfrog": nfrog,
-                "hmc_dt": dt,
-                "hmc_jitter": args.hmc_jitter,
-                "acceptance": info["Accept_HMC"],
-                "tau_int_doubleOcc": integrated_autocorr_time(values),
-                "lag1_doubleOcc": lag1_autocorr(values),
-                "ess_per_sec_doubleOcc": ess_per_second(values, info["Tot_CPU_time"]),
-                "cpu_time": info["Tot_CPU_time"],
-            }
-            if "HMC_DeltaH_mean" in info:
-                row["hmc_deltaH_mean"] = info["HMC_DeltaH_mean"]
-            if "HMC_DeltaH_abs_max" in info:
-                row["hmc_deltaH_abs_max"] = info["HMC_DeltaH_abs_max"]
-            case_rows.append(row)
-            csv_rows.append(row)
+            repeat_rows = []
+            for repeat in range(args.repeats):
+                seed = args.seed_base + args.seed_step * idx + args.repeat_seed_step * repeat
+                run_dir = work_root / "runs" / cfg.name / f"nf{nfrog}_dt{format_dt_tag(dt)}" / f"rep{repeat}"
+                prepare_run_dir(
+                    run_dir,
+                    cfg,
+                    is_global=True,
+                    nfrog=nfrog,
+                    hmc_dt=dt,
+                    hmc_jitter=args.hmc_jitter,
+                    seed=seed,
+                    binary=binary,
+                )
+                run_case(run_dir, np_ranks=args.np)
+                info = parse_info_metrics(run_dir)
+                values = read_scalar_series(run_dir, "doubleOcc")
+                row = {
+                    "name": cfg.name,
+                    "nfrog": nfrog,
+                    "hmc_dt": dt,
+                    "hmc_jitter": args.hmc_jitter,
+                    "repeat": repeat,
+                    "seed": seed,
+                    "acceptance": info["Accept_HMC"],
+                    "tau_int_doubleOcc": integrated_autocorr_time(values),
+                    "lag1_doubleOcc": lag1_autocorr(values),
+                    "ess_per_sec_doubleOcc": ess_per_second(values, info["Tot_CPU_time"]),
+                    "cpu_time": info["Tot_CPU_time"],
+                }
+                if "HMC_DeltaH_mean" in info:
+                    row["hmc_deltaH_mean"] = info["HMC_DeltaH_mean"]
+                if "HMC_DeltaH_abs_max" in info:
+                    row["hmc_deltaH_abs_max"] = info["HMC_DeltaH_abs_max"]
+                repeat_rows.append(row)
+                repeat_csv_rows.append(row)
 
-        candidates = [row for row in case_rows if args.accept_min <= row["acceptance"] <= args.accept_max]
+            summary_row = aggregate_tune_repeat_rows(repeat_rows)
+            case_rows.append(summary_row)
+            csv_rows.append(summary_row)
+
+        candidates = [row for row in case_rows if args.accept_min <= row["acceptance_mean"] <= args.accept_max]
         if candidates:
-            candidates.sort(key=lambda row: (-row["ess_per_sec_doubleOcc"], row["tau_int_doubleOcc"], row["nfrog"] * row["hmc_dt"]))
+            candidates.sort(key=lambda row: (-row["ess_per_sec_doubleOcc_mean"], row["tau_int_doubleOcc_mean"], row["nfrog"] * row["hmc_dt"]))
             best = candidates[0]
         else:
-            case_rows.sort(key=lambda row: (-row["ess_per_sec_doubleOcc"], abs(row["acceptance"] - 0.775)))
+            case_rows.sort(key=lambda row: (-row["ess_per_sec_doubleOcc_mean"], abs(row["acceptance_mean"] - 0.775)))
             best = case_rows[0]
         tuned_cases.append(
             {
@@ -230,7 +269,45 @@ def run_tune(args: argparse.Namespace) -> int:
     write_csv(
         work_root / "production_tune.csv",
         csv_rows,
-        ["name", "nfrog", "hmc_dt", "hmc_jitter", "acceptance", "tau_int_doubleOcc", "lag1_doubleOcc", "ess_per_sec_doubleOcc", "cpu_time", "hmc_deltaH_mean", "hmc_deltaH_abs_max"],
+        [
+            "name",
+            "nfrog",
+            "hmc_dt",
+            "hmc_jitter",
+            "repeats",
+            "acceptance_mean",
+            "acceptance_stderr",
+            "tau_int_doubleOcc_mean",
+            "tau_int_doubleOcc_stderr",
+            "lag1_doubleOcc_mean",
+            "lag1_doubleOcc_stderr",
+            "ess_per_sec_doubleOcc_mean",
+            "ess_per_sec_doubleOcc_stderr",
+            "cpu_time_mean",
+            "cpu_time_stderr",
+            "hmc_deltaH_mean_mean",
+            "hmc_deltaH_mean_stderr",
+            "hmc_deltaH_abs_max",
+        ],
+    )
+    write_csv(
+        work_root / "production_tune_repeats.csv",
+        repeat_csv_rows,
+        [
+            "name",
+            "nfrog",
+            "hmc_dt",
+            "hmc_jitter",
+            "repeat",
+            "seed",
+            "acceptance",
+            "tau_int_doubleOcc",
+            "lag1_doubleOcc",
+            "ess_per_sec_doubleOcc",
+            "cpu_time",
+            "hmc_deltaH_mean",
+            "hmc_deltaH_abs_max",
+        ],
     )
     tuned_map = {
         case["name"]: {
@@ -409,7 +486,9 @@ def build_parser() -> argparse.ArgumentParser:
     add_common(tune)
     tune.add_argument("--grid", required=True, help="Comma-separated Nfrog:dt pairs.")
     tune.add_argument("--hmc-jitter", type=int, default=0)
+    tune.add_argument("--repeats", type=int, default=1)
     tune.add_argument("--seed-step", type=int, default=0, help="Increment added to the base seed for each grid point.")
+    tune.add_argument("--repeat-seed-step", type=int, default=100, help="Increment added to the seed for each repeat of the same grid point.")
     tune.add_argument("--accept-min", type=float, default=0.70)
     tune.add_argument("--accept-max", type=float, default=0.85)
     tune.set_defaults(func=run_tune)
