@@ -26,11 +26,12 @@ module GlobalUpdate_mod
         real(kind=8), private :: action_cur
         logical, private :: state_ready
     contains
-        procedure :: init => Global_init
-        procedure :: clear => Global_clear
-        procedure :: debug_eval => Global_debug_eval
-        procedure :: debug_roundtrip => Global_debug_roundtrip
-        procedure :: reset_diag => Global_reset_diag
+        procedure, public :: init => Global_init
+        procedure, public :: clear => Global_clear
+        procedure, public :: debug_eval => Global_debug_eval
+        procedure, public :: debug_roundtrip => Global_debug_roundtrip
+        procedure, public :: debug_measure_current => Global_debug_measure_current
+        procedure, public :: reset_diag => Global_reset_diag
         procedure, private :: reset => Global_reset
         procedure, private :: prepare_work => Global_prepare_work
         procedure, private :: ensure_state => Global_ensure_state
@@ -162,6 +163,21 @@ contains
         deallocate(momentum_start)
         return
     end subroutine Global_debug_roundtrip
+
+    subroutine Global_debug_measure_current(this, toggle)
+        class(GlobalUpdate), intent(inout) :: this
+        logical, intent(in) :: toggle
+        integer :: nobs, nobst
+
+        call Obs_equal_hmc%reset()
+        if (toggle .and. is_tau) call Obs_tau_hmc%reset()
+        nobs = 0
+        nobst = 0
+        call this%measure_config(toggle .and. is_tau, nobs, nobst)
+        call Obs_equal_hmc%ave(nobs)
+        if (toggle .and. is_tau) call Obs_tau_hmc%ave(nobst)
+        return
+    end subroutine Global_debug_measure_current
 
     subroutine Global_reset(this, toggle)
         class(GlobalUpdate), intent(inout) :: this
