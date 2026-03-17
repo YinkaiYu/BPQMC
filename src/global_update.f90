@@ -18,7 +18,6 @@ module GlobalUpdate_mod
         type(Propagator), allocatable, private :: prop_work
         type(WrapList), allocatable, private :: wr_work
         real(kind=8), dimension(:,:,:), allocatable, private :: force_cur
-        real(kind=8), dimension(:,:,:), allocatable, private :: force_trial
         real(kind=8), dimension(:,:,:), allocatable, private :: momentum
         real(kind=8), dimension(:,:,:), allocatable, private :: phi_backup
         real(kind=8), private :: action_cur
@@ -57,12 +56,10 @@ contains
         allocate(this%wr_work)
         call this%wr_work%make()
         allocate(this%force_cur(Naux, Ndim, Ltrot))
-        allocate(this%force_trial(Naux, Ndim, Ltrot))
         allocate(this%momentum(Naux, Ndim, Ltrot))
         allocate(this%phi_backup(Naux, Ndim, Ltrot))
 
         this%force_cur = 0.d0
-        this%force_trial = 0.d0
         this%momentum = 0.d0
         this%phi_backup = 0.d0
         this%action_cur = 0.d0
@@ -91,7 +88,7 @@ contains
         endif
         deallocate(this%prop_work)
         deallocate(this%wr_work)
-        deallocate(this%force_cur, this%force_trial, this%momentum, this%phi_backup)
+        deallocate(this%force_cur, this%momentum, this%phi_backup)
         return
     end subroutine Global_clear
 
@@ -193,11 +190,11 @@ contains
         this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_cur
         do nlf = 1, nsteps
             Conf%phi_list = Conf%phi_list + hmc_dt * this%momentum
-            call this%eval_state(action_new, this%force_trial)
+            call this%eval_state(action_new, this%force_cur)
             if (nlf == nsteps) then
-                this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_trial
+                this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_cur
             else
-                this%momentum = this%momentum + hmc_dt * this%force_trial
+                this%momentum = this%momentum + hmc_dt * this%force_cur
             endif
         enddo
         return
@@ -233,10 +230,11 @@ contains
         call Counter%count(accepted)
         if (accepted) then
             this%action_cur = action_new
-            this%force_cur = this%force_trial
             this%state_ready = .true.
         else
             Conf%phi_list = this%phi_backup
+            call this%eval_state(this%action_cur, this%force_cur)
+            this%state_ready = .true.
         endif
         return
     end subroutine Global_step
