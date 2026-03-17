@@ -99,6 +99,7 @@ def aggregate_tune_repeat_rows(repeat_rows: list[dict[str, float | int | str]]) 
         "hmc_dt": repeat_rows[0]["hmc_dt"],
         "hmc_jitter": repeat_rows[0]["hmc_jitter"],
         "repeats": len(repeat_rows),
+        "stuck_repeats": sum(int(row["stuck"]) for row in repeat_rows),
     }
     metric_keys = [
         "acceptance",
@@ -124,7 +125,8 @@ def aggregate_tune_repeat_rows(repeat_rows: list[dict[str, float | int | str]]) 
 def compare_mode_stats(summary: dict[str, dict[str, list[float]]]) -> tuple[bool, list[dict[str, float | str | bool]]]:
     rows: list[dict[str, float | str | bool]] = []
     overall_ok = True
-    abs_tol = 1.0e-12
+    abs_tol_floor = 1.0e-12
+    rel_tol = 1.0e-12
     sigma_cut = 2.0
     for obs_name in OBSERVABLES:
         local_values = summary["local"][obs_name]
@@ -133,6 +135,7 @@ def compare_mode_stats(summary: dict[str, dict[str, list[float]]]) -> tuple[bool
         hmc_mean = series_mean(hmc_values)
         local_err = sample_stderr(local_values)
         hmc_err = sample_stderr(hmc_values)
+        abs_tol = max(abs_tol_floor, rel_tol * max(abs(local_mean), abs(hmc_mean)))
         combined_err = max((local_err ** 2 + hmc_err ** 2) ** 0.5, abs_tol)
         diff = abs(local_mean - hmc_mean)
         z_score = diff / combined_err if combined_err > 0.0 else 0.0
@@ -234,6 +237,7 @@ def run_tune(args: argparse.Namespace) -> int:
                     "ess_per_sec_doubleOcc": ess_per_second(values, info["Tot_CPU_time"]),
                     "cpu_time": info["Tot_CPU_time"],
                 }
+                row["stuck"] = int(info["Accept_HMC"] <= args.min_run_accept or row["ess_per_sec_doubleOcc"] <= 0.0)
                 if "HMC_DeltaH_mean" in info:
                     row["hmc_deltaH_mean"] = info["HMC_DeltaH_mean"]
                 if "HMC_DeltaH_abs_max" in info:
@@ -245,12 +249,16 @@ def run_tune(args: argparse.Namespace) -> int:
             case_rows.append(summary_row)
             csv_rows.append(summary_row)
 
-        candidates = [row for row in case_rows if args.accept_min <= row["acceptance_mean"] <= args.accept_max]
+        healthy_rows = [row for row in case_rows if row["stuck_repeats"] == 0]
+        candidates = [row for row in healthy_rows if args.accept_min <= row["acceptance_mean"] <= args.accept_max]
         if candidates:
             candidates.sort(key=lambda row: (-row["ess_per_sec_doubleOcc_mean"], row["tau_int_doubleOcc_mean"], row["nfrog"] * row["hmc_dt"]))
             best = candidates[0]
+        elif healthy_rows:
+            healthy_rows.sort(key=lambda row: (abs(row["acceptance_mean"] - 0.775), -row["ess_per_sec_doubleOcc_mean"], row["tau_int_doubleOcc_mean"]))
+            best = healthy_rows[0]
         else:
-            case_rows.sort(key=lambda row: (abs(row["acceptance_mean"] - 0.775), -row["ess_per_sec_doubleOcc_mean"], row["tau_int_doubleOcc_mean"]))
+            case_rows.sort(key=lambda row: (row["stuck_repeats"], abs(row["acceptance_mean"] - 0.775), -row["ess_per_sec_doubleOcc_mean"], row["tau_int_doubleOcc_mean"]))
             best = case_rows[0]
         tuned_cases.append(
             {
@@ -276,6 +284,7 @@ def run_tune(args: argparse.Namespace) -> int:
             "hmc_dt",
             "hmc_jitter",
             "repeats",
+            "stuck_repeats",
             "acceptance_mean",
             "acceptance_stderr",
             "tau_int_doubleOcc_mean",
@@ -301,6 +310,7 @@ def run_tune(args: argparse.Namespace) -> int:
             "hmc_jitter",
             "repeat",
             "seed",
+            "stuck",
             "acceptance",
             "tau_int_doubleOcc",
             "lag1_doubleOcc",
@@ -507,6 +517,7 @@ def build_parser() -> argparse.ArgumentParser:
     tune.add_argument("--repeat-seed-step", type=int, default=100, help="Increment added to the seed for each repeat of the same grid point.")
     tune.add_argument("--accept-min", type=float, default=0.70)
     tune.add_argument("--accept-max", type=float, default=0.85)
+    tune.add_argument("--min-run-accept", type=float, default=0.05)
     tune.set_defaults(func=run_tune)
 
     bench = subparsers.add_parser("benchmark", help="Run direct local-vs-HMC benchmarks on a production parameter grid.")
