@@ -83,6 +83,7 @@ def summarize_perf(run_dir: Path, thermal_cut: int) -> dict[str, float]:
         "lag1_doubleOcc": lag1_autocorr(values),
         "ess_per_sec_doubleOcc": ess_per_second(values, info["Tot_CPU_time"]),
         "cpu_time": info["Tot_CPU_time"],
+        "span_doubleOcc": max(values) - min(values) if values else 0.0,
     }
     if "HMC_DeltaH_mean" in info:
         summary["hmc_deltaH_mean"] = info["HMC_DeltaH_mean"]
@@ -342,6 +343,8 @@ def run_benchmark(args: argparse.Namespace) -> int:
         summary: dict[str, dict[str, list[float]]] = {"local": defaultdict(list), "hmc": defaultdict(list)}
         perf: dict[str, dict[str, list[float]]] = {"local": defaultdict(list), "hmc": defaultdict(list)}
         hmc_accept = []
+        hmc_stuck_repeats = 0
+        local_stuck_repeats = 0
         for repeat in range(args.repeats):
             seed = args.seed_base + 100 * repeat
             for mode_name, is_global in (("local", False), ("hmc", True)):
@@ -366,8 +369,15 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 if is_global:
                     info = parse_info_metrics(run_dir)
                     hmc_accept.append(info["Accept_HMC"])
+                    if info["Accept_HMC"] <= args.min_run_accept or perf_stats["ess_per_sec_doubleOcc"] <= 0.0:
+                        hmc_stuck_repeats += 1
+                else:
+                    if perf_stats["ess_per_sec_doubleOcc"] <= 0.0:
+                        local_stuck_repeats += 1
 
         ok, obs_rows = compare_mode_stats(summary)
+        if hmc_stuck_repeats > 0 or local_stuck_repeats > 0:
+            ok = False
         overall_ok = overall_ok and ok
         accept_mean = series_mean(hmc_accept)
         accept_err = sample_stderr(hmc_accept)
@@ -385,6 +395,8 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 "hmc": {key: series_mean(values) for key, values in perf["hmc"].items()},
                 "speed_ratio_hmc_over_local": speed_ratio,
             },
+            "local_stuck_repeats": local_stuck_repeats,
+            "hmc_stuck_repeats": hmc_stuck_repeats,
             "observables": obs_rows,
             "passed": ok,
         }
@@ -404,6 +416,8 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 "hmc_jitter": jitter,
                 "acceptance_mean": accept_mean,
                 "acceptance_stderr": accept_err,
+                "local_stuck_repeats": local_stuck_repeats,
+                "hmc_stuck_repeats": hmc_stuck_repeats,
                 "local_tau_int_doubleOcc": case_summary["perf"]["local"]["tau_int_doubleOcc"],
                 "hmc_tau_int_doubleOcc": case_summary["perf"]["hmc"]["tau_int_doubleOcc"],
                 "hmc_deltaH_mean": case_summary["perf"]["hmc"].get("hmc_deltaH_mean", 0.0),
@@ -436,6 +450,8 @@ def run_benchmark(args: argparse.Namespace) -> int:
             "hmc_jitter",
             "acceptance_mean",
             "acceptance_stderr",
+            "local_stuck_repeats",
+            "hmc_stuck_repeats",
             "local_tau_int_doubleOcc",
             "hmc_tau_int_doubleOcc",
             "hmc_deltaH_mean",
@@ -500,6 +516,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--hmc-nfrog", type=int, default=10)
     bench.add_argument("--hmc-dt", type=float, default=0.012)
     bench.add_argument("--hmc-jitter", type=int, default=0)
+    bench.add_argument("--min-run-accept", type=float, default=0.05)
     bench.set_defaults(func=run_benchmark)
     return parser
 
