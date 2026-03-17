@@ -14,6 +14,8 @@ module GlobalUpdate_mod
     private :: HMC_draw_nfrog
     private :: HMC_rng_gaussian, HMC_measure_sweep_L, HMC_measure_sweep_R
     private :: HMC_monitor_init, HMC_monitor_close, HMC_monitor_step
+    private :: HMC_trace_init, HMC_trace_close, HMC_trace_begin, HMC_trace_step
+    private :: HMC_read_env_int, HMC_trace_values
 
     type :: GlobalUpdate
         type(Propagator), allocatable, private :: prop_work
@@ -55,6 +57,12 @@ module GlobalUpdate_mod
     integer, save :: HMC_monitor_count = 0
     integer, save :: HMC_monitor_site = 1
     integer, save :: HMC_monitor_tau = 1
+    logical, save :: HMC_trace_enabled = .false.
+    integer, parameter :: HMC_trace_unit = 87
+    integer, save :: HMC_trace_count = 0
+    integer, save :: HMC_trace_proposal = 0
+    integer, save :: HMC_trace_stage = 0
+    integer, save :: HMC_trace_nsteps = 0
 
 contains
     subroutine Global_init(this, Init_obj)
@@ -87,6 +95,7 @@ contains
         call Acc_HMC_warm%init()
         call this%reset_diag()
         call HMC_monitor_init()
+        call HMC_trace_init()
         return
     end subroutine Global_init
 
@@ -98,6 +107,7 @@ contains
             if (allocated(Obs_tau_hmc)) deallocate(Obs_tau_hmc)
             call Dyn%clear()
         endif
+        call HMC_trace_close()
         call HMC_monitor_close()
         deallocate(this%prop_work)
         deallocate(this%wr_work)
@@ -206,13 +216,14 @@ contains
         return
     end subroutine Global_sample_momentum
 
-    subroutine Global_leapfrog(this, action_new, nsteps)
+    subroutine Global_leapfrog(this, action_new, nsteps, stage_id)
         class(GlobalUpdate), intent(inout) :: this
         real(kind=8), intent(out) :: action_new
-        integer, intent(in) :: nsteps
+        integer, intent(in) :: nsteps, stage_id
         integer :: nlf
 
         this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_cur
+        call HMC_trace_begin(stage_id, nsteps, this%action_cur, this%momentum, this%force_cur)
         do nlf = 1, nsteps
             Conf%phi_list = Conf%phi_list + (hmc_dt / hmc_mass) * this%momentum
             call this%eval_state(action_new, this%force_cur)
@@ -221,6 +232,7 @@ contains
             else
                 this%momentum = this%momentum + hmc_dt * this%force_cur
             endif
+            call HMC_trace_step(nlf, action_new, this%momentum, this%force_cur)
         enddo
         return
     end subroutine Global_leapfrog
@@ -241,7 +253,7 @@ contains
         ham_old = 0.5d0 * sum(this%momentum * this%momentum) / hmc_mass + this%action_cur
 
         nsteps = HMC_draw_nfrog(iseed)
-        call this%leapfrog(action_new, nsteps)
+        call this%leapfrog(action_new, nsteps, stage_id)
         ham_new = 0.5d0 * sum(this%momentum * this%momentum) / hmc_mass + action_new
 
         delta_h = ham_old - ham_new
@@ -514,6 +526,10 @@ contains
         if (len_trim(env_value) == 0) return
         if (trim(env_value) == "0") return
 
+        call HMC_read_env_int("BPQMC_HMC_MONITOR_SITE", HMC_monitor_site)
+        call HMC_read_env_int("BPQMC_HMC_MONITOR_TAU", HMC_monitor_tau)
+        HMC_monitor_site = min(max(HMC_monitor_site, 1), Ndim)
+        HMC_monitor_tau = min(max(HMC_monitor_tau, 1), max(Ltrot, 1))
         HMC_monitor_enabled = .true.
         open(unit=HMC_monitor_unit, file='hmc_monitor.dat', status='replace', action='write')
         write(HMC_monitor_unit, '(A)') '# step stage accepted nsteps delta_h action phi_f1 phi_f2 phi_rms_f1 phi_rms_f2'
@@ -531,26 +547,126 @@ contains
         integer, intent(in) :: stage_id, nsteps
         logical, intent(in) :: accepted
         real(kind=8), intent(in) :: delta_h, action_cur
-        integer :: accepted_flag, ntau_idx
+        integer :: accepted_flag
         real(kind=8) :: phi_f1, phi_f2, phi_rms_f1, phi_rms_f2
 
         if (.not. HMC_monitor_enabled) return
         if (Ltrot <= 0) return
 
         HMC_monitor_count = HMC_monitor_count + 1
-        ntau_idx = min(max(HMC_monitor_tau, 1), Ltrot)
         accepted_flag = merge(1, 0, accepted)
-        phi_f1 = Conf%phi_list(1, HMC_monitor_site, ntau_idx)
-        phi_rms_f1 = sqrt(sum(Conf%phi_list(1,:,:) * Conf%phi_list(1,:,:)) / dble(Ndim * Ltrot))
-        if (Naux >= 2) then
-            phi_f2 = Conf%phi_list(2, HMC_monitor_site, ntau_idx)
-            phi_rms_f2 = sqrt(sum(Conf%phi_list(2,:,:) * Conf%phi_list(2,:,:)) / dble(Ndim * Ltrot))
-        else
-            phi_f2 = 0.d0
-            phi_rms_f2 = 0.d0
-        endif
+        call HMC_trace_values(Conf%phi_list, phi_f1, phi_f2, phi_rms_f1, phi_rms_f2)
         write(HMC_monitor_unit, '(I0,1X,I0,1X,I0,1X,I0,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16)') &
             HMC_monitor_count, stage_id, accepted_flag, nsteps, delta_h, action_cur, phi_f1, phi_f2, phi_rms_f1, phi_rms_f2
         return
     end subroutine HMC_monitor_step
+
+    subroutine HMC_trace_init()
+        character(len=32) :: env_value
+        integer :: env_status
+
+        HMC_trace_enabled = .false.
+        HMC_trace_count = 0
+        HMC_trace_proposal = 0
+        HMC_trace_stage = 0
+        HMC_trace_nsteps = 0
+
+        call get_environment_variable("BPQMC_HMC_TRACE", env_value, status=env_status)
+        if (env_status /= 0) return
+        if (len_trim(env_value) == 0) return
+        if (trim(env_value) == "0") return
+
+        call HMC_read_env_int("BPQMC_HMC_MONITOR_SITE", HMC_monitor_site)
+        call HMC_read_env_int("BPQMC_HMC_MONITOR_TAU", HMC_monitor_tau)
+        HMC_monitor_site = min(max(HMC_monitor_site, 1), Ndim)
+        HMC_monitor_tau = min(max(HMC_monitor_tau, 1), max(Ltrot, 1))
+        HMC_trace_enabled = .true.
+        open(unit=HMC_trace_unit, file='hmc_trace.dat', status='replace', action='write')
+        write(HMC_trace_unit, '(A)') '# proposal stage lf_step nsteps md_time action phi_f1 phi_f2 mom_f1 mom_f2 force_f1 force_f2 phi_rms_f1 phi_rms_f2'
+        return
+    end subroutine HMC_trace_init
+
+    subroutine HMC_trace_close()
+        if (.not. HMC_trace_enabled) return
+        close(unit=HMC_trace_unit)
+        HMC_trace_enabled = .false.
+        return
+    end subroutine HMC_trace_close
+
+    subroutine HMC_trace_begin(stage_id, nsteps, action_cur, momentum, force)
+        integer, intent(in) :: stage_id, nsteps
+        real(kind=8), intent(in) :: action_cur
+        real(kind=8), dimension(Naux, Ndim, Ltrot), intent(in) :: momentum, force
+
+        if (.not. HMC_trace_enabled) return
+        if (Ltrot <= 0) return
+
+        HMC_trace_proposal = HMC_trace_proposal + 1
+        HMC_trace_stage = stage_id
+        HMC_trace_nsteps = nsteps
+        call HMC_trace_step(0, action_cur, momentum, force)
+        return
+    end subroutine HMC_trace_begin
+
+    subroutine HMC_trace_step(lf_step, action_cur, momentum, force)
+        integer, intent(in) :: lf_step
+        real(kind=8), intent(in) :: action_cur
+        real(kind=8), dimension(Naux, Ndim, Ltrot), intent(in) :: momentum, force
+        integer :: ntau_idx
+        real(kind=8) :: md_time
+        real(kind=8) :: phi_f1, phi_f2, phi_rms_f1, phi_rms_f2
+        real(kind=8) :: mom_f1, mom_f2, force_f1, force_f2
+
+        if (.not. HMC_trace_enabled) return
+        if (Ltrot <= 0) return
+
+        ntau_idx = min(max(HMC_monitor_tau, 1), Ltrot)
+        md_time = dble(lf_step) * hmc_dt
+        call HMC_trace_values(Conf%phi_list, phi_f1, phi_f2, phi_rms_f1, phi_rms_f2)
+        mom_f1 = momentum(1, HMC_monitor_site, ntau_idx)
+        force_f1 = force(1, HMC_monitor_site, ntau_idx)
+        if (Naux >= 2) then
+            mom_f2 = momentum(2, HMC_monitor_site, ntau_idx)
+            force_f2 = force(2, HMC_monitor_site, ntau_idx)
+        else
+            mom_f2 = 0.d0
+            force_f2 = 0.d0
+        endif
+        HMC_trace_count = HMC_trace_count + 1
+        write(HMC_trace_unit, '(I0,1X,I0,1X,I0,1X,I0,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16)') &
+            HMC_trace_proposal, HMC_trace_stage, lf_step, HMC_trace_nsteps, md_time, action_cur, phi_f1, phi_f2, mom_f1, mom_f2, force_f1, force_f2, phi_rms_f1, phi_rms_f2
+        return
+    end subroutine HMC_trace_step
+
+    subroutine HMC_trace_values(phi_list, phi_f1, phi_f2, phi_rms_f1, phi_rms_f2)
+        real(kind=8), dimension(Naux, Ndim, Ltrot), intent(in) :: phi_list
+        real(kind=8), intent(out) :: phi_f1, phi_f2, phi_rms_f1, phi_rms_f2
+        integer :: ntau_idx
+
+        ntau_idx = min(max(HMC_monitor_tau, 1), Ltrot)
+        phi_f1 = phi_list(1, HMC_monitor_site, ntau_idx)
+        phi_rms_f1 = sqrt(sum(phi_list(1,:,:) * phi_list(1,:,:)) / dble(Ndim * Ltrot))
+        if (Naux >= 2) then
+            phi_f2 = phi_list(2, HMC_monitor_site, ntau_idx)
+            phi_rms_f2 = sqrt(sum(phi_list(2,:,:) * phi_list(2,:,:)) / dble(Ndim * Ltrot))
+        else
+            phi_f2 = 0.d0
+            phi_rms_f2 = 0.d0
+        endif
+        return
+    end subroutine HMC_trace_values
+
+    subroutine HMC_read_env_int(name, value)
+        character(len=*), intent(in) :: name
+        integer, intent(inout) :: value
+        character(len=32) :: env_value
+        integer :: env_status, ios
+
+        call get_environment_variable(name, env_value, status=env_status)
+        if (env_status /= 0) return
+        if (len_trim(env_value) == 0) return
+        read(env_value, *, iostat=ios) value
+        if (ios /= 0) return
+        return
+    end subroutine HMC_read_env_int
 end module GlobalUpdate_mod
