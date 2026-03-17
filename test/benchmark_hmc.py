@@ -50,6 +50,7 @@ TUNED_HMC = {
     "strong_u2": (24, 0.0025, 0),
     "mixed_nbos3": (12, 0.450, 0),
     "mixed_l3x2_nbos9": (12, 0.450, 0),
+    "triangular_weak_u2": (10, 0.0120, 0),
 }
 
 
@@ -107,6 +108,7 @@ def main() -> int:
     parser.add_argument("--bins", type=int, default=-1, help="Override nbin for every set; negative keeps config default")
     parser.add_argument("--sweeps", type=int, default=-1, help="Override nsweep for every set; negative keeps config default")
     parser.add_argument("--thermal-cut", type=int, default=-1)
+    parser.add_argument("--warm", type=int, default=-1, help="Override warm-up sweeps; negative keeps config default")
     parser.add_argument("--seed-base", type=int, default=12001)
     parser.add_argument("--work-root", default=str(Path("/tmp") / "bpqmc_benchmark"))
     parser.add_argument("--binary", default=str(DEFAULT_BINARY))
@@ -123,7 +125,10 @@ def main() -> int:
         bins = cfg.nbin if args.bins < 0 else args.bins
         sweeps = cfg.nsweep if args.sweeps < 0 else args.sweeps
         thermal_cut = cfg.nthermal if args.thermal_cut < 0 else args.thermal_cut
-        cfg = cfg.with_sampling(nbin=bins, nsweep=sweeps, is_warm=False, nwarm=0)
+        if args.warm < 0:
+            cfg = cfg.with_sampling(nbin=bins, nsweep=sweeps)
+        else:
+            cfg = cfg.with_sampling(nbin=bins, nsweep=sweeps, is_warm=args.warm > 0, nwarm=max(args.warm, 0))
         cfg = replace(cfg, nthermal=thermal_cut)
         summary: dict[str, dict[str, list[float]]] = {
             "local": defaultdict(list),

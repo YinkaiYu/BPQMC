@@ -1,0 +1,83 @@
+#!/bin/bash
+#SBATCH -J BPQMC_PROD
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH -p node6348
+
+set -euo pipefail
+
+ROOT_DIR="${ROOT_DIR:-$SLURM_SUBMIT_DIR}"
+WORK_ROOT="${WORK_ROOT:-$ROOT_DIR/production_runs}"
+
+LATTICE_TYPE="${LATTICE_TYPE:-triangular}"
+L_VALUES="${L_VALUES:-12}"
+NBOS_VALUES="${NBOS_VALUES:-100000,1000000,10000000}"
+U2_VALUES="${U2_VALUES:-100,1000,10000}"
+RT="${RT:-1.0}"
+RU1="${RU1:-0.0}"
+BETA="${BETA:-256}"
+DTAU="${DTAU:-0.001}"
+NWRAP="${NWRAP:-32}"
+NBIN="${NBIN:-64}"
+NSWEEP="${NSWEEP:-1}"
+NTHERMAL="${NTHERMAL:-32}"
+NWARM="${NWARM:-32}"
+INI_TYPE="${INI_TYPE:-2}"
+INI_AMPL="${INI_AMPL:-0.1}"
+INI_HAM="${INI_HAM:-5}"
+INI_TWIST="${INI_TWIST:-0.0001}"
+IMBALANCE="${IMBALANCE:-0.0}"
+GRID="${GRID:-8:0.002,10:0.003,12:0.004,16:0.005}"
+REPEATS="${REPEATS:-2}"
+RUN_REPORT="${RUN_REPORT:-0}"
+
+cd "$ROOT_DIR"
+
+python3 production_hmc.py tune \
+  --lattice-type "$LATTICE_TYPE" \
+  --l-values "$L_VALUES" \
+  --nbos-values "$NBOS_VALUES" \
+  --u2-values "$U2_VALUES" \
+  --rt "$RT" \
+  --ru1 "$RU1" \
+  --beta "$BETA" \
+  --dtau "$DTAU" \
+  --nwrap "$NWRAP" \
+  --bins "$NBIN" \
+  --sweeps "$NSWEEP" \
+  --thermal-cut "$NTHERMAL" \
+  --warm "$NWARM" \
+  --ini-type "$INI_TYPE" \
+  --ini-ampl "$INI_AMPL" \
+  --ini-ham "$INI_HAM" \
+  --ini-twist "$INI_TWIST" \
+  --imbalance "$IMBALANCE" \
+  --grid "$GRID" \
+  --work-root "$WORK_ROOT"
+
+python3 production_hmc.py benchmark \
+  --lattice-type "$LATTICE_TYPE" \
+  --l-values "$L_VALUES" \
+  --nbos-values "$NBOS_VALUES" \
+  --u2-values "$U2_VALUES" \
+  --rt "$RT" \
+  --ru1 "$RU1" \
+  --beta "$BETA" \
+  --dtau "$DTAU" \
+  --nwrap "$NWRAP" \
+  --bins "$NBIN" \
+  --sweeps "$NSWEEP" \
+  --thermal-cut "$NTHERMAL" \
+  --warm "$NWARM" \
+  --ini-type "$INI_TYPE" \
+  --ini-ampl "$INI_AMPL" \
+  --ini-ham "$INI_HAM" \
+  --ini-twist "$INI_TWIST" \
+  --imbalance "$IMBALANCE" \
+  --repeats "$REPEATS" \
+  --hmc-json "$WORK_ROOT/recommended_hmc.json" \
+  --work-root "$WORK_ROOT"
+
+if [ "$RUN_REPORT" = "1" ]; then
+  python3 render_hmc_report.py "$WORK_ROOT/production_benchmark.json"
+fi

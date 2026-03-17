@@ -1,3 +1,4 @@
+kagome
 1.0         -0.0        5.0         216
 6           6           160         16.0
 6           6           160 
@@ -8,6 +9,7 @@
 2           0.1         0.0         0.0         
 0           0.0001      0.0
 
+lattice_type
 RT          RU1         RU2         Nbos
 Nlx         Nly         Ltrot       Beta
 NlxTherm    NlyTherm    LtrotTherm

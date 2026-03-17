@@ -18,6 +18,7 @@ ACCEPT_RE = re.compile(r"^\s*([A-Za-z0-9_ ]+?)\s*:\s*([0-9Ee+\-.]+)\s*$")
 @dataclass(frozen=True)
 class RunConfig:
     name: str
+    lattice_type: str
     rt: float
     ru1: float
     ru2: float
@@ -68,6 +69,7 @@ def default_parameter_sets() -> dict[str, RunConfig]:
     return {
         "weak_u2": RunConfig(
             name="weak_u2",
+            lattice_type="kagome",
             rt=1.0,
             ru1=0.0,
             ru2=1.0,
@@ -83,6 +85,7 @@ def default_parameter_sets() -> dict[str, RunConfig]:
         ),
         "mixed_u1_u2": RunConfig(
             name="mixed_u1_u2",
+            lattice_type="kagome",
             rt=1.0,
             ru1=-0.4,
             ru2=1.6,
@@ -98,6 +101,7 @@ def default_parameter_sets() -> dict[str, RunConfig]:
         ),
         "strong_u2": RunConfig(
             name="strong_u2",
+            lattice_type="kagome",
             rt=1.0,
             ru1=0.0,
             ru2=3.0,
@@ -113,6 +117,7 @@ def default_parameter_sets() -> dict[str, RunConfig]:
         ),
         "mixed_nbos3": RunConfig(
             name="mixed_nbos3",
+            lattice_type="kagome",
             rt=1.0,
             ru1=-0.4,
             ru2=1.6,
@@ -128,6 +133,7 @@ def default_parameter_sets() -> dict[str, RunConfig]:
         ),
         "mixed_l3x2_nbos9": RunConfig(
             name="mixed_l3x2_nbos9",
+            lattice_type="kagome",
             rt=1.0,
             ru1=-0.4,
             ru2=1.6,
@@ -141,6 +147,26 @@ def default_parameter_sets() -> dict[str, RunConfig]:
             nsweep=8,
             nthermal=1200,
         ),
+        "triangular_weak_u2": RunConfig(
+            name="triangular_weak_u2",
+            lattice_type="triangular",
+            rt=1.0,
+            ru1=0.0,
+            ru2=1.0,
+            nbos=6,
+            nlx=2,
+            nly=2,
+            ltrot=8,
+            beta=1.6,
+            nwrap=2,
+            nbin=120,
+            nsweep=8,
+            nthermal=60,
+            is_warm=True,
+            nwarm=20,
+            ini_ham=5,
+            ini_twist=1.0e-4,
+        ),
     }
 
 
@@ -148,9 +174,60 @@ def fortran_bool(value: bool) -> str:
     return ".true." if value else ".false."
 
 
+def production_parameter_sets(
+    *,
+    lattice_type: str = "triangular",
+    l_values: tuple[int, ...] = (12,),
+    nbos_values: tuple[int, ...] = (100000, 1000000, 10000000),
+    u2_values: tuple[float, ...] = (100.0, 1000.0, 10000.0),
+    rt: float = 1.0,
+    ru1: float = 0.0,
+    beta: float = 256.0,
+    dtau: float = 1.0e-3,
+    nwrap: int = 32,
+    nbin: int = 64,
+    nsweep: int = 1,
+    nthermal: int = 32,
+    ini_type: int = 2,
+    ini_ampl: float = 0.1,
+    ini_ham: int = 5,
+    ini_twist: float = 1.0e-4,
+    imbalance: float = 0.0,
+) -> dict[str, RunConfig]:
+    ltrot = int(round(beta / dtau))
+    configs: dict[str, RunConfig] = {}
+    for lval in l_values:
+        for nbos in nbos_values:
+            for u2 in u2_values:
+                name = f"{lattice_type}_L{lval}_N{nbos}_U2_{u2:.0f}".replace(".", "p")
+                configs[name] = RunConfig(
+                    name=name,
+                    lattice_type=lattice_type,
+                    rt=rt,
+                    ru1=ru1,
+                    ru2=u2,
+                    nbos=nbos,
+                    nlx=lval,
+                    nly=lval,
+                    ltrot=ltrot,
+                    beta=beta,
+                    nwrap=nwrap,
+                    nbin=nbin,
+                    nsweep=nsweep,
+                    nthermal=nthermal,
+                    ini_type=ini_type,
+                    ini_ampl=ini_ampl,
+                    ini_ham=ini_ham,
+                    ini_twist=ini_twist,
+                    imbalance=imbalance,
+                )
+    return configs
+
+
 def write_param_file(path: Path, cfg: RunConfig, *, is_global: bool, nfrog: int, hmc_dt: float, hmc_jitter: int = 0) -> None:
     nlx_therm, nly_therm, ltrot_therm = cfg.therm_dims()
     lines = [
+        cfg.lattice_type,
         f"{cfg.rt} {cfg.ru1} {cfg.ru2} {cfg.nbos}",
         f"{cfg.nlx} {cfg.nly} {cfg.ltrot} {cfg.beta}",
         f"{nlx_therm} {nly_therm} {ltrot_therm}",
