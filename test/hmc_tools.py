@@ -241,18 +241,33 @@ def write_param_file(path: Path, cfg: RunConfig, *, is_global: bool, nfrog: int,
     path.write_text("\n".join(lines) + "\n", encoding="ascii")
 
 
-def write_seed_files(run_dir: Path, seed: int) -> None:
-    (run_dir / "confin.txt").write_text("0\n", encoding="ascii")
+def write_seed_files(run_dir: Path, seed: int, *, confin_from: Path | None = None) -> None:
+    if confin_from is None:
+        (run_dir / "confin.txt").write_text("0\n", encoding="ascii")
+    else:
+        shutil.copyfile(confin_from, run_dir / "confin.txt")
     seeds = [seed + offset for offset in range(8)]
     (run_dir / "seeds.txt").write_text("\n".join(str(item) for item in seeds) + "\n", encoding="ascii")
 
 
-def prepare_run_dir(run_dir: Path, cfg: RunConfig, *, is_global: bool, nfrog: int, hmc_dt: float, seed: int, hmc_jitter: int = 0, hmc_mass: float = 1.0, binary: Path = DEFAULT_BINARY) -> None:
+def prepare_run_dir(
+    run_dir: Path,
+    cfg: RunConfig,
+    *,
+    is_global: bool,
+    nfrog: int,
+    hmc_dt: float,
+    seed: int,
+    hmc_jitter: int = 0,
+    hmc_mass: float = 1.0,
+    binary: Path = DEFAULT_BINARY,
+    confin_from: Path | None = None,
+) -> None:
     if run_dir.exists():
         shutil.rmtree(run_dir)
     run_dir.mkdir(parents=True)
     shutil.copy2(binary, run_dir / "BPQMC.out")
-    write_seed_files(run_dir, seed)
+    write_seed_files(run_dir, seed, confin_from=confin_from)
     write_param_file(run_dir / "paramC_sets.txt", cfg, is_global=is_global, nfrog=nfrog, hmc_dt=hmc_dt, hmc_jitter=hmc_jitter, hmc_mass=hmc_mass)
 
 

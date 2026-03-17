@@ -144,6 +144,50 @@ def write_csv(path: Path, rows: list[dict[str, object]], fieldnames: list[str]) 
         writer.writerows(rows)
 
 
+def case_confin_path(confin_root: str, case_name: str) -> Path | None:
+    if not confin_root:
+        return None
+    path = Path(confin_root).resolve() / case_name / "confout.txt"
+    return path if path.exists() else None
+
+
+def run_local_seed(args: argparse.Namespace) -> int:
+    configs = make_small_configs(args)
+    binary = Path(args.binary).resolve()
+    work_root = Path(args.work_root).resolve()
+    work_root.mkdir(parents=True, exist_ok=True)
+
+    rows = []
+    for cfg in configs.values():
+        print(f"[local-seed] case={cfg.name}")
+        cfg = cfg.with_sampling(nbin=args.seed_bins, nsweep=args.sweeps, is_warm=args.seed_warm > 0, nwarm=max(args.seed_warm, 0))
+        run_dir = work_root / cfg.name
+        prepare_run_dir(
+            run_dir,
+            cfg,
+            is_global=False,
+            nfrog=4,
+            hmc_dt=1.0e-3,
+            seed=args.seed_base,
+            binary=binary,
+        )
+        run_case(run_dir, np_ranks=args.np)
+        info = parse_info_metrics(run_dir)
+        rows.append(
+            {
+                "name": cfg.name,
+                "seed_bins": args.seed_bins,
+                "seed_warm": args.seed_warm,
+                "cpu_time": info["Tot_CPU_time"],
+                "confout": str(run_dir / "confout.txt"),
+            }
+        )
+        print(f"  [seeded] cpu={info['Tot_CPU_time']:.3f} confout={run_dir / 'confout.txt'}")
+
+    write_csv(work_root / "local_seed_runs.csv", rows, ["name", "seed_bins", "seed_warm", "cpu_time", "confout"])
+    return 0
+
+
 def run_tune(args: argparse.Namespace) -> int:
     configs = make_small_configs(args)
     grid = parse_grid(args.grid)
@@ -181,6 +225,7 @@ def run_tune(args: argparse.Namespace) -> int:
                         hmc_mass=mass,
                         seed=seed,
                         binary=binary,
+                        confin_from=case_confin_path(args.confin_root, cfg.name),
                     )
                     run_case(run_dir, np_ranks=args.np)
                     info = parse_info_metrics(run_dir)
@@ -363,6 +408,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                     hmc_mass=float(hmc_params.get("hmc_mass", 1.0)) if is_global else 1.0,
                     seed=seed,
                     binary=binary,
+                    confin_from=case_confin_path(args.confin_root, cfg.name),
                 )
                 run_case(run_dir, np_ranks=args.np)
                 run_means = collect_means(run_dir, cfg.nthermal)
@@ -553,6 +599,13 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--seed-base", type=int, default=70001)
         subparser.add_argument("--binary", default=str(DEFAULT_BINARY))
         subparser.add_argument("--work-root", default="data/triangular_hmc_small_benchmark")
+        subparser.add_argument("--confin-root", default="", help="Optional root directory with per-case confout.txt warm-starts.")
+
+    seed_local = subparsers.add_parser("local-seed", help="Generate per-case local thermalized confout seeds.")
+    add_common(seed_local)
+    seed_local.add_argument("--seed-warm", type=int, default=256)
+    seed_local.add_argument("--seed-bins", type=int, default=160)
+    seed_local.set_defaults(func=run_local_seed)
 
     tune = subparsers.add_parser("tune", help="Scan HMC parameters for the L=6 triangular study.")
     add_common(tune)
