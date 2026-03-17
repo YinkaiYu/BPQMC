@@ -9,7 +9,7 @@
 
 ## Project Structure & Modules
 - `src/`: Fortran 90 sources and build logic (`Makefile`, `Compile`).
-- `test/`: Run area, SLURM script `dqmc`, configs (`confin.txt`, `paramC_sets.txt`, `seeds.txt`).
+- `test/`: Run area, SLURM script `dqmc`, configs (`confin.txt`, `paramC_sets.txt`, `seeds.txt`), HMC benchmark/tuning/report scripts.
 - `app/`: Archived/deployed binaries (optional).
 - `data/`: Inputs or artifacts not created by builds.
 - `auto.sh`: Chain build → copy binary → submit SLURM job.
@@ -34,6 +34,10 @@
 - `test/` directory holds SLURM job script `dqmc` plus runtime inputs (`confin.txt`, `paramC_sets.txt`, `seeds.txt`).
 - Run MPI jobs with `mpirun -np N ./BPQMC.out` (N processes) or via SLURM submission.
 - Generated observables and logs should remain inside `test/` unless explicitly archived.
+- `paramC_sets.txt` may now start with a lattice header: `kagome` or `triangular`.
+- `test/production_hmc.py` is the main driver for production tuning and direct local-vs-HMC benchmarks.
+- `test/render_hmc_report.py` converts benchmark JSON into PNG plots and a Markdown summary.
+- `test/hmc_report_template.ipynb` is the notebook entry point for interactive post-processing.
 
 ## Coding Style & Naming
 - Fortran 90/95; 4-space indent; aim ≤ 100 columns.
@@ -45,6 +49,22 @@
 - No formal unit tests; validate numerics by small runs in `test/`.
 - Check `output.log`, `info.txt`, and observables for regressions; use fixed seeds in `test/seeds.txt`.
 - Avoid committing large binaries; include minimal samples only when necessary.
+- For HMC work, keep the test loop modular:
+  - compile after each source-module change
+  - run a small smoke test
+  - run `test/tune_hmc.py` or `test/production_hmc.py tune`
+  - run direct `local` vs `HMC` comparison with `test/benchmark_hmc.py` or `test/production_hmc.py benchmark`
+  - render figures with `test/render_hmc_report.py`
+- Use debug builds when a new lattice path crashes:
+  - `cd src && make clean && make FFLAGS='-O0 -g -traceback -check all -fpe0 -c -I/home/yyk/Lib_90_new/Modules'`
+- Production triangular targets in this branch are typically:
+  - `L=12` for the full benchmark grid
+  - `L=21` for spot checks
+  - `beta=256`, `Dtau=0.001`, `U1=0`, `iniHam=5`, `iniTwist=1e-4`
+- Do not stop after a single benchmark mismatch. First distinguish:
+  - lattice-specific observable bug
+  - HMC tuning/warm-up issue
+  - stabilization or force inconsistency
 
 ## Commits & Pull Requests
 - Commits: imperative subject (≤ 72 chars), optional scope (e.g., `lattice:`), concise body explaining why.
@@ -54,7 +74,7 @@
 - `main.f90`: MPI-enabled driver that manages warm-up, sweeps, measurements, and high-level control flow.
 - `model.f90`: Defines lattice geometry, kinetic/Hubbard operators, auxiliary fields, and initializes trial wave functions.
 - `initial_state.f90`: Builds projector trial states, evaluates gaps, and prepares left/right rank-1 wave functions.
-- `lattice.f90`: Encapsulates lattice construction and geometric utilities (kagome structure).
+- `lattice.f90`: Encapsulates runtime-selectable lattice construction and geometric utilities for `kagome` and `triangular`.
 - `fields.f90`: Handles auxiliary field representation and updates.
 - `process_matrix.f90`: Stores propagated vectors (`UUR`, `UUL`), overlap scalar, wrap lists, and bookkeeping.
 - `localU.f90`: Implements local imaginary-time propagation and Metropolis updates using only rank-1 data.
@@ -62,7 +82,8 @@
 - `multiply.f90`: Propagates the rank-1 wavefunctions through kinetic and interaction operators.
 - `obser_equal.f90`, `obser_tau.f90`: Collect equal-time and imaginary-time observables by reconstructing `G` on demand.
 - `stabilization.f90`: Provides normalization/orthogonalization for the propagated vectors.
-- `globalK.f90`: Placeholder; global updates remain disabled in the rank-1 flow.
+- `global_update.f90`: Active HMC implementation for the rank-1 flow.
+- `globalK.f90`: Obsolete placeholder; not part of the active HMC path.
 
 ## Current Design (Rank-1 PQMC)
 - Monte Carlo loop propagates only the left/right trial vectors and their overlap; no `N×N` Green’s matrix is stored.
@@ -70,3 +91,30 @@
 - Equal-time and time-sliced Green’s functions are reconstructed on demand from `UUR`, `UUL`, and `overlap` when measuring.
 - Wrapping/normalization keeps vectors well-conditioned and logs drift for diagnostics.
 - Imaginary-time measurements and Fourier analysis operate on reconstructed observables while runtime outputs stay under `test/`.
+- The code now chooses `Norb` and `Nbond` at runtime from `lattice_type` instead of compiling separate executables.
+- The triangular path uses `Norb=1`, `Nbond=3`; the kagome path keeps `Norb=3`, `Nbond=2`.
+- HMC uses the same propagation order as the local sweeps and keeps cumulative log norms for stable action evaluation.
+- One full-size HMC force buffer has been removed to reduce peak memory usage.
+
+## HMC and Triangular Workflow
+- `test/tune_hmc.py` is still useful for small development scans on built-in parameter sets.
+- `test/benchmark_hmc.py` is the fast regression benchmark for development-sized cases.
+- `test/production_hmc.py tune` is the main production tuning entry point.
+- `test/production_hmc.py benchmark` runs direct local-vs-HMC comparisons over a user-specified `(L, Nbos, U2)` grid and writes JSON/CSV summaries.
+- `test/render_hmc_report.py` reads `production_benchmark.json` and writes:
+  - `acceptance.png`
+  - `ess_per_sec.png`
+  - `tau_int.png`
+  - `zscore_heatmap.png`
+  - `report.md`
+- `test/hmc_report_template.ipynb` can be pointed at the same JSON for interactive visualization.
+
+## Preferred Commit Granularity
+- Commit source changes in small, reviewable chunks.
+- Prefer separate commits for:
+  - lattice/interface changes
+  - HMC algorithm changes
+  - observable or benchmark bug fixes
+  - new test tooling
+  - documentation updates
+- Do not mix long-running output files with source commits.

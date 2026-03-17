@@ -1,155 +1,341 @@
 # Bosonic Projector QMC
 
-This note summarises the rank-1 projector algorithm used in the bosonic PQMC codebase.  The simulation propagates only the left/right trial vectors and their overlap, so all local updates are matrix-vector operations ($O(N^2)$); equal-time Green's functions are reconstructed on demand at measurement times.
+This repository implements a rank-1 bosonic projector QMC solver with two sampling modes:
 
-The current code stores one bosonic orbital per propagated vector, but the statistical weight corresponds to two physical flavors.  In the implementation this appears through the modulus square of the bosonic amplitude and through the factor `2 Re[...]` in the HMC force.
+- local Metropolis updates
+- HMC global updates
 
-## Rank-1 trial state
+The code now supports both `kagome` and `triangular` lattices at runtime. The same executable can switch lattice geometry through the first line of `paramC_sets.txt`.
 
-All $N_b$ bosons occupy the same orbital:
+## Quick Start
 
-$$|\Phi_T\rangle = \frac{1}{\sqrt{N_b!}} \left( \sum_i a_i^\dagger P_i \right)^{N_b} |0\rangle \;\;\equiv\;\; \frac{1}{\sqrt{N_b!}} \left( a^\dagger P \right)^{N_b} |0\rangle.$$
+Build in WSL:
 
-The form is closed under Gaussian operators:
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+make -C src
+```
 
-$$e^{-a^\dagger T a}  \frac{1}{\sqrt{N_b!}} \left( a^\dagger P \right)^{N_b} |0\rangle= \frac{1}{\sqrt{N_b!}} \left( a^\dagger e^{-T} P \right)^{N_b} |0\rangle.$$
+Run the default example in `test/`:
 
-Consequently the imaginary-time propagator
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC/test
+cp ../src/BPQMC.out .
+mpirun -np 1 ./BPQMC.out
+```
 
-$$U(\tau_2,\tau_1) = e^{-a^\dagger h(\tau_2) a} \cdots e^{-a^\dagger h(\tau_1)a}, \qquad
-B(\tau_2,\tau_1) = e^{-h(\tau_2)} \cdots e^{-h(\tau_1)}$$
+Run a triangular-lattice HMC smoke test in a fresh temporary directory:
 
-acts on $P$ as a single column vector.
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+mkdir -p /tmp/bpqmc_triangular_smoke
+cp src/BPQMC.out /tmp/bpqmc_triangular_smoke/
+cat > /tmp/bpqmc_triangular_smoke/confin.txt <<'EOF'
+0
+EOF
+cat > /tmp/bpqmc_triangular_smoke/seeds.txt <<'EOF'
+12345
+22345
+32345
+42345
+52345
+62345
+72345
+82345
+EOF
+cat > /tmp/bpqmc_triangular_smoke/paramC_sets.txt <<'EOF'
+triangular
+1.0 0.0 1.0 6
+2 2 8 1.6
+2 2 8
+2 120 4 1.0
+.false. 60
+.true. 20 1.0 1.0
+.true. 10 0.012 0
+2 0.1 0.0 0.0
+5 0.0001 0.0
+EOF
+cd /tmp/bpqmc_triangular_smoke
+mpirun -np 1 ./BPQMC.out
+sed -n '1,40p' info.txt
+```
 
-## Configuration weight and code variables
+## Runtime Input
 
-Given a Hubbard-Stratonovich field configuration $\phi$,
+`paramC_sets.txt` now accepts an explicit lattice header:
 
-$$P\left[\phi\right] = e^{-\tfrac{1}{2}\left|\vec{\phi}\right|^2}
-\left(\left[ P^\dagger B(2\theta,0) P \right]^{N_b}\right)
-\left(\left[ P^\dagger B(2\theta,0) P \right]^{N_b}\right)^*.$$
+```text
+lattice_type
+RT          RU1         RU2         Nbos
+Nlx         Nly         Ltrot       Beta
+NlxTherm    NlyTherm    LtrotTherm
+Nwrap       Nbin        Nsweep      shiftLoc
+is_tau      Nthermal
+is_warm     Nwarm       shiftWarm1  shiftWarm2
+is_global   Nfrog       hmc_dt      NfrogJitter
+iniType     iniAmpl     iniBias1    iniBias2
+iniHam      iniTwist    imbalance
+```
 
-This is the two-flavor weight implemented in the local update through
+Supported `lattice_type` values:
 
-$$|e^{-\tfrac{1}{2}\Delta \phi^2} \, r_b^{N_b} \, (r_b^{N_b})^*|,$$
+- `kagome`
+- `triangular`
 
-which matches the code line
+Backward compatibility:
+
+- if the first line is numeric, the code falls back to the old format and assumes `kagome`
+- if the HMC line is absent, the code falls back to local updates
+
+Meaning of the HMC line:
+
+- `is_global = .false.` keeps local updates
+- `is_global = .true.` enables HMC
+- `Nfrog` is the nominal leapfrog step count
+- `hmc_dt` is the leapfrog step size
+- `NfrogJitter` randomizes trajectory length uniformly in `max(1, Nfrog-NfrogJitter) ... Nfrog+NfrogJitter`
+
+For production triangular runs used in this branch, the usual choice is:
+
+- `U1 = 0`
+- `iniHam = 5`
+- `iniTwist = 1e-4`
+- `beta = 256`
+- `Dtau = beta / Ltrot = 0.001`
+
+## Lattice Support
+
+The executable switches lattice geometry at runtime.
+
+`kagome`
+
+- `Norb = 3`
+- `Nbond = 2`
+- keeps the original kagome geometry and observable layout
+
+`triangular`
+
+- `Norb = 1`
+- `Nbond = 3`
+- uses the triangular primitive vectors and nearest-neighbor bonds from `feature/triangular-lattice`
+- supports `iniHam = 4` and `iniHam = 5`
+
+`iniHam = 5` on the triangular lattice applies a directional Peierls phase on bond direction 1:
+
+```math
+Z_1 = t \, e^{i 2\pi \,\text{iniTwist}}, \qquad Z_2 = Z_3 = t.
+```
+
+## Build Notes
+
+The build uses a two-layer Makefile setup:
+
+- `src/Makefile` selects compiler and external libraries
+- `src/Compile` builds the Fortran objects and links `BPQMC.out`
+
+Useful commands:
+
+```bash
+cd src && make
+cd src && make clean
+cd src && make FFLAGS='-O0 -g -traceback -check all -fpe0 -c -I/home/yyk/Lib_90_new/Modules'
+```
+
+## Sampling and Benchmarks
+
+### Development Tune Scan
+
+Scan HMC parameters on the built-in development sets:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+python3 test/tune_hmc.py --set triangular_weak_u2 --grid '8:0.01,10:0.012,12:0.015' --bins 80 --sweeps 4 --warm 20
+```
+
+### Development Benchmark
+
+Compare local and HMC on a development set:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+python3 test/benchmark_hmc.py --sets triangular_weak_u2 --repeats 2
+```
+
+The benchmark reports:
+
+- bin-averaged observables after thermal cut
+- combined-error `z` scores
+- HMC acceptance
+- `tau_int(doubleOcc)`
+- `ESS/sec`
+
+### Production Tune Workflow
+
+The new production driver is `test/production_hmc.py`.
+
+Tune HMC on a triangular production grid:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+python3 test/production_hmc.py tune \
+  --lattice-type triangular \
+  --l-values 12 \
+  --nbos-values 100000,1000000,10000000 \
+  --u2-values 100,1000,10000 \
+  --beta 256 \
+  --dtau 0.001 \
+  --nwrap 32 \
+  --bins 64 \
+  --sweeps 1 \
+  --thermal-cut 32 \
+  --warm 32 \
+  --grid '8:0.002,10:0.003,12:0.004,16:0.005' \
+  --work-root /tmp/bpqmc_prod_tri_L12
+```
+
+This writes:
+
+- `production_tune.json`
+- `production_tune.csv`
+- `recommended_hmc.json`
+
+### Production Benchmark Workflow
+
+Benchmark local vs HMC on the same parameter grid:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+python3 test/production_hmc.py benchmark \
+  --lattice-type triangular \
+  --l-values 12 \
+  --nbos-values 100000,1000000,10000000 \
+  --u2-values 100,1000,10000 \
+  --beta 256 \
+  --dtau 0.001 \
+  --nwrap 32 \
+  --bins 64 \
+  --sweeps 1 \
+  --thermal-cut 32 \
+  --warm 32 \
+  --repeats 2 \
+  --hmc-json /tmp/bpqmc_prod_tri_L12/recommended_hmc.json \
+  --work-root /tmp/bpqmc_prod_tri_L12
+```
+
+This writes:
+
+- `production_benchmark.json`
+- `production_benchmark_cases.csv`
+- `production_benchmark_observables.csv`
+
+### Render Figures and Report
+
+Create PNG figures and a Markdown report:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+python3 test/render_hmc_report.py /tmp/bpqmc_prod_tri_L12/production_benchmark.json
+```
+
+This creates:
+
+- `acceptance.png`
+- `ess_per_sec.png`
+- `tau_int.png`
+- `zscore_heatmap.png`
+- `report.md`
+
+For notebook-based post-processing, start from:
+
+- `test/hmc_report_template.ipynb`
+
+## Physics-to-Code Mapping
+
+The code stores one rank-1 bosonic orbital but represents a two-flavor weight through a modulus square. The main mapping is:
+
+- `Nbos` ↔ `N_b`
+- `Beta` ↔ `2\theta`
+- `Prop%UUR(:,1)` ↔ `P_R(\tau)=B(\tau,0)P`
+- `Prop%UUL(1,:)` ↔ `P_L^\dagger(\tau)=P^\dagger B(2\theta,\tau)`
+- `Prop%overlap` ↔ `P_L^\dagger(\tau) P_R(\tau)`
+- `Conf%phi_list(nf,ii,nt)` stores both auxiliary-field flavors
+- `OperatorHubbard%alpha` stores the Hubbard-Stratonovich coefficient for each flavor
+
+The local-update ratio is implemented through:
 
 ```fortran
 ratio_abs = abs(ratio_exp * ratio_Pfa * dconjg(ratio_Pfa))
 ```
 
-The main variable mapping in the code is
+The HMC effective action is
 
-- `Nbos` $\leftrightarrow N_b$
-- `Beta` $\leftrightarrow 2\theta$
-- `Prop%UUR(:,1)` $\leftrightarrow P_R(\tau)=B(\tau,0)P$
-- `Prop%UUL(1,:)` $\leftrightarrow P_L^\dagger(\tau)=P^\dagger B(2\theta,\tau)$
-- `Prop%overlap` $\leftrightarrow P_L^\dagger(\tau) P_R(\tau)$ for the currently normalized vectors
-- `OperatorHubbard%alpha` $\leftrightarrow \alpha=\sqrt{-2 \Delta\tau U}$ for $U<0$ and $\alpha=i\sqrt{2 \Delta\tau U}$ for $U>0$
-- `Conf%phi_list(nf,ii,nt)` stores the auxiliary fields for both Hubbard channels `nf=1,2`
-
-During the sweep we store only the right vector $P_R(\tau)=B(\tau,0)P$ and the left vector $P_L^\dagger(\tau)=P^\dagger B(2\theta,\tau)$.  Their norms are tracked separately for stability, so no $N\times N$ matrices are needed until a measurement.
-
-## Local update ratio
-
-For a local update $\phi_i(\tau) \to \phi_i'(\tau)$, let $\Delta = \mathrm{diag}(0,\dots,\Delta_i,\dots,0)$ with $\Delta_i = e^{-(h_i' - h_i)} - 1$.  The Metropolis ratio reads
-
-$$\frac{P[\phi']}{P[\phi]}= e^{-\tfrac{1}{2}(\phi_i'^2 - \phi_i^2)}\left[\frac{P^\dagger B(2\theta,\tau)(1+\Delta)B(\tau,0)P}{P^\dagger B(2\theta,\tau)B(\tau,0)P}\right]^{N_b}$$
-
-$$=\exp\left[ -\tfrac{1}{2}(\phi_i'^2 - \phi_i^2) + N_b \log \left( 1 + \frac{\Delta_i \big[ P_R(\tau) \big]_i  \big[ P_L^\dagger(\tau) \big]_i}{P^\dagger B(2\theta,0) P} \right) \right],$$
-
-where the numerator only requires the two propagated vectors.  This keeps the propagation cost at $O(N^2)$.
-
-## HMC effective action
-
-For HMC sampling the auxiliary field and its conjugate momentum are evolved with
-
-$$H[\phi,\pi] = K[\pi] + S[\phi], \qquad K[\pi] = \frac12 \sum_{\tau,i,n_f} \pi_{n_f,i}^2(\tau),$$
-
-$$S[\phi] = \frac12 \sum_{\tau,i,n_f} \phi_{n_f,i}^2(\tau) - N_b \ln \left| P^\dagger B(2\theta,0) P \right|^2.$$
-
-The HMC force for each auxiliary-field component is
-
-$$F_{n_f,i}(\tau) = -\phi_{n_f,i}(\tau) + 2 \operatorname{Re}\!\left[\alpha_{n_f}\,\bar{G}_{ii}^{(n_f)}(\tau)\right],$$
-
-with
-
-$$\bar{G}_{ii}(\tau) = N_b \frac{\big[P_R(\tau)\big]_i \big[P_L^\dagger(\tau)\big]_i}{P_L^\dagger(\tau) P_R(\tau)}.$$
-
-The factor $2 \operatorname{Re}[\cdots]$ is again the manifestation of the two physical flavors.  The plus sign follows directly from the local-update ratio implemented in `localU.f90`: the HMC force must match the linearized change of `log P[\phi]`.
-
-## Equal-time Green’s function for measurements
-
-The full Green’s function is reconstructed only when observables are evaluated (typically at $\tau=\theta$):
-
-$$G_{ij} \equiv \langle a_i a_j^\dagger \rangle = \delta_{ij} + N_b  \frac{\big[ B(\theta,0)P \big]_i  \big[ P^\dagger B(2\theta,\theta) \big]_j}{P^\dagger B(2\theta,0) P},$$
-
-$$\bar{G}_{ij} \equiv (G - I)_{ij} = N_b  \frac{\big[ B(\theta,0)P \big]_i  \big[ P^\dagger B(2\theta,\theta) \big]_j}{P^\dagger B(2\theta,0) P}.$$
-
-With normalized vectors (see below), this simplifies to
-
-$$\bar{G} = N_b  \frac{P_R P_L^\dagger}{P_L^\dagger P_R},$$
-
-which is a rank-1 matrix that can be formed on demand for measurements.
-
-## Numerical stabilization
-
-To control the norms of $P_R$ and $P_L^\dagger$, periodically rescale them:
-
-$$P_R = \frac{B(\tau,0)P}{|B(\tau,0)P|} = \frac{B(\tau,0)P}{Z_R}, \qquad Z_R^2 = \sum_i \big| \big[ B(\tau,0)P \big]_i \big|^2,$$
-
-$$P_L^\dagger = \frac{P^\dagger B(2\theta,\tau)}{|P^\dagger B(2\theta,\tau)|}= \frac{P^\dagger B(2\theta,\tau)}{Z_L}, \qquad Z_L^2 = \sum_i \big| \big[ P^\dagger B(2\theta,\tau) \big]_i \big|^2.$$
-
-For HMC the cumulative logarithms of the discarded normalization factors must also be tracked.  If the stored vectors are normalized by factors $Z_R$ and $Z_L$, then
-
-$$\ln \left| P^\dagger B(2\theta,0) P \right|^2
-= 2 \ln Z_R + 2 \ln Z_L + \ln \left| P_L^\dagger P_R \right|^2,$$
-
-where the last overlap is computed from the normalized vectors kept in memory.
-
-## Runtime input
-
-The sampler is selected through the extra line in `test/paramC_sets.txt`:
-
-```text
-is_global   Nfrog   hmc_dt   NfrogJitter
+```math
+H[\phi,\pi] = K[\pi] + S[\phi], \qquad
+K[\pi] = \frac12 \sum_{\tau,i,n_f}\pi_{n_f,i}^2(\tau),
 ```
 
-- `is_global = .false.` keeps the local-update sampler.
-- `is_global = .true.` enables the HMC sampler.
-- `Nfrog` is the nominal leapfrog step count.
-- `hmc_dt` is the leapfrog step size.
-- `NfrogJitter` is the optional half-width for uniform trajectory-length randomization.  `0` keeps a fixed trajectory length; a positive value draws the actual leapfrog count uniformly from `max(1, Nfrog-NfrogJitter) ... Nfrog+NfrogJitter`.
+```math
+S[\phi] = \frac12 \sum_{\tau,i,n_f}\phi_{n_f,i}^2(\tau)
+  - N_b \ln \left| P^\dagger B(2\theta,0) P \right|^2.
+```
 
-The local-update path still uses `shiftLoc`.  The HMC path ignores `shiftLoc` during production sweeps and uses the full HMC warm-up/sampling trajectory instead.
+The force uses the same sign convention as the local Metropolis ratio:
 
-## Benchmarks and Tuning
+```math
+F_{n_f,i}(\tau) =
+  -\phi_{n_f,i}(\tau) + 2\,\mathrm{Re}\!\left[\alpha_{n_f}\,\bar{G}_{ii}^{(n_f)}(\tau)\right].
+```
 
-The repository now includes two helper scripts under `test/`:
+This README uses `\mathrm{Re}` for the real-part operator so GitHub math rendering works.
 
-- `python test/tune_hmc.py ...` scans `Nfrog` and `hmc_dt`, reports acceptance, autocorrelation, and `ESS/sec`, and recommends candidates inside the target acceptance window when available.  `--jitter` enables trajectory-length randomization during the scan.
-- `python test/benchmark_hmc.py ...` runs local-update and HMC jobs on the same parameter sets and compares the main scalar observables plus several representative momentum-point observables after a per-set thermal cut.  The default benchmark now uses a `2 sigma` combined-error criterion over independent repeats.
+## Rank-1 Formulation
 
-The default benchmark suites in `test/benchmark_hmc.py` use the following tuned HMC parameters:
+All bosons occupy one orbital:
 
-- `weak_u2`: `Nfrog = 8`, `hmc_dt = 0.0098`, `NfrogJitter = 2`
-- `mixed_u1_u2`: `Nfrog = 12`, `hmc_dt = 0.400`, `NfrogJitter = 0`
-- `strong_u2`: `Nfrog = 24`, `hmc_dt = 0.0025`, `NfrogJitter = 0`
-- `mixed_nbos3`: `Nfrog = 12`, `hmc_dt = 0.450`, `NfrogJitter = 0`
-- `mixed_l3x2_nbos9`: `Nfrog = 12`, `hmc_dt = 0.450`, `NfrogJitter = 0`
+```math
+|\Phi_T\rangle = \frac{1}{\sqrt{N_b!}} (a^\dagger P)^{N_b} |0\rangle.
+```
 
-The benchmark defaults are intentionally long:
+The Gaussian propagator acts directly on the orbital vector:
 
-- `weak_u2`, `mixed_u1_u2`, `strong_u2`, `mixed_nbos3`: `Nbin = 400`, `Nthermal = 200`
-- `mixed_l3x2_nbos9`: `Nbin = 2400`, `Nthermal = 1200`
+```math
+e^{-a^\dagger T a} (a^\dagger P)^{N_b} |0\rangle
+= (a^\dagger e^{-T} P)^{N_b} |0\rangle.
+```
 
-Representative `ESS/sec` ratios from the current benchmark run are
+This is why the Monte Carlo loop stores only:
 
-- `weak_u2`: `0.11` (`HMC/local`)
-- `mixed_u1_u2`: `1.11`
-- `strong_u2`: `0.05`
-- `mixed_nbos3`: `0.96`
-- `mixed_l3x2_nbos9`: `0.88`
+- the right vector
+- the left vector
+- their overlap
+- wrap/log-normalization data
 
-In other words, the present HMC implementation is already faster than local updates in the mixed `U1/U2` regime, nearly break-even for `mixed_nbos3`, and still more expensive in wall-clock `ESS/sec` for the weak/strong `2x2` points and for the conservative `3x2` benchmark.  The optional trajectory-length jitter was added specifically to remove near-harmonic resonances that showed up in weak-coupling scans.
+Equal-time Green's functions are reconstructed on demand from the normalized vectors:
+
+```math
+\bar{G}_{ij} = N_b \frac{[B(\theta,0)P]_i [P^\dagger B(2\theta,\theta)]_j}{P^\dagger B(2\theta,0)P}.
+```
+
+## Numerical Stabilization
+
+The code periodically rescales left and right propagated vectors and accumulates the discarded logarithmic norms. HMC uses these log norms to evaluate
+
+```math
+\ln \left| P^\dagger B(2\theta,0) P \right|^2
+= 2\ln Z_R + 2\ln Z_L + \ln |P_L^\dagger P_R|^2.
+```
+
+This is required for stable long trajectories and large `beta`.
+
+## Current Status of This Branch
+
+This branch now includes:
+
+- runtime `kagome/triangular` switching
+- HMC wired into the main flow
+- triangular `iniHam = 5`
+- production tuning and benchmark scripts
+- report rendering and notebook template
+- reduced HMC memory footprint by removing one full-size force buffer
+
+The production-scale `L=12` and `L=21` runs with `beta=256`, `Dtau=0.001`, `Nbos=1e5..1e7`, `U2=1e2..1e4` are intended to be driven by `test/production_hmc.py`.
