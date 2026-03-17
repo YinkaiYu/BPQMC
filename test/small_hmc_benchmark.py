@@ -12,6 +12,7 @@ from hmc_tools import (
     DEFAULT_BINARY,
     RunConfig,
     ess_per_second,
+    expected_confin_lines,
     integrated_autocorr_time,
     lag1_autocorr,
     parse_info_metrics,
@@ -21,6 +22,7 @@ from hmc_tools import (
     run_case,
     sample_stderr,
     series_mean,
+    validate_confin_file,
 )
 from production_hmc import OBSERVABLES, compare_mode_stats
 
@@ -152,11 +154,18 @@ def write_csv(path: Path, rows: list[dict[str, object]], fieldnames: list[str]) 
         writer.writerows(rows)
 
 
-def case_confin_path(confin_root: str, case_name: str) -> Path | None:
+def case_confin_path(confin_root: str, cfg: RunConfig) -> Path | None:
     if not confin_root:
         return None
-    path = Path(confin_root).resolve() / case_name / "confout.txt"
-    return path if path.exists() else None
+    path = Path(confin_root).resolve() / cfg.name / "confout.txt"
+    ok, detail = validate_confin_file(path, cfg)
+    if ok:
+        return path
+    print(
+        f"  [warm-start] skip invalid confout for {cfg.name}: {detail}; "
+        f"need {expected_confin_lines(cfg)} lines"
+    )
+    return None
 
 
 def run_local_seed(args: argparse.Namespace) -> int:
@@ -250,7 +259,7 @@ def run_tune(args: argparse.Namespace) -> int:
                                 hmc_block_sites=block_sites,
                                 seed=seed,
                                 binary=binary,
-                                confin_from=case_confin_path(args.confin_root, cfg.name),
+                                confin_from=case_confin_path(args.confin_root, cfg),
                             )
                             run_case(run_dir, np_ranks=args.np)
                             info = parse_info_metrics(run_dir)
@@ -464,7 +473,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                     hmc_block_sites=int(hmc_params.get("hmc_block_sites", 0)) if is_global else 0,
                     seed=seed,
                     binary=binary,
-                    confin_from=case_confin_path(args.confin_root, cfg.name),
+                    confin_from=case_confin_path(args.confin_root, cfg),
                 )
                 run_case(run_dir, np_ranks=args.np)
                 run_means = collect_means(run_dir, cfg.nthermal)

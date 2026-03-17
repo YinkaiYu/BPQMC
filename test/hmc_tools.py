@@ -13,6 +13,7 @@ from statistics import mean
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BINARY = ROOT / "src" / "BPQMC.out"
 ACCEPT_RE = re.compile(r"^\s*([A-Za-z0-9_ ]+?)\s*:\s*([0-9Ee+\-.]+)\s*$")
+N_AUX = 2
 
 
 @dataclass(frozen=True)
@@ -168,6 +169,31 @@ def default_parameter_sets() -> dict[str, RunConfig]:
             ini_twist=1.0e-4,
         ),
     }
+
+
+def lattice_norb(lattice_type: str) -> int:
+    key = lattice_type.strip().lower()
+    if key == "triangular":
+        return 1
+    if key == "kagome":
+        return 3
+    raise ValueError(f"Unsupported lattice_type for warm-start validation: {lattice_type}")
+
+
+def expected_confin_lines(cfg: RunConfig) -> int:
+    ndim = cfg.nlx * cfg.nly * lattice_norb(cfg.lattice_type)
+    return 1 + N_AUX * ndim * cfg.ltrot
+
+
+def validate_confin_file(path: Path, cfg: RunConfig) -> tuple[bool, str]:
+    if not path.exists():
+        return False, "missing file"
+    with path.open("r", encoding="ascii") as stream:
+        line_count = sum(1 for _ in stream)
+    expected = expected_confin_lines(cfg)
+    if line_count != expected:
+        return False, f"expected {expected} lines, found {line_count}"
+    return True, ""
 
 
 def fortran_bool(value: bool) -> str:
