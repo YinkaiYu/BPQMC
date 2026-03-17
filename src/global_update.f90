@@ -13,6 +13,7 @@ module GlobalUpdate_mod
     private :: HMC_force_prop_L, HMC_set_overlap, HMC_log_overlap_abs2
     private :: HMC_draw_nfrog
     private :: HMC_rng_gaussian, HMC_measure_sweep_L, HMC_measure_sweep_R
+    private :: HMC_monitor_init, HMC_monitor_close, HMC_monitor_step
 
     type :: GlobalUpdate
         type(Propagator), allocatable, private :: prop_work
@@ -49,6 +50,11 @@ module GlobalUpdate_mod
     real(kind=8), save :: HMC_deltaH_sum = 0.d0
     real(kind=8), save :: HMC_deltaH_absmax = 0.d0
     integer, save :: HMC_deltaH_count = 0
+    logical, save :: HMC_monitor_enabled = .false.
+    integer, parameter :: HMC_monitor_unit = 86
+    integer, save :: HMC_monitor_count = 0
+    integer, save :: HMC_monitor_site = 1
+    integer, save :: HMC_monitor_tau = 1
 
 contains
     subroutine Global_init(this, Init_obj)
@@ -80,6 +86,7 @@ contains
         call Acc_HMC%init()
         call Acc_HMC_warm%init()
         call this%reset_diag()
+        call HMC_monitor_init()
         return
     end subroutine Global_init
 
@@ -91,6 +98,7 @@ contains
             if (allocated(Obs_tau_hmc)) deallocate(Obs_tau_hmc)
             call Dyn%clear()
         endif
+        call HMC_monitor_close()
         deallocate(this%prop_work)
         deallocate(this%wr_work)
         deallocate(this%force_cur, this%momentum, this%phi_backup)
@@ -214,9 +222,10 @@ contains
         return
     end subroutine Global_leapfrog
 
-    subroutine Global_step(this, iseed, Counter)
+    subroutine Global_step(this, iseed, Counter, stage_id)
         class(GlobalUpdate), intent(inout) :: this
         integer, intent(inout) :: iseed
+        integer, intent(in) :: stage_id
         class(AccCounter), intent(inout) :: Counter
         real(kind=8) :: action_new, ham_old, ham_new, delta_h, ratio, random
         integer :: nsteps
@@ -253,6 +262,7 @@ contains
             call this%eval_state(this%action_cur, this%force_cur)
             this%state_ready = .true.
         endif
+        call HMC_monitor_step(stage_id, accepted, nsteps, delta_h, this%action_cur)
         return
     end subroutine Global_step
 
@@ -308,7 +318,7 @@ contains
         integer, intent(inout) :: iseed
 
         call Acc_HMC_warm%reset()
-        call this%step(iseed, Acc_HMC_warm)
+        call this%step(iseed, Acc_HMC_warm, 0)
         call Acc_HMC_warm%ratio()
         return
     end subroutine Global_therm
@@ -326,7 +336,7 @@ contains
         Nobs = 0
         Nobst = 0
         do nsw = 1, Nsweep
-            call this%step(iseed, Acc_HMC)
+            call this%step(iseed, Acc_HMC, 1)
             call this%measure_config(toggle, Nobs, Nobst)
         enddo
 
@@ -486,4 +496,58 @@ contains
         X = sqrt(-2.d0 * log(X1)) * cos(2.d0 * PI * X2)
         return
     end function HMC_rng_gaussian
+
+    subroutine HMC_monitor_init()
+        character(len=32) :: env_value
+        integer :: env_status
+
+        HMC_monitor_enabled = .false.
+        HMC_monitor_count = 0
+        HMC_monitor_site = 1
+        HMC_monitor_tau = max(1, Ltrot / 2)
+
+        call get_environment_variable("BPQMC_HMC_MONITOR", env_value, status=env_status)
+        if (env_status /= 0) return
+        if (len_trim(env_value) == 0) return
+        if (trim(env_value) == "0") return
+
+        HMC_monitor_enabled = .true.
+        open(unit=HMC_monitor_unit, file='hmc_monitor.dat', status='replace', action='write')
+        write(HMC_monitor_unit, '(A)') '# step stage accepted nsteps delta_h action phi_f1 phi_f2 phi_rms_f1 phi_rms_f2'
+        return
+    end subroutine HMC_monitor_init
+
+    subroutine HMC_monitor_close()
+        if (.not. HMC_monitor_enabled) return
+        close(unit=HMC_monitor_unit)
+        HMC_monitor_enabled = .false.
+        return
+    end subroutine HMC_monitor_close
+
+    subroutine HMC_monitor_step(stage_id, accepted, nsteps, delta_h, action_cur)
+        integer, intent(in) :: stage_id, nsteps
+        logical, intent(in) :: accepted
+        real(kind=8), intent(in) :: delta_h, action_cur
+        integer :: accepted_flag, ntau_idx
+        real(kind=8) :: phi_f1, phi_f2, phi_rms_f1, phi_rms_f2
+
+        if (.not. HMC_monitor_enabled) return
+        if (Ltrot <= 0) return
+
+        HMC_monitor_count = HMC_monitor_count + 1
+        ntau_idx = min(max(HMC_monitor_tau, 1), Ltrot)
+        accepted_flag = merge(1, 0, accepted)
+        phi_f1 = Conf%phi_list(1, HMC_monitor_site, ntau_idx)
+        phi_rms_f1 = sqrt(sum(Conf%phi_list(1,:,:) * Conf%phi_list(1,:,:)) / dble(Ndim * Ltrot))
+        if (Naux >= 2) then
+            phi_f2 = Conf%phi_list(2, HMC_monitor_site, ntau_idx)
+            phi_rms_f2 = sqrt(sum(Conf%phi_list(2,:,:) * Conf%phi_list(2,:,:)) / dble(Ndim * Ltrot))
+        else
+            phi_f2 = 0.d0
+            phi_rms_f2 = 0.d0
+        endif
+        write(HMC_monitor_unit, '(I0,1X,I0,1X,I0,1X,I0,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16)') &
+            HMC_monitor_count, stage_id, accepted_flag, nsteps, delta_h, action_cur, phi_f1, phi_f2, phi_rms_f1, phi_rms_f2
+        return
+    end subroutine HMC_monitor_step
 end module GlobalUpdate_mod
