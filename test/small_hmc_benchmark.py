@@ -1,0 +1,519 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+from collections import defaultdict
+from dataclasses import asdict
+from pathlib import Path
+
+from hmc_tools import (
+    DEFAULT_BINARY,
+    RunConfig,
+    ess_per_second,
+    integrated_autocorr_time,
+    lag1_autocorr,
+    parse_info_metrics,
+    prepare_run_dir,
+    read_complex_series_real,
+    read_scalar_series,
+    run_case,
+    sample_stderr,
+    series_mean,
+)
+from production_hmc import OBSERVABLES, compare_mode_stats
+
+
+DEFAULT_NBOS = (10, 100, 1000)
+DEFAULT_U2 = (1.0e-2, 1.0e-1, 1.0, 10.0, 100.0)
+SERIES_OBSERVABLES = (
+    "kinetic",
+    "doubleOcc",
+    "squareOcc",
+    "nearestOcc",
+    "IPR",
+    "SF_Gamma",
+    "SF_K",
+    "PF_Gamma",
+    "C3_Gamma",
+    "dentot_Gamma",
+    "denden_Gamma",
+)
+
+
+def parse_int_list(text: str) -> tuple[int, ...]:
+    return tuple(int(item.strip()) for item in text.split(",") if item.strip())
+
+
+def parse_float_list(text: str) -> tuple[float, ...]:
+    return tuple(float(item.strip()) for item in text.split(",") if item.strip())
+
+
+def parse_grid(text: str) -> list[tuple[int, float]]:
+    rows: list[tuple[int, float]] = []
+    for item in text.split(","):
+        nfrog_text, dt_text = item.split(":")
+        rows.append((int(nfrog_text), float(dt_text)))
+    return rows
+
+
+def parse_mass_grid(text: str) -> tuple[float, ...]:
+    return tuple(float(item.strip()) for item in text.split(",") if item.strip())
+
+
+def format_u2_tag(value: float) -> str:
+    return f"{value:.0e}".replace("+", "")
+
+
+def format_dt_tag(dt: float) -> str:
+    return f"{dt:.9e}".replace("+", "").replace("-", "m").replace(".", "p")
+
+
+def make_small_configs(args: argparse.Namespace) -> dict[str, RunConfig]:
+    ltrot = int(round(args.beta / args.dtau))
+    configs: dict[str, RunConfig] = {}
+    for nbos in parse_int_list(args.nbos_values):
+        for u2 in parse_float_list(args.u2_values):
+            name = f"triangular_L{args.l_value}_N{nbos}_U2_{format_u2_tag(u2)}"
+            configs[name] = RunConfig(
+                name=name,
+                lattice_type="triangular",
+                rt=args.rt,
+                ru1=args.ru1,
+                ru2=u2,
+                nbos=nbos,
+                nlx=args.l_value,
+                nly=args.l_value,
+                ltrot=ltrot,
+                beta=args.beta,
+                nwrap=args.nwrap,
+                nbin=args.bins,
+                nsweep=args.sweeps,
+                nthermal=args.thermal_cut,
+                is_tau=False,
+                is_warm=args.warm > 0,
+                nwarm=max(args.warm, 0),
+                ini_type=args.ini_type,
+                ini_ampl=args.ini_ampl,
+                ini_ham=args.ini_ham,
+                ini_twist=args.ini_twist,
+                imbalance=args.imbalance,
+            )
+    return configs
+
+
+def load_series(run_dir: Path, obs_name: str) -> list[float]:
+    reader = OBSERVABLES.get(obs_name, read_scalar_series)
+    return reader(run_dir, obs_name)
+
+
+def collect_means(run_dir: Path, thermal_cut: int) -> dict[str, float]:
+    means: dict[str, float] = {}
+    for obs_name, reader in OBSERVABLES.items():
+        values = reader(run_dir, obs_name)
+        means[obs_name] = series_mean(values[thermal_cut:])
+    return means
+
+
+def collect_perf(run_dir: Path, thermal_cut: int) -> dict[str, float]:
+    values = read_scalar_series(run_dir, "doubleOcc")[thermal_cut:]
+    info = parse_info_metrics(run_dir)
+    metrics = {
+        "tau_int_doubleOcc": integrated_autocorr_time(values),
+        "lag1_doubleOcc": lag1_autocorr(values),
+        "ess_per_sec_doubleOcc": ess_per_second(values, info["Tot_CPU_time"]),
+        "cpu_time": info["Tot_CPU_time"],
+    }
+    if "HMC_DeltaH_mean" in info:
+        metrics["hmc_deltaH_mean"] = info["HMC_DeltaH_mean"]
+    if "HMC_DeltaH_abs_max" in info:
+        metrics["hmc_deltaH_abs_max"] = info["HMC_DeltaH_abs_max"]
+    return metrics
+
+
+def aggregate_perf(rows: list[dict[str, float]]) -> dict[str, float]:
+    keys = rows[0].keys()
+    return {key: series_mean([row[key] for row in rows]) for key in keys}
+
+
+def thermal_cut_slice(values: list[float], thermal_cut: int) -> list[float]:
+    if thermal_cut <= 0:
+        return list(values)
+    if thermal_cut >= len(values):
+        return list(values[-1:]) if values else []
+    return values[thermal_cut:]
+
+
+def write_csv(path: Path, rows: list[dict[str, object]], fieldnames: list[str]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def run_tune(args: argparse.Namespace) -> int:
+    configs = make_small_configs(args)
+    grid = parse_grid(args.grid)
+    masses = parse_mass_grid(args.hmc_mass_grid)
+    binary = Path(args.binary).resolve()
+    work_root = Path(args.work_root).resolve()
+    work_root.mkdir(parents=True, exist_ok=True)
+
+    case_rows = []
+    repeat_rows = []
+    cases = []
+    for cfg in configs.values():
+        scan_rows = []
+        for mass in masses:
+            for nfrog, dt in grid:
+                rows_for_choice = []
+                for repeat in range(args.repeats):
+                    seed = args.seed_base + 1000 * repeat + 17 * nfrog + int(round(1.0e8 * dt)) + int(round(10 * mass))
+                    run_dir = (
+                        work_root
+                        / "runs"
+                        / cfg.name
+                        / f"nf{nfrog}_dt{format_dt_tag(dt)}_m{mass:g}_j{args.hmc_jitter}"
+                        / f"rep{repeat}"
+                    )
+                    prepare_run_dir(
+                        run_dir,
+                        cfg,
+                        is_global=True,
+                        nfrog=nfrog,
+                        hmc_dt=dt,
+                        hmc_jitter=args.hmc_jitter,
+                        hmc_mass=mass,
+                        seed=seed,
+                        binary=binary,
+                    )
+                    run_case(run_dir, np_ranks=args.np)
+                    info = parse_info_metrics(run_dir)
+                    values = read_scalar_series(run_dir, "doubleOcc")
+                    row = {
+                        "name": cfg.name,
+                        "nfrog": nfrog,
+                        "hmc_dt": dt,
+                        "hmc_jitter": args.hmc_jitter,
+                        "hmc_mass": mass,
+                        "repeat": repeat,
+                        "seed": seed,
+                        "acceptance": info["Accept_HMC"],
+                        "tau_int_doubleOcc": integrated_autocorr_time(values),
+                        "lag1_doubleOcc": lag1_autocorr(values),
+                        "ess_per_sec_doubleOcc": ess_per_second(values, info["Tot_CPU_time"]),
+                        "cpu_time": info["Tot_CPU_time"],
+                    }
+                    if "HMC_DeltaH_mean" in info:
+                        row["hmc_deltaH_mean"] = info["HMC_DeltaH_mean"]
+                    if "HMC_DeltaH_abs_max" in info:
+                        row["hmc_deltaH_abs_max"] = info["HMC_DeltaH_abs_max"]
+                    repeat_rows.append(row)
+                    rows_for_choice.append(row)
+                summary = {
+                    "name": cfg.name,
+                    "nfrog": nfrog,
+                    "hmc_dt": dt,
+                    "hmc_jitter": args.hmc_jitter,
+                    "hmc_mass": mass,
+                    "repeats": len(rows_for_choice),
+                }
+                for key in ("acceptance", "tau_int_doubleOcc", "lag1_doubleOcc", "ess_per_sec_doubleOcc", "cpu_time"):
+                    values = [float(row[key]) for row in rows_for_choice]
+                    summary[f"{key}_mean"] = series_mean(values)
+                    summary[f"{key}_stderr"] = sample_stderr(values)
+                scan_rows.append(summary)
+                case_rows.append(summary)
+        scan_rows.sort(
+            key=lambda row: (
+                abs(row["lag1_doubleOcc_mean"]),
+                row["tau_int_doubleOcc_mean"],
+                -row["acceptance_mean"],
+                row["nfrog"] * row["hmc_dt"],
+            )
+        )
+        cases.append({"name": cfg.name, "config": asdict(cfg), "rows": scan_rows, "recommended": scan_rows[0]})
+
+    summary = {"mode": "small_tune", "cases": cases, "grid": [{"nfrog": nfrog, "hmc_dt": dt} for nfrog, dt in grid], "masses": masses}
+    (work_root / "small_tune.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    write_csv(
+        work_root / "small_tune.csv",
+        case_rows,
+        [
+            "name",
+            "nfrog",
+            "hmc_dt",
+            "hmc_jitter",
+            "hmc_mass",
+            "repeats",
+            "acceptance_mean",
+            "acceptance_stderr",
+            "tau_int_doubleOcc_mean",
+            "tau_int_doubleOcc_stderr",
+            "lag1_doubleOcc_mean",
+            "lag1_doubleOcc_stderr",
+            "ess_per_sec_doubleOcc_mean",
+            "ess_per_sec_doubleOcc_stderr",
+            "cpu_time_mean",
+            "cpu_time_stderr",
+        ],
+    )
+    write_csv(
+        work_root / "small_tune_repeats.csv",
+        repeat_rows,
+        [
+            "name",
+            "nfrog",
+            "hmc_dt",
+            "hmc_jitter",
+            "hmc_mass",
+            "repeat",
+            "seed",
+            "acceptance",
+            "tau_int_doubleOcc",
+            "lag1_doubleOcc",
+            "ess_per_sec_doubleOcc",
+            "cpu_time",
+            "hmc_deltaH_mean",
+            "hmc_deltaH_abs_max",
+        ],
+    )
+    tuned_map = {
+        case["name"]: {
+            "nfrog": case["recommended"]["nfrog"],
+            "hmc_dt": case["recommended"]["hmc_dt"],
+            "hmc_jitter": case["recommended"]["hmc_jitter"],
+            "hmc_mass": case["recommended"]["hmc_mass"],
+        }
+        for case in cases
+    }
+    (work_root / "recommended_hmc.json").write_text(json.dumps(tuned_map, indent=2), encoding="utf-8")
+    return 0
+
+
+def run_benchmark(args: argparse.Namespace) -> int:
+    configs = make_small_configs(args)
+    binary = Path(args.binary).resolve()
+    work_root = Path(args.work_root).resolve()
+    work_root.mkdir(parents=True, exist_ok=True)
+    tuned_map = {}
+    if args.hmc_json:
+        tuned_map = json.loads(Path(args.hmc_json).read_text(encoding="utf-8"))
+
+    cases = []
+    case_rows = []
+    observable_rows = []
+    sample_rows = []
+    overall_ok = True
+
+    for cfg in configs.values():
+        hmc_params = tuned_map.get(
+            cfg.name,
+            {"nfrog": args.hmc_nfrog, "hmc_dt": args.hmc_dt, "hmc_jitter": args.hmc_jitter, "hmc_mass": args.hmc_mass},
+        )
+        summary: dict[str, dict[str, list[float]]] = {"local": defaultdict(list), "hmc": defaultdict(list)}
+        perf_rows: dict[str, list[dict[str, float]]] = {"local": [], "hmc": []}
+        hmc_accept = []
+        mode_runs: dict[str, list[dict[str, object]]] = {"local": [], "hmc": []}
+
+        for repeat in range(args.repeats):
+            seed = args.seed_base + 100 * repeat
+            for mode_name, is_global in (("local", False), ("hmc", True)):
+                run_dir = work_root / "runs" / cfg.name / f"{mode_name}_rep{repeat}"
+                prepare_run_dir(
+                    run_dir,
+                    cfg,
+                    is_global=is_global,
+                    nfrog=int(hmc_params["nfrog"]),
+                    hmc_dt=float(hmc_params["hmc_dt"]),
+                    hmc_jitter=int(hmc_params.get("hmc_jitter", 0)) if is_global else 0,
+                    hmc_mass=float(hmc_params.get("hmc_mass", 1.0)) if is_global else 1.0,
+                    seed=seed,
+                    binary=binary,
+                )
+                run_case(run_dir, np_ranks=args.np)
+                run_means = collect_means(run_dir, cfg.nthermal)
+                for obs_name, value in run_means.items():
+                    summary[mode_name][obs_name].append(value)
+                perf = collect_perf(run_dir, cfg.nthermal)
+                perf_rows[mode_name].append(perf)
+                info = parse_info_metrics(run_dir)
+                if is_global:
+                    hmc_accept.append(info["Accept_HMC"])
+                mode_runs[mode_name].append(
+                    {
+                        "repeat": repeat,
+                        "seed": seed,
+                        "run_dir": str(run_dir),
+                        "perf": perf,
+                        "info": info,
+                    }
+                )
+                if repeat == 0:
+                    for obs_name in SERIES_OBSERVABLES:
+                        values = thermal_cut_slice(load_series(run_dir, obs_name), cfg.nthermal)
+                        for sample_idx, value in enumerate(values):
+                            sample_rows.append(
+                                {
+                                    "name": cfg.name,
+                                    "Nbos": cfg.nbos,
+                                    "U2": cfg.ru2,
+                                    "mode": mode_name,
+                                    "repeat": repeat,
+                                    "observable": obs_name,
+                                    "sample_index": sample_idx,
+                                    "value": value,
+                                }
+                            )
+
+        ok, obs_rows = compare_mode_stats(summary)
+        overall_ok = overall_ok and ok
+        perf_summary = {mode: aggregate_perf(rows) for mode, rows in perf_rows.items()}
+        accept_mean = series_mean(hmc_accept)
+        accept_err = sample_stderr(hmc_accept)
+        speed_ratio = perf_summary["hmc"]["ess_per_sec_doubleOcc"] / max(perf_summary["local"]["ess_per_sec_doubleOcc"], 1.0e-12)
+        case = {
+            "name": cfg.name,
+            "config": asdict(cfg),
+            "hmc": hmc_params,
+            "acceptance_mean": accept_mean,
+            "acceptance_stderr": accept_err,
+            "perf": {
+                "local": perf_summary["local"],
+                "hmc": perf_summary["hmc"],
+                "speed_ratio_hmc_over_local": speed_ratio,
+            },
+            "runs": mode_runs,
+            "observables": obs_rows,
+            "passed": ok,
+        }
+        cases.append(case)
+        case_rows.append(
+            {
+                "name": cfg.name,
+                "L": cfg.nlx,
+                "Nbos": cfg.nbos,
+                "U2": cfg.ru2,
+                "beta": cfg.beta,
+                "dtau": cfg.beta / cfg.ltrot,
+                "thermal_cut": cfg.nthermal,
+                "warm": cfg.nwarm,
+                "nfrog": hmc_params["nfrog"],
+                "hmc_dt": hmc_params["hmc_dt"],
+                "hmc_jitter": hmc_params.get("hmc_jitter", 0),
+                "hmc_mass": hmc_params.get("hmc_mass", 1.0),
+                "acceptance_mean": accept_mean,
+                "acceptance_stderr": accept_err,
+                "local_tau_int_doubleOcc": perf_summary["local"]["tau_int_doubleOcc"],
+                "hmc_tau_int_doubleOcc": perf_summary["hmc"]["tau_int_doubleOcc"],
+                "local_ess_per_sec_doubleOcc": perf_summary["local"]["ess_per_sec_doubleOcc"],
+                "hmc_ess_per_sec_doubleOcc": perf_summary["hmc"]["ess_per_sec_doubleOcc"],
+                "speed_ratio_hmc_over_local": speed_ratio,
+                "passed": ok,
+            }
+        )
+        for row in obs_rows:
+            observable_rows.append({"name": cfg.name, "Nbos": cfg.nbos, "U2": cfg.ru2, **row})
+
+    summary = {
+        "mode": "small_benchmark",
+        "description": "Triangular L=6 small-parameter local-vs-HMC correctness study",
+        "cases": cases,
+        "passed": overall_ok,
+    }
+    (work_root / "small_benchmark.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    write_csv(
+        work_root / "small_benchmark_cases.csv",
+        case_rows,
+        [
+            "name",
+            "L",
+            "Nbos",
+            "U2",
+            "beta",
+            "dtau",
+            "thermal_cut",
+            "warm",
+            "nfrog",
+            "hmc_dt",
+            "hmc_jitter",
+            "hmc_mass",
+            "acceptance_mean",
+            "acceptance_stderr",
+            "local_tau_int_doubleOcc",
+            "hmc_tau_int_doubleOcc",
+            "local_ess_per_sec_doubleOcc",
+            "hmc_ess_per_sec_doubleOcc",
+            "speed_ratio_hmc_over_local",
+            "passed",
+        ],
+    )
+    write_csv(
+        work_root / "small_benchmark_observables.csv",
+        observable_rows,
+        ["name", "Nbos", "U2", "observable", "local_mean", "local_err", "hmc_mean", "hmc_err", "abs_diff", "combined_err", "z_score", "passed"],
+    )
+    write_csv(
+        work_root / "small_benchmark_samples.csv",
+        sample_rows,
+        ["name", "Nbos", "U2", "mode", "repeat", "observable", "sample_index", "value"],
+    )
+    return 0 if overall_ok else 1
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Small triangular HMC/local benchmark workflow.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    def add_common(subparser: argparse.ArgumentParser) -> None:
+        subparser.add_argument("--l-value", type=int, default=6)
+        subparser.add_argument("--nbos-values", default="10,100,1000")
+        subparser.add_argument("--u2-values", default="1e-2,1e-1,1e0,1e1,1e2")
+        subparser.add_argument("--rt", type=float, default=1.0)
+        subparser.add_argument("--ru1", type=float, default=0.0)
+        subparser.add_argument("--beta", type=float, default=32.0)
+        subparser.add_argument("--dtau", type=float, default=0.01)
+        subparser.add_argument("--nwrap", type=int, default=16)
+        subparser.add_argument("--bins", type=int, default=320)
+        subparser.add_argument("--sweeps", type=int, default=1)
+        subparser.add_argument("--thermal-cut", type=int, default=192)
+        subparser.add_argument("--warm", type=int, default=256)
+        subparser.add_argument("--ini-type", type=int, default=2)
+        subparser.add_argument("--ini-ampl", type=float, default=0.1)
+        subparser.add_argument("--ini-ham", type=int, default=5)
+        subparser.add_argument("--ini-twist", type=float, default=1.0e-4)
+        subparser.add_argument("--imbalance", type=float, default=0.0)
+        subparser.add_argument("--np", type=int, default=1)
+        subparser.add_argument("--seed-base", type=int, default=70001)
+        subparser.add_argument("--binary", default=str(DEFAULT_BINARY))
+        subparser.add_argument("--work-root", default="data/triangular_hmc_small_benchmark")
+
+    tune = subparsers.add_parser("tune", help="Scan HMC parameters for the L=6 triangular study.")
+    add_common(tune)
+    tune.add_argument("--grid", required=True, help="Comma-separated Nfrog:dt pairs.")
+    tune.add_argument("--hmc-jitter", type=int, default=0)
+    tune.add_argument("--hmc-mass-grid", default="1.0")
+    tune.add_argument("--repeats", type=int, default=2)
+    tune.set_defaults(func=run_tune)
+
+    bench = subparsers.add_parser("benchmark", help="Run strict local-vs-HMC benchmarks for the L=6 triangular study.")
+    add_common(bench)
+    bench.add_argument("--repeats", type=int, default=6)
+    bench.add_argument("--hmc-json", default="")
+    bench.add_argument("--hmc-nfrog", type=int, default=8)
+    bench.add_argument("--hmc-dt", type=float, default=6.0e-5)
+    bench.add_argument("--hmc-jitter", type=int, default=0)
+    bench.add_argument("--hmc-mass", type=float, default=1.0)
+    bench.set_defaults(func=run_benchmark)
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
