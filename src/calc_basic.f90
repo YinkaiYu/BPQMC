@@ -6,16 +6,17 @@ module CalcBasic ! Global parameters
     real(kind=8),           parameter           :: PI = acos(-1.d0)
     real(kind=8),           parameter           :: upbound = 1.0d+200
 ! lattice parameters
-    integer,                parameter           :: Norb  = 3  ! orbital/sublattice A,B,C in kagome lattice
-    integer,                parameter           :: Nsub  = 3  ! sublattice for observables calculation; the same as Norb
-    integer,                parameter           :: Nbond = 2  ! bonds per site: A->B/C, B->C/A, C->A/B
     integer,                parameter           :: Naux  = 2  ! flavor number of auxiliary field, respectively for U1 term and U2 term
+    integer,                public,     save    :: Norb = 3
+    integer,                public,     save    :: Nsub = 3
+    integer,                public,     save    :: Nbond = 2
     integer,                public              :: Nlx, Nly, NlxTherm, NlyTherm
     integer,                public              :: Lq, LqTherm
     integer,                public              :: Ndim, NdimTherm
     real(kind=8),           public              :: Dtau
     real(kind=8),           public              :: Beta
     integer,                public              :: Ltrot, LtrotTherm
+    character(len=16),      public,     save    :: lattice_type = 'kagome'
 ! Hamiltonian parameters
     real(kind=8),           public,     save    :: RT
     real(kind=8),           public,     save    :: RU1, RU2
@@ -50,24 +51,36 @@ module CalcBasic ! Global parameters
 contains
     subroutine read_input()
         include 'mpif.h'
+        character(len=256) :: first_line
         character(len=256) :: hmc_line
-        integer :: ios
+        integer :: ios, ios_hmc, ios_ini
         if (IRANK == 0) then
             open(unit=20, file='paramC_sets.txt', status='unknown')
-            read(20,*) RT, RU1, RU2, Nbos
+            read(20,'(A)') first_line
+            call read_lattice_header(first_line)
             read(20,*) Nlx, Nly, Ltrot, Beta
             read(20,*) NlxTherm, NlyTherm, LtrotTherm
             read(20,*) Nwrap, Nbin, Nsweep, shiftLoc
             read(20,*) is_tau, Nthermal
             read(20,*) is_warm, Nwarm, shiftWarm(1), shiftWarm(2)
             read(20,'(A)') hmc_line
+            is_global = .false.
+            Nfrog = 0
+            hmc_dt = 0.d0
             NfrogJitter = 0
-            read(hmc_line, *, iostat=ios) is_global, Nfrog, hmc_dt, NfrogJitter
-            if (ios /= 0) then
-                NfrogJitter = 0
-                read(hmc_line, *) is_global, Nfrog, hmc_dt
+            read(hmc_line, *, iostat=ios_hmc) is_global, Nfrog, hmc_dt, NfrogJitter
+            if (ios_hmc /= 0) then
+                read(hmc_line, *, iostat=ios_hmc) is_global, Nfrog, hmc_dt
             endif
-            read(20,*) iniType, iniAmpl, iniBias(1), iniBias(2)
+            if (ios_hmc /= 0) then
+                read(hmc_line, *, iostat=ios_ini) iniType, iniAmpl, iniBias(1), iniBias(2)
+                if (ios_ini /= 0) then
+                    write(6,*) "Failed to parse HMC/input line:", trim(hmc_line)
+                    stop
+                endif
+            else
+                read(20,*) iniType, iniAmpl, iniBias(1), iniBias(2)
+            endif
             read(20,*) iniHam, iniTwist, imbalance
             close(20)
         endif 
@@ -86,6 +99,7 @@ contains
         call MPI_BCAST(iniHam, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(iniTwist, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(imbalance, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(lattice_type, len(lattice_type), MPI_CHARACTER, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nlx, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nly, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Ltrot, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
@@ -107,6 +121,7 @@ contains
     end subroutine read_input
     
     subroutine Params_set()
+        call set_lattice_layout()
         Lq = Nlx * Nly
         LqTherm = NlxTherm * NlyTherm
         Ndim = Lq * Norb
@@ -140,6 +155,68 @@ contains
         endif
         return
     end subroutine Params_set
+
+    subroutine read_lattice_header(first_line)
+        character(len=*), intent(in) :: first_line
+        integer :: ios
+
+        read(first_line, *, iostat=ios) RT, RU1, RU2, Nbos
+        if (ios == 0) then
+            lattice_type = 'kagome'
+        else
+            lattice_type = normalize_lattice_name(first_line)
+            read(20,*) RT, RU1, RU2, Nbos
+        endif
+        return
+    end subroutine read_lattice_header
+
+    subroutine set_lattice_layout()
+        select case (trim(lattice_type))
+        case ('kagome')
+            Norb = 3
+            Nsub = 3
+            Nbond = 2
+        case ('triangular')
+            Norb = 1
+            Nsub = 1
+            Nbond = 3
+        case default
+            write(6,*) "Unsupported lattice type:", trim(lattice_type)
+            stop
+        end select
+        return
+    end subroutine set_lattice_layout
+
+    pure function normalize_lattice_name(text) result(name)
+        character(len=*), intent(in) :: text
+        character(len=16) :: name
+        integer :: idx, code
+
+        name = adjustl(text)
+        do idx = 1, len_trim(name)
+            code = ichar(name(idx:idx))
+            if (code >= ichar('A') .and. code <= ichar('Z')) then
+                name(idx:idx) = achar(code + 32)
+            endif
+        enddo
+        select case (trim(name))
+        case ('tri', 'triangle', 'triangular')
+            name = 'triangular'
+        case ('kag', 'kagome')
+            name = 'kagome'
+        end select
+        return
+    end function normalize_lattice_name
+
+    pure logical function is_triangular_lattice()
+        is_triangular_lattice = trim(lattice_type) == 'triangular'
+        return
+    end function is_triangular_lattice
+
+    pure logical function is_kagome_lattice()
+        is_kagome_lattice = trim(lattice_type) == 'kagome'
+        return
+    end function is_kagome_lattice
 
     real(kind=8) function norm_diff_vec(vec1, vec2, n)
         complex(kind=8), intent(in) :: vec1(:), vec2(:)
@@ -185,10 +262,15 @@ contains
     end function sqr_vec
     
     subroutine write_info()
+        character(len=64) :: title
         if (IRANK == 0) then
             open (unit=50, file='info.txt', status='unknown', action="write")
+            write(title, '(A,A,A)') 'DQMC for boson Hubbard on ', trim(lattice_type), ' lattice'
             write(50,*) '========================='
-            write(50,*) 'DQMC for boson Hubbard on kagome lattice'
+            write(50,*) trim(title)
+            write(50,*) 'Lattice type                                   :', trim(lattice_type)
+            write(50,*) 'Number of orbitals per cell                    :', Norb
+            write(50,*) 'Number of bonds per site                       :', Nbond
             write(50,*) 'Linear lengh Lx                                :', Nlx
             write(50,*) 'Linear lengh Ly                                :', Nly
             write(50,*) 'Hopping t                                      :', RT

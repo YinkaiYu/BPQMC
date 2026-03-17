@@ -112,10 +112,36 @@ contains
         integer, intent(inout) :: iseed
         real(kind=8), external :: ranf
         real(kind=8) :: twist_val
-        complex(kind=8) :: Z
+        complex(kind=8) :: Z, Peierls_phase
         integer :: ii, jj, nb, no
         
         select case (iniHam)
+        case (5) ! twist with directional Peierls phase
+            HamT_initial = dcmplx(0.d0, 0.d0)
+            Peierls_phase = exp(dcmplx(0.d0, 2.d0 * PI * iniTwist))
+            do ii = 1, Ndim
+                do nb = 1, Nbond
+                    jj = Latt%L_bonds(ii, nb)
+                    Z = dcmplx(RT, 0.d0)
+                    if (is_triangular_lattice() .and. nb == 1) Z = Z * Peierls_phase
+                    HamT_initial(ii, jj) = HamT_initial(ii, jj) + Z
+                    HamT_initial(jj, ii) = HamT_initial(jj, ii) + dconjg(Z)
+                enddo
+            enddo
+        case (4) ! twist with anisotropic hopping
+            HamT_initial = dcmplx(0.d0, 0.d0)
+            do ii = 1, Ndim
+                do nb = 1, Nbond
+                    jj = Latt%L_bonds(ii, nb)
+                    Z = dcmplx(RT, 0.d0)
+                    if (is_triangular_lattice()) then
+                        if (nb == 1) Z = dcmplx(RT * (1.d0 + iniTwist), 0.d0)
+                        if (nb == 3) Z = dcmplx(RT * (1.d0 - iniTwist), 0.d0)
+                    endif
+                    HamT_initial(ii, jj) = HamT_initial(ii, jj) + Z
+                    HamT_initial(jj, ii) = HamT_initial(jj, ii) + dconjg(Z)
+                enddo
+            enddo
         case (3) ! twist with chemical potential bias
             HamT_initial = dcmplx(0.d0, 0.d0)
             Z = dcmplx( RT, 0.d0) 
