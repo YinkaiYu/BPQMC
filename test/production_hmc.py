@@ -63,6 +63,10 @@ def parse_grid(text: str) -> list[tuple[int, float]]:
     return grid
 
 
+def format_dt_tag(dt: float) -> str:
+    return f"{dt:.9e}".replace("+", "").replace("-", "m").replace(".", "p")
+
+
 def collect_run_means(run_dir: Path, thermal_cut: int) -> dict[str, float]:
     means: dict[str, float] = {}
     for obs_name, reader in OBSERVABLES.items():
@@ -169,7 +173,7 @@ def run_tune(args: argparse.Namespace) -> int:
         cfg = cfg.with_sampling(is_warm=args.warm > 0, nwarm=max(args.warm, 0))
         case_rows = []
         for idx, (nfrog, dt) in enumerate(grid):
-            run_dir = work_root / "runs" / cfg.name / f"nf{nfrog}_dt{dt:.6f}".replace(".", "p")
+            run_dir = work_root / "runs" / cfg.name / f"nf{nfrog}_dt{format_dt_tag(dt)}"
             prepare_run_dir(
                 run_dir,
                 cfg,
