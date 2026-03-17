@@ -245,7 +245,11 @@ def write_seed_files(run_dir: Path, seed: int, *, confin_from: Path | None = Non
     if confin_from is None:
         (run_dir / "confin.txt").write_text("0\n", encoding="ascii")
     else:
-        shutil.copyfile(confin_from, run_dir / "confin.txt")
+        lines = confin_from.read_text(encoding="ascii").splitlines()
+        if not lines:
+            raise ValueError(f"Warm-start file is empty: {confin_from}")
+        lines[0] = str(seed)
+        (run_dir / "confin.txt").write_text("\n".join(lines) + "\n", encoding="ascii")
     seeds = [seed + offset for offset in range(8)]
     (run_dir / "seeds.txt").write_text("\n".join(str(item) for item in seeds) + "\n", encoding="ascii")
 
