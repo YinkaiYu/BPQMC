@@ -192,11 +192,14 @@ contains
         class(GlobalUpdate), intent(inout) :: this
         integer, intent(inout) :: iseed
         integer :: nt, ii, nf
+        real(kind=8) :: sigma_p
+
+        sigma_p = sqrt(hmc_mass)
 
         do nt = 1, Ltrot
             do ii = 1, Ndim
                 do nf = 1, Naux
-                    this%momentum(nf, ii, nt) = HMC_rng_gaussian(iseed)
+                    this%momentum(nf, ii, nt) = sigma_p * HMC_rng_gaussian(iseed)
                 enddo
             enddo
         enddo
@@ -211,7 +214,7 @@ contains
 
         this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_cur
         do nlf = 1, nsteps
-            Conf%phi_list = Conf%phi_list + hmc_dt * this%momentum
+            Conf%phi_list = Conf%phi_list + (hmc_dt / hmc_mass) * this%momentum
             call this%eval_state(action_new, this%force_cur)
             if (nlf == nsteps) then
                 this%momentum = this%momentum + 0.5d0 * hmc_dt * this%force_cur
@@ -235,11 +238,11 @@ contains
         call this%ensure_state()
         this%phi_backup = Conf%phi_list
         call this%sample_momentum(iseed)
-        ham_old = 0.5d0 * sum(this%momentum * this%momentum) + this%action_cur
+        ham_old = 0.5d0 * sum(this%momentum * this%momentum) / hmc_mass + this%action_cur
 
         nsteps = HMC_draw_nfrog(iseed)
         call this%leapfrog(action_new, nsteps)
-        ham_new = 0.5d0 * sum(this%momentum * this%momentum) + action_new
+        ham_new = 0.5d0 * sum(this%momentum * this%momentum) / hmc_mass + action_new
 
         delta_h = ham_old - ham_new
         HMC_deltaH_sum = HMC_deltaH_sum + delta_h

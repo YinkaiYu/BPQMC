@@ -224,7 +224,7 @@ def production_parameter_sets(
     return configs
 
 
-def write_param_file(path: Path, cfg: RunConfig, *, is_global: bool, nfrog: int, hmc_dt: float, hmc_jitter: int = 0) -> None:
+def write_param_file(path: Path, cfg: RunConfig, *, is_global: bool, nfrog: int, hmc_dt: float, hmc_jitter: int = 0, hmc_mass: float = 1.0) -> None:
     nlx_therm, nly_therm, ltrot_therm = cfg.therm_dims()
     lines = [
         cfg.lattice_type,
@@ -234,7 +234,7 @@ def write_param_file(path: Path, cfg: RunConfig, *, is_global: bool, nfrog: int,
         f"{cfg.nwrap} {cfg.nbin} {cfg.nsweep} {cfg.shift_loc}",
         f"{fortran_bool(cfg.is_tau)} {cfg.nthermal}",
         f"{fortran_bool(cfg.is_warm)} {cfg.nwarm} {cfg.shift_warm_1} {cfg.shift_warm_2}",
-        f"{fortran_bool(is_global)} {nfrog} {hmc_dt} {hmc_jitter}",
+        f"{fortran_bool(is_global)} {nfrog} {hmc_dt} {hmc_jitter} {hmc_mass}",
         f"{cfg.ini_type} {cfg.ini_ampl} {cfg.ini_bias_1} {cfg.ini_bias_2}",
         f"{cfg.ini_ham} {cfg.ini_twist} {cfg.imbalance}",
     ]
@@ -247,13 +247,13 @@ def write_seed_files(run_dir: Path, seed: int) -> None:
     (run_dir / "seeds.txt").write_text("\n".join(str(item) for item in seeds) + "\n", encoding="ascii")
 
 
-def prepare_run_dir(run_dir: Path, cfg: RunConfig, *, is_global: bool, nfrog: int, hmc_dt: float, seed: int, hmc_jitter: int = 0, binary: Path = DEFAULT_BINARY) -> None:
+def prepare_run_dir(run_dir: Path, cfg: RunConfig, *, is_global: bool, nfrog: int, hmc_dt: float, seed: int, hmc_jitter: int = 0, hmc_mass: float = 1.0, binary: Path = DEFAULT_BINARY) -> None:
     if run_dir.exists():
         shutil.rmtree(run_dir)
     run_dir.mkdir(parents=True)
     shutil.copy2(binary, run_dir / "BPQMC.out")
     write_seed_files(run_dir, seed)
-    write_param_file(run_dir / "paramC_sets.txt", cfg, is_global=is_global, nfrog=nfrog, hmc_dt=hmc_dt, hmc_jitter=hmc_jitter)
+    write_param_file(run_dir / "paramC_sets.txt", cfg, is_global=is_global, nfrog=nfrog, hmc_dt=hmc_dt, hmc_jitter=hmc_jitter, hmc_mass=hmc_mass)
 
 
 def run_case(run_dir: Path, *, np_ranks: int = 1) -> None:

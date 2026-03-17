@@ -98,6 +98,7 @@ def aggregate_tune_repeat_rows(repeat_rows: list[dict[str, float | int | str]]) 
         "nfrog": repeat_rows[0]["nfrog"],
         "hmc_dt": repeat_rows[0]["hmc_dt"],
         "hmc_jitter": repeat_rows[0]["hmc_jitter"],
+        "hmc_mass": repeat_rows[0]["hmc_mass"],
         "repeats": len(repeat_rows),
         "stuck_repeats": sum(int(row["stuck"]) for row in repeat_rows),
     }
@@ -157,11 +158,11 @@ def compare_mode_stats(summary: dict[str, dict[str, list[float]]]) -> tuple[bool
     return overall_ok, rows
 
 
-def get_hmc_params(case_name: str, args: argparse.Namespace, tuned_map: dict[str, dict[str, float]]) -> tuple[int, float, int]:
+def get_hmc_params(case_name: str, args: argparse.Namespace, tuned_map: dict[str, dict[str, float]]) -> tuple[int, float, int, float]:
     if case_name in tuned_map:
         params = tuned_map[case_name]
-        return int(params["nfrog"]), float(params["hmc_dt"]), int(params.get("hmc_jitter", 0))
-    return args.hmc_nfrog, args.hmc_dt, args.hmc_jitter
+        return int(params["nfrog"]), float(params["hmc_dt"]), int(params.get("hmc_jitter", 0)), float(params.get("hmc_mass", 1.0))
+    return args.hmc_nfrog, args.hmc_dt, args.hmc_jitter, args.hmc_mass
 
 
 def write_csv(path: Path, rows: list[dict[str, object]], fieldnames: list[str]) -> None:
@@ -218,6 +219,7 @@ def run_tune(args: argparse.Namespace) -> int:
                     nfrog=nfrog,
                     hmc_dt=dt,
                     hmc_jitter=args.hmc_jitter,
+                    hmc_mass=args.hmc_mass,
                     seed=seed,
                     binary=binary,
                 )
@@ -229,6 +231,7 @@ def run_tune(args: argparse.Namespace) -> int:
                     "nfrog": nfrog,
                     "hmc_dt": dt,
                     "hmc_jitter": args.hmc_jitter,
+                    "hmc_mass": args.hmc_mass,
                     "repeat": repeat,
                     "seed": seed,
                     "acceptance": info["Accept_HMC"],
@@ -271,7 +274,7 @@ def run_tune(args: argparse.Namespace) -> int:
 
     summary = {
         "mode": "tune",
-        "grid": [{"nfrog": nfrog, "hmc_dt": dt} for nfrog, dt in grid],
+        "grid": [{"nfrog": nfrog, "hmc_dt": dt, "hmc_mass": args.hmc_mass} for nfrog, dt in grid],
         "cases": tuned_cases,
     }
     (work_root / "production_tune.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
@@ -283,6 +286,7 @@ def run_tune(args: argparse.Namespace) -> int:
             "nfrog",
             "hmc_dt",
             "hmc_jitter",
+            "hmc_mass",
             "repeats",
             "stuck_repeats",
             "acceptance_mean",
@@ -308,6 +312,7 @@ def run_tune(args: argparse.Namespace) -> int:
             "nfrog",
             "hmc_dt",
             "hmc_jitter",
+            "hmc_mass",
             "repeat",
             "seed",
             "stuck",
@@ -325,6 +330,7 @@ def run_tune(args: argparse.Namespace) -> int:
             "nfrog": case["recommended"]["nfrog"],
             "hmc_dt": case["recommended"]["hmc_dt"],
             "hmc_jitter": case["recommended"]["hmc_jitter"],
+            "hmc_mass": case["recommended"]["hmc_mass"],
         }
         for case in tuned_cases
     }
@@ -349,7 +355,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
     for cfg in configs.values():
         if args.warm >= 0:
             cfg = cfg.with_sampling(is_warm=args.warm > 0, nwarm=max(args.warm, 0))
-        nfrog, hmc_dt, jitter = get_hmc_params(cfg.name, args, tuned_map)
+        nfrog, hmc_dt, jitter, hmc_mass = get_hmc_params(cfg.name, args, tuned_map)
         summary: dict[str, dict[str, list[float]]] = {"local": defaultdict(list), "hmc": defaultdict(list)}
         perf: dict[str, dict[str, list[float]]] = {"local": defaultdict(list), "hmc": defaultdict(list)}
         hmc_accept = []
@@ -366,6 +372,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                     nfrog=nfrog,
                     hmc_dt=hmc_dt,
                     hmc_jitter=jitter if is_global else 0,
+                    hmc_mass=hmc_mass if is_global else 1.0,
                     seed=seed,
                     binary=binary,
                 )
@@ -397,7 +404,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
         case_summary = {
             "name": cfg.name,
             "config": asdict(cfg),
-            "hmc": {"nfrog": nfrog, "hmc_dt": hmc_dt, "hmc_jitter": jitter},
+            "hmc": {"nfrog": nfrog, "hmc_dt": hmc_dt, "hmc_jitter": jitter, "hmc_mass": hmc_mass},
             "acceptance_mean": accept_mean,
             "acceptance_stderr": accept_err,
             "perf": {
@@ -424,6 +431,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 "nfrog": nfrog,
                 "hmc_dt": hmc_dt,
                 "hmc_jitter": jitter,
+                "hmc_mass": hmc_mass,
                 "acceptance_mean": accept_mean,
                 "acceptance_stderr": accept_err,
                 "local_stuck_repeats": local_stuck_repeats,
@@ -458,6 +466,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
             "nfrog",
             "hmc_dt",
             "hmc_jitter",
+            "hmc_mass",
             "acceptance_mean",
             "acceptance_stderr",
             "local_stuck_repeats",
@@ -512,6 +521,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_common(tune)
     tune.add_argument("--grid", required=True, help="Comma-separated Nfrog:dt pairs.")
     tune.add_argument("--hmc-jitter", type=int, default=0)
+    tune.add_argument("--hmc-mass", type=float, default=1.0)
     tune.add_argument("--repeats", type=int, default=1)
     tune.add_argument("--seed-step", type=int, default=0, help="Increment added to the base seed for each grid point.")
     tune.add_argument("--repeat-seed-step", type=int, default=100, help="Increment added to the seed for each repeat of the same grid point.")
@@ -527,6 +537,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--hmc-nfrog", type=int, default=10)
     bench.add_argument("--hmc-dt", type=float, default=0.012)
     bench.add_argument("--hmc-jitter", type=int, default=0)
+    bench.add_argument("--hmc-mass", type=float, default=1.0)
     bench.add_argument("--min-run-accept", type=float, default=0.05)
     bench.set_defaults(func=run_benchmark)
     return parser
