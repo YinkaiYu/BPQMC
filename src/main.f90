@@ -8,8 +8,7 @@ program BPQMC
     integer :: status(MPI_STATUS_SIZE)
     integer:: iseed, nth, nbc, N
     logical :: is_beta, istau_tmp
-    real(kind=8) :: collect, CPUT
-    integer(kind=8) :: ICPU_1, ICPU_2, N_P_SEC, N_P_MAX, ticks_elapsed
+    real(kind=8) :: collect, CPUT, wall_1, wall_2
     
     type(GlobalUpdate) :: Sweep_global
     type(LocalSweep) :: Sweep_local
@@ -21,8 +20,7 @@ program BPQMC
     call MPI_COMM_SIZE(MPI_COMM_WORLD, ISIZE, IERR)
     call MPI_COMM_RANK(MPI_COMM_WORLD, IRANK, IERR)
     
-    call SYSTEM_CLOCK(COUNT_RATE = N_P_SEC, COUNT_MAX = N_P_MAX)
-    call SYSTEM_CLOCK(COUNT = ICPU_1)
+    wall_1 = MPI_WTIME()
 ! initiate
     call Model_init(iseed)
     allocate(Prop)
@@ -85,10 +83,8 @@ program BPQMC
         call MPI_Reduce(Prop%Xmeanm, collect, 1, MPI_Real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
         if (IRANK == 0) Prop%Xmeanm = collect / dble(N)
     endif
-    call SYSTEM_CLOCK(COUNT = ICPU_2)
-    ticks_elapsed = ICPU_2 - ICPU_1
-    if (ticks_elapsed < 0_8) ticks_elapsed = ticks_elapsed + N_P_MAX + 1_8
-    CPUT = dble(ticks_elapsed) / dble(N_P_SEC)
+    wall_2 = MPI_WTIME()
+    CPUT = wall_2 - wall_1
     collect = 0.d0
     call MPI_Reduce(CPUT, collect, 1, MPI_Real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
     if (IRANK == 0) CPUT = collect / dble(ISIZE)
