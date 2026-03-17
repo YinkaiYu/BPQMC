@@ -26,6 +26,7 @@ module GlobalUpdate_mod
         procedure :: init => Global_init
         procedure :: clear => Global_clear
         procedure :: debug_eval => Global_debug_eval
+        procedure :: reset_diag => Global_reset_diag
         procedure, private :: reset => Global_reset
         procedure, private :: prepare_work => Global_prepare_work
         procedure, private :: ensure_state => Global_ensure_state
@@ -78,6 +79,7 @@ contains
 
         call Acc_HMC%init()
         call Acc_HMC_warm%init()
+        call this%reset_diag()
         return
     end subroutine Global_init
 
@@ -112,12 +114,18 @@ contains
 
         call Acc_HMC%reset()
         call Obs_equal_hmc%reset()
-        HMC_deltaH_sum = 0.d0
-        HMC_deltaH_absmax = 0.d0
-        HMC_deltaH_count = 0
         if (toggle) call Obs_tau_hmc%reset()
         return
     end subroutine Global_reset
+
+    subroutine Global_reset_diag(this)
+        class(GlobalUpdate), intent(inout) :: this
+
+        HMC_deltaH_sum = 0.d0
+        HMC_deltaH_absmax = 0.d0
+        HMC_deltaH_count = 0
+        return
+    end subroutine Global_reset_diag
 
     subroutine Global_prepare_work(this)
         class(GlobalUpdate), intent(inout) :: this

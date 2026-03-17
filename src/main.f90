@@ -52,6 +52,7 @@ program BPQMC
         if (IRANK == 0) write(50,*) "Skipping Bosonic warm-up"
     endif
 ! Sweep
+    if (is_global) call Sweep_global%reset_diag()
     if (.not. is_global .and. .not. is_warm) call Sweep_local%pre(Prop, WrList)
     is_beta = .true.; istau_tmp = .false.
     do nbc = 1, Nbin
