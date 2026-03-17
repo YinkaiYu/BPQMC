@@ -62,6 +62,10 @@ def parse_mass_grid(text: str) -> tuple[float, ...]:
     return tuple(float(item.strip()) for item in text.split(",") if item.strip())
 
 
+def parse_block_grid(text: str) -> tuple[int, ...]:
+    return tuple(int(item.strip()) for item in text.split(",") if item.strip())
+
+
 def format_u2_tag(value: float) -> str:
     return f"{value:.0e}".replace("+", "")
 
@@ -192,6 +196,7 @@ def run_tune(args: argparse.Namespace) -> int:
     configs = make_small_configs(args)
     grid = parse_grid(args.grid)
     masses = parse_mass_grid(args.hmc_mass_grid)
+    blocks = parse_block_grid(args.hmc_block_grid)
     binary = Path(args.binary).resolve()
     work_root = Path(args.work_root).resolve()
     work_root.mkdir(parents=True, exist_ok=True)
@@ -202,87 +207,101 @@ def run_tune(args: argparse.Namespace) -> int:
     for cfg in configs.values():
         print(f"[tune] case={cfg.name}")
         scan_rows = []
-        for mass in masses:
-            for nfrog, dt in grid:
-                print(f"  [candidate] nfrog={nfrog} dt={dt:.6g} jitter={args.hmc_jitter} mass={mass:g}")
-                rows_for_choice = []
-                for repeat in range(args.repeats):
-                    seed = args.seed_base + 1000 * repeat + 17 * nfrog + int(round(1.0e8 * dt)) + int(round(10 * mass))
-                    run_dir = (
-                        work_root
-                        / "runs"
-                        / cfg.name
-                        / f"nf{nfrog}_dt{format_dt_tag(dt)}_m{mass:g}_j{args.hmc_jitter}"
-                        / f"rep{repeat}"
+        for block_tau in blocks:
+            for mass in masses:
+                for nfrog, dt in grid:
+                    print(
+                        f"  [candidate] nfrog={nfrog} dt={dt:.6g} jitter={args.hmc_jitter} "
+                        f"mass={mass:g} block_tau={block_tau}"
                     )
-                    prepare_run_dir(
-                        run_dir,
-                        cfg,
-                        is_global=True,
-                        nfrog=nfrog,
-                        hmc_dt=dt,
-                        hmc_jitter=args.hmc_jitter,
-                        hmc_mass=mass,
-                        seed=seed,
-                        binary=binary,
-                        confin_from=case_confin_path(args.confin_root, cfg.name),
-                    )
-                    run_case(run_dir, np_ranks=args.np)
-                    info = parse_info_metrics(run_dir)
-                    values = read_scalar_series(run_dir, "doubleOcc")
-                    row = {
+                    rows_for_choice = []
+                    for repeat in range(args.repeats):
+                        seed = (
+                            args.seed_base
+                            + 1000 * repeat
+                            + 17 * nfrog
+                            + int(round(1.0e8 * dt))
+                            + int(round(10 * mass))
+                            + 7919 * block_tau
+                        )
+                        run_dir = (
+                            work_root
+                            / "runs"
+                            / cfg.name
+                            / f"nf{nfrog}_dt{format_dt_tag(dt)}_m{mass:g}_b{block_tau}_j{args.hmc_jitter}"
+                            / f"rep{repeat}"
+                        )
+                        prepare_run_dir(
+                            run_dir,
+                            cfg,
+                            is_global=True,
+                            nfrog=nfrog,
+                            hmc_dt=dt,
+                            hmc_jitter=args.hmc_jitter,
+                            hmc_mass=mass,
+                            hmc_block_tau=block_tau,
+                            seed=seed,
+                            binary=binary,
+                            confin_from=case_confin_path(args.confin_root, cfg.name),
+                        )
+                        run_case(run_dir, np_ranks=args.np)
+                        info = parse_info_metrics(run_dir)
+                        values = read_scalar_series(run_dir, "doubleOcc")
+                        row = {
+                            "name": cfg.name,
+                            "nfrog": nfrog,
+                            "hmc_dt": dt,
+                            "hmc_jitter": args.hmc_jitter,
+                            "hmc_mass": mass,
+                            "hmc_block_tau": block_tau,
+                            "repeat": repeat,
+                            "seed": seed,
+                            "acceptance": info["Accept_HMC"],
+                            "tau_int_doubleOcc": integrated_autocorr_time(values),
+                            "lag1_doubleOcc": lag1_autocorr(values),
+                            "ess_per_sec_doubleOcc": ess_per_second(values, info["Tot_CPU_time"]),
+                            "cpu_time": info["Tot_CPU_time"],
+                        }
+                        row["stuck"] = int(row["acceptance"] <= args.min_run_accept or row["ess_per_sec_doubleOcc"] <= 0.0)
+                        if "HMC_DeltaH_mean" in info:
+                            row["hmc_deltaH_mean"] = info["HMC_DeltaH_mean"]
+                        if "HMC_DeltaH_abs_max" in info:
+                            row["hmc_deltaH_abs_max"] = info["HMC_DeltaH_abs_max"]
+                        repeat_rows.append(row)
+                        rows_for_choice.append(row)
+                        print(
+                            "    [repeat] repeat={repeat} accept={accept:.3f} tau={tau:.3f} ess/sec={ess:.4g} cpu={cpu:.3f}".format(
+                                repeat=repeat,
+                                accept=row["acceptance"],
+                                tau=row["tau_int_doubleOcc"],
+                                ess=row["ess_per_sec_doubleOcc"],
+                                cpu=row["cpu_time"],
+                            )
+                        )
+                    summary = {
                         "name": cfg.name,
                         "nfrog": nfrog,
                         "hmc_dt": dt,
                         "hmc_jitter": args.hmc_jitter,
                         "hmc_mass": mass,
-                        "repeat": repeat,
-                        "seed": seed,
-                        "acceptance": info["Accept_HMC"],
-                        "tau_int_doubleOcc": integrated_autocorr_time(values),
-                        "lag1_doubleOcc": lag1_autocorr(values),
-                        "ess_per_sec_doubleOcc": ess_per_second(values, info["Tot_CPU_time"]),
-                        "cpu_time": info["Tot_CPU_time"],
+                        "hmc_block_tau": block_tau,
+                        "repeats": len(rows_for_choice),
+                        "stuck_repeats": sum(int(row["stuck"]) for row in rows_for_choice),
                     }
-                    row["stuck"] = int(row["acceptance"] <= args.min_run_accept or row["ess_per_sec_doubleOcc"] <= 0.0)
-                    if "HMC_DeltaH_mean" in info:
-                        row["hmc_deltaH_mean"] = info["HMC_DeltaH_mean"]
-                    if "HMC_DeltaH_abs_max" in info:
-                        row["hmc_deltaH_abs_max"] = info["HMC_DeltaH_abs_max"]
-                    repeat_rows.append(row)
-                    rows_for_choice.append(row)
+                    for key in ("acceptance", "tau_int_doubleOcc", "lag1_doubleOcc", "ess_per_sec_doubleOcc", "cpu_time"):
+                        values = [float(row[key]) for row in rows_for_choice]
+                        summary[f"{key}_mean"] = series_mean(values)
+                        summary[f"{key}_stderr"] = sample_stderr(values)
+                    scan_rows.append(summary)
+                    case_rows.append(summary)
                     print(
-                        "    [repeat] repeat={repeat} accept={accept:.3f} tau={tau:.3f} ess/sec={ess:.4g} cpu={cpu:.3f}".format(
-                            repeat=repeat,
-                            accept=row["acceptance"],
-                            tau=row["tau_int_doubleOcc"],
-                            ess=row["ess_per_sec_doubleOcc"],
-                            cpu=row["cpu_time"],
+                        "  [summary] accept={accept:.3f} tau={tau:.3f} ess/sec={ess:.4g} stuck={stuck}".format(
+                            accept=summary["acceptance_mean"],
+                            tau=summary["tau_int_doubleOcc_mean"],
+                            ess=summary["ess_per_sec_doubleOcc_mean"],
+                            stuck=summary["stuck_repeats"],
                         )
                     )
-                summary = {
-                    "name": cfg.name,
-                    "nfrog": nfrog,
-                    "hmc_dt": dt,
-                    "hmc_jitter": args.hmc_jitter,
-                    "hmc_mass": mass,
-                    "repeats": len(rows_for_choice),
-                    "stuck_repeats": sum(int(row["stuck"]) for row in rows_for_choice),
-                }
-                for key in ("acceptance", "tau_int_doubleOcc", "lag1_doubleOcc", "ess_per_sec_doubleOcc", "cpu_time"):
-                    values = [float(row[key]) for row in rows_for_choice]
-                    summary[f"{key}_mean"] = series_mean(values)
-                    summary[f"{key}_stderr"] = sample_stderr(values)
-                scan_rows.append(summary)
-                case_rows.append(summary)
-                print(
-                    "  [summary] accept={accept:.3f} tau={tau:.3f} ess/sec={ess:.4g} stuck={stuck}".format(
-                        accept=summary["acceptance_mean"],
-                        tau=summary["tau_int_doubleOcc_mean"],
-                        ess=summary["ess_per_sec_doubleOcc_mean"],
-                        stuck=summary["stuck_repeats"],
-                    )
-                )
         scan_rows.sort(
             key=lambda row: (
                 row["stuck_repeats"],
@@ -292,22 +311,31 @@ def run_tune(args: argparse.Namespace) -> int:
                 row["tau_int_doubleOcc_mean"],
                 -row["acceptance_mean"],
                 -row["ess_per_sec_doubleOcc_mean"],
+                row["hmc_block_tau"],
                 row["nfrog"] * row["hmc_dt"],
             )
         )
         cases.append({"name": cfg.name, "config": asdict(cfg), "rows": scan_rows, "recommended": scan_rows[0]})
         print(
-            "  [recommended] nfrog={nfrog} dt={dt:.6g} mass={mass:g} accept={accept:.3f} tau={tau:.3f} ess/sec={ess:.4g}".format(
+            "  [recommended] nfrog={nfrog} dt={dt:.6g} mass={mass:g} block_tau={block_tau} "
+            "accept={accept:.3f} tau={tau:.3f} ess/sec={ess:.4g}".format(
                 nfrog=scan_rows[0]["nfrog"],
                 dt=scan_rows[0]["hmc_dt"],
                 mass=scan_rows[0]["hmc_mass"],
+                block_tau=scan_rows[0]["hmc_block_tau"],
                 accept=scan_rows[0]["acceptance_mean"],
                 tau=scan_rows[0]["tau_int_doubleOcc_mean"],
                 ess=scan_rows[0]["ess_per_sec_doubleOcc_mean"],
             )
         )
 
-    summary = {"mode": "small_tune", "cases": cases, "grid": [{"nfrog": nfrog, "hmc_dt": dt} for nfrog, dt in grid], "masses": masses}
+    summary = {
+        "mode": "small_tune",
+        "cases": cases,
+        "grid": [{"nfrog": nfrog, "hmc_dt": dt} for nfrog, dt in grid],
+        "masses": masses,
+        "blocks": blocks,
+    }
     (work_root / "small_tune.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     write_csv(
         work_root / "small_tune.csv",
@@ -318,6 +346,7 @@ def run_tune(args: argparse.Namespace) -> int:
             "hmc_dt",
             "hmc_jitter",
             "hmc_mass",
+            "hmc_block_tau",
             "repeats",
             "stuck_repeats",
             "acceptance_mean",
@@ -341,6 +370,7 @@ def run_tune(args: argparse.Namespace) -> int:
             "hmc_dt",
             "hmc_jitter",
             "hmc_mass",
+            "hmc_block_tau",
             "repeat",
             "seed",
             "stuck",
@@ -359,6 +389,7 @@ def run_tune(args: argparse.Namespace) -> int:
             "hmc_dt": case["recommended"]["hmc_dt"],
             "hmc_jitter": case["recommended"]["hmc_jitter"],
             "hmc_mass": case["recommended"]["hmc_mass"],
+            "hmc_block_tau": case["recommended"]["hmc_block_tau"],
         }
         for case in cases
     }
@@ -385,7 +416,13 @@ def run_benchmark(args: argparse.Namespace) -> int:
         print(f"[benchmark] case={cfg.name}")
         hmc_params = tuned_map.get(
             cfg.name,
-            {"nfrog": args.hmc_nfrog, "hmc_dt": args.hmc_dt, "hmc_jitter": args.hmc_jitter, "hmc_mass": args.hmc_mass},
+            {
+                "nfrog": args.hmc_nfrog,
+                "hmc_dt": args.hmc_dt,
+                "hmc_jitter": args.hmc_jitter,
+                "hmc_mass": args.hmc_mass,
+                "hmc_block_tau": args.hmc_block_tau,
+            },
         )
         summary: dict[str, dict[str, list[float]]] = {"local": defaultdict(list), "hmc": defaultdict(list)}
         perf_rows: dict[str, list[dict[str, float]]] = {"local": [], "hmc": []}
@@ -406,6 +443,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                     hmc_dt=float(hmc_params["hmc_dt"]),
                     hmc_jitter=int(hmc_params.get("hmc_jitter", 0)) if is_global else 0,
                     hmc_mass=float(hmc_params.get("hmc_mass", 1.0)) if is_global else 1.0,
+                    hmc_block_tau=int(hmc_params.get("hmc_block_tau", 0)) if is_global else 0,
                     seed=seed,
                     binary=binary,
                     confin_from=case_confin_path(args.confin_root, cfg.name),
@@ -500,6 +538,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 "hmc_dt": hmc_params["hmc_dt"],
                 "hmc_jitter": hmc_params.get("hmc_jitter", 0),
                 "hmc_mass": hmc_params.get("hmc_mass", 1.0),
+                "hmc_block_tau": hmc_params.get("hmc_block_tau", 0),
                 "acceptance_mean": accept_mean,
                 "acceptance_stderr": accept_err,
                 "local_stuck_repeats": local_stuck_repeats,
@@ -548,6 +587,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
             "hmc_dt",
             "hmc_jitter",
             "hmc_mass",
+            "hmc_block_tau",
             "acceptance_mean",
             "acceptance_stderr",
             "local_stuck_repeats",
@@ -612,6 +652,7 @@ def build_parser() -> argparse.ArgumentParser:
     tune.add_argument("--grid", required=True, help="Comma-separated Nfrog:dt pairs.")
     tune.add_argument("--hmc-jitter", type=int, default=0)
     tune.add_argument("--hmc-mass-grid", default="1.0")
+    tune.add_argument("--hmc-block-grid", default="0")
     tune.add_argument("--repeats", type=int, default=2)
     tune.add_argument("--min-run-accept", type=float, default=0.05)
     tune.set_defaults(func=run_tune)
@@ -624,6 +665,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--hmc-dt", type=float, default=6.0e-5)
     bench.add_argument("--hmc-jitter", type=int, default=0)
     bench.add_argument("--hmc-mass", type=float, default=1.0)
+    bench.add_argument("--hmc-block-tau", type=int, default=0)
     bench.add_argument("--min-run-accept", type=float, default=0.0)
     bench.set_defaults(func=run_benchmark)
     return parser
