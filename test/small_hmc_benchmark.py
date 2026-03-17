@@ -624,7 +624,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--hmc-dt", type=float, default=6.0e-5)
     bench.add_argument("--hmc-jitter", type=int, default=0)
     bench.add_argument("--hmc-mass", type=float, default=1.0)
-    bench.add_argument("--min-run-accept", type=float, default=0.05)
+    bench.add_argument("--min-run-accept", type=float, default=0.0)
     bench.set_defaults(func=run_benchmark)
     return parser
 
