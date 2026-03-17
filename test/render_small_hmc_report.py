@@ -24,6 +24,7 @@ CURVE_OBSERVABLES = [
     "denden_Gamma",
 ]
 SERIES_OBSERVABLES = ["IPR", "kinetic", "doubleOcc", "nearestOcc", "SF_Gamma", "SF_K"]
+ZSCORE_OBSERVABLES = ["IPR", "kinetic", "doubleOcc", "nearestOcc", "SF_Gamma", "SF_K", "PF_Gamma", "C3_Gamma"]
 
 
 def load_summary(path: Path) -> dict:
@@ -98,6 +99,29 @@ def save_observable_curves(obs_df: pd.DataFrame, out_dir: Path) -> None:
         plt.close(fig)
 
 
+def save_zscore_panels(obs_df: pd.DataFrame, out_dir: Path) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for obs_name in ZSCORE_OBSERVABLES:
+        subset = obs_df[obs_df["observable"] == obs_name].copy()
+        if subset.empty:
+            continue
+        pivot = subset.pivot(index="Nbos", columns="U2", values="z_score").sort_index().sort_index(axis=1)
+        fig, ax = plt.subplots(figsize=(7, 3.5))
+        matrix = pivot.to_numpy(dtype=float)
+        im = ax.imshow(matrix, aspect="auto", cmap="magma")
+        ax.set_xticks(np.arange(pivot.shape[1]), [f"{value:g}" for value in pivot.columns])
+        ax.set_yticks(np.arange(pivot.shape[0]), [f"{value:g}" for value in pivot.index])
+        ax.set_xlabel("U2")
+        ax.set_ylabel("Nbos")
+        ax.set_title(f"{obs_name} z-score")
+        for (i, j), value in np.ndenumerate(matrix):
+            ax.text(j, i, f"{value:.2f}", ha="center", va="center", fontsize=8, color="white")
+        fig.colorbar(im, ax=ax, label="z-score")
+        fig.tight_layout()
+        fig.savefig(out_dir / f"{obs_name}_zscore.png", dpi=180)
+        plt.close(fig)
+
+
 def save_tune_panels(tune_df: pd.DataFrame, out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     for name, case_df in tune_df.groupby("name", sort=True):
@@ -125,15 +149,17 @@ def save_tune_panels(tune_df: pd.DataFrame, out_dir: Path) -> None:
 def save_sample_traces(samples_df: pd.DataFrame, out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     for (nbos, u2), case_df in samples_df.groupby(["Nbos", "U2"], sort=True):
+        thermal_cut = int(case_df["thermal_cut"].iloc[0])
         fig, axes = plt.subplots(len(SERIES_OBSERVABLES), 1, figsize=(10, 2.7 * len(SERIES_OBSERVABLES)), sharex=True, constrained_layout=True)
         for idx, obs_name in enumerate(SERIES_OBSERVABLES):
             ax = axes[idx]
             subset = case_df[case_df["observable"] == obs_name].sort_values(["mode", "sample_index"])
             for mode, mode_df in subset.groupby("mode"):
                 ax.plot(mode_df["sample_index"], mode_df["value"], label=mode.upper(), linewidth=1.1)
+            ax.axvline(thermal_cut, color="black", linestyle=":", linewidth=1.0)
             ax.set_ylabel(obs_name)
             ax.legend(fontsize=8, loc="best")
-        axes[-1].set_xlabel("sample index after thermal cut")
+        axes[-1].set_xlabel("sample index")
         fig.suptitle(f"Nbos={nbos}, U2={u2:g}")
         fig.savefig(out_dir / f"trace_N{nbos}_U2_{u2:g}.png", dpi=180)
         plt.close(fig)
@@ -179,6 +205,11 @@ def write_markdown(summary: dict, cases_df: pd.DataFrame, out_dir: Path, tune_di
         png = f"observables/{obs_name}_vs_u2.png"
         if (out_dir / png).exists():
             lines.extend([f"![{obs_name}]({png})", ""])
+    lines.extend(["### z-score heatmaps", ""])
+    for obs_name in ZSCORE_OBSERVABLES:
+        png = f"zscores/{obs_name}_zscore.png"
+        if (out_dir / png).exists():
+            lines.extend([f"![{obs_name} z-score]({png})", ""])
     if tune_dir is not None and any(tune_dir.glob("*_tune.png")):
         lines.extend(["### Tuning panels", ""])
         for png in sorted(tune_dir.glob("*_tune.png")):
@@ -217,6 +248,7 @@ def main() -> int:
     save_pass_matrix(cases_df, out_dir)
     save_acceptance_tau(cases_df, out_dir)
     save_observable_curves(obs_df, out_dir / "observables")
+    save_zscore_panels(obs_df, out_dir / "zscores")
     save_sample_traces(samples_df, out_dir / "traces")
     write_markdown(summary, cases_df, out_dir, tune_dir)
     return 0

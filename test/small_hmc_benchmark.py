@@ -137,14 +137,6 @@ def aggregate_perf(rows: list[dict[str, float]]) -> dict[str, float]:
     return {key: series_mean([row[key] for row in rows]) for key in keys}
 
 
-def thermal_cut_slice(values: list[float], thermal_cut: int) -> list[float]:
-    if thermal_cut <= 0:
-        return list(values)
-    if thermal_cut >= len(values):
-        return list(values[-1:]) if values else []
-    return values[thermal_cut:]
-
-
 def write_csv(path: Path, rows: list[dict[str, object]], fieldnames: list[str]) -> None:
     with path.open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=fieldnames)
@@ -396,13 +388,14 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 )
                 if repeat == 0:
                     for obs_name in SERIES_OBSERVABLES:
-                        values = thermal_cut_slice(load_series(run_dir, obs_name), cfg.nthermal)
+                        values = load_series(run_dir, obs_name)
                         for sample_idx, value in enumerate(values):
                             sample_rows.append(
                                 {
                                     "name": cfg.name,
                                     "Nbos": cfg.nbos,
                                     "U2": cfg.ru2,
+                                    "thermal_cut": cfg.nthermal,
                                     "mode": mode_name,
                                     "repeat": repeat,
                                     "observable": obs_name,
@@ -529,7 +522,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
     write_csv(
         work_root / "small_benchmark_samples.csv",
         sample_rows,
-        ["name", "Nbos", "U2", "mode", "repeat", "observable", "sample_index", "value"],
+        ["name", "Nbos", "U2", "thermal_cut", "mode", "repeat", "observable", "sample_index", "value"],
     )
     return 0 if overall_ok else 1
 
