@@ -307,6 +307,7 @@ contains
 
         nsteps = HMC_draw_nfrog(iseed)
         call this%leapfrog(action_new, nsteps, stage_id)
+        this%momentum = -this%momentum
         ham_new = 0.5d0 * sum(this%momentum * this%momentum) / hmc_mass + action_new
 
         delta_h = ham_old - ham_new
