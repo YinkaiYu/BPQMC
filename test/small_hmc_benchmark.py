@@ -205,6 +205,7 @@ def run_tune(args: argparse.Namespace) -> int:
                         "ess_per_sec_doubleOcc": ess_per_second(values, info["Tot_CPU_time"]),
                         "cpu_time": info["Tot_CPU_time"],
                     }
+                    row["stuck"] = int(row["acceptance"] <= args.min_run_accept or row["ess_per_sec_doubleOcc"] <= 0.0)
                     if "HMC_DeltaH_mean" in info:
                         row["hmc_deltaH_mean"] = info["HMC_DeltaH_mean"]
                     if "HMC_DeltaH_abs_max" in info:
@@ -218,6 +219,7 @@ def run_tune(args: argparse.Namespace) -> int:
                     "hmc_jitter": args.hmc_jitter,
                     "hmc_mass": mass,
                     "repeats": len(rows_for_choice),
+                    "stuck_repeats": sum(int(row["stuck"]) for row in rows_for_choice),
                 }
                 for key in ("acceptance", "tau_int_doubleOcc", "lag1_doubleOcc", "ess_per_sec_doubleOcc", "cpu_time"):
                     values = [float(row[key]) for row in rows_for_choice]
@@ -227,9 +229,13 @@ def run_tune(args: argparse.Namespace) -> int:
                 case_rows.append(summary)
         scan_rows.sort(
             key=lambda row: (
+                row["stuck_repeats"],
+                0 if row["acceptance_mean"] > args.min_run_accept else 1,
+                0 if row["ess_per_sec_doubleOcc_mean"] > 0.0 else 1,
                 abs(row["lag1_doubleOcc_mean"]),
                 row["tau_int_doubleOcc_mean"],
                 -row["acceptance_mean"],
+                -row["ess_per_sec_doubleOcc_mean"],
                 row["nfrog"] * row["hmc_dt"],
             )
         )
@@ -247,6 +253,7 @@ def run_tune(args: argparse.Namespace) -> int:
             "hmc_jitter",
             "hmc_mass",
             "repeats",
+            "stuck_repeats",
             "acceptance_mean",
             "acceptance_stderr",
             "tau_int_doubleOcc_mean",
@@ -270,6 +277,7 @@ def run_tune(args: argparse.Namespace) -> int:
             "hmc_mass",
             "repeat",
             "seed",
+            "stuck",
             "acceptance",
             "tau_int_doubleOcc",
             "lag1_doubleOcc",
@@ -316,6 +324,8 @@ def run_benchmark(args: argparse.Namespace) -> int:
         perf_rows: dict[str, list[dict[str, float]]] = {"local": [], "hmc": []}
         hmc_accept = []
         mode_runs: dict[str, list[dict[str, object]]] = {"local": [], "hmc": []}
+        local_stuck_repeats = 0
+        hmc_stuck_repeats = 0
 
         for repeat in range(args.repeats):
             seed = args.seed_base + 100 * repeat
@@ -341,6 +351,10 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 info = parse_info_metrics(run_dir)
                 if is_global:
                     hmc_accept.append(info["Accept_HMC"])
+                    if info["Accept_HMC"] <= args.min_run_accept or perf["ess_per_sec_doubleOcc"] <= 0.0:
+                        hmc_stuck_repeats += 1
+                elif perf["ess_per_sec_doubleOcc"] <= 0.0:
+                    local_stuck_repeats += 1
                 mode_runs[mode_name].append(
                     {
                         "repeat": repeat,
@@ -368,6 +382,8 @@ def run_benchmark(args: argparse.Namespace) -> int:
                             )
 
         ok, obs_rows = compare_mode_stats(summary)
+        if local_stuck_repeats > 0 or hmc_stuck_repeats > 0:
+            ok = False
         overall_ok = overall_ok and ok
         perf_summary = {mode: aggregate_perf(rows) for mode, rows in perf_rows.items()}
         accept_mean = series_mean(hmc_accept)
@@ -384,6 +400,8 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 "hmc": perf_summary["hmc"],
                 "speed_ratio_hmc_over_local": speed_ratio,
             },
+            "local_stuck_repeats": local_stuck_repeats,
+            "hmc_stuck_repeats": hmc_stuck_repeats,
             "runs": mode_runs,
             "observables": obs_rows,
             "passed": ok,
@@ -405,6 +423,8 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 "hmc_mass": hmc_params.get("hmc_mass", 1.0),
                 "acceptance_mean": accept_mean,
                 "acceptance_stderr": accept_err,
+                "local_stuck_repeats": local_stuck_repeats,
+                "hmc_stuck_repeats": hmc_stuck_repeats,
                 "local_tau_int_doubleOcc": perf_summary["local"]["tau_int_doubleOcc"],
                 "hmc_tau_int_doubleOcc": perf_summary["hmc"]["tau_int_doubleOcc"],
                 "local_ess_per_sec_doubleOcc": perf_summary["local"]["ess_per_sec_doubleOcc"],
@@ -441,6 +461,8 @@ def run_benchmark(args: argparse.Namespace) -> int:
             "hmc_mass",
             "acceptance_mean",
             "acceptance_stderr",
+            "local_stuck_repeats",
+            "hmc_stuck_repeats",
             "local_tau_int_doubleOcc",
             "hmc_tau_int_doubleOcc",
             "local_ess_per_sec_doubleOcc",
@@ -495,6 +517,7 @@ def build_parser() -> argparse.ArgumentParser:
     tune.add_argument("--hmc-jitter", type=int, default=0)
     tune.add_argument("--hmc-mass-grid", default="1.0")
     tune.add_argument("--repeats", type=int, default=2)
+    tune.add_argument("--min-run-accept", type=float, default=0.05)
     tune.set_defaults(func=run_tune)
 
     bench = subparsers.add_parser("benchmark", help="Run strict local-vs-HMC benchmarks for the L=6 triangular study.")
@@ -505,6 +528,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--hmc-dt", type=float, default=6.0e-5)
     bench.add_argument("--hmc-jitter", type=int, default=0)
     bench.add_argument("--hmc-mass", type=float, default=1.0)
+    bench.add_argument("--min-run-accept", type=float, default=0.05)
     bench.set_defaults(func=run_benchmark)
     return parser
 
