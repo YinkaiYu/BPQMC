@@ -249,7 +249,7 @@ def run_tune(args: argparse.Namespace) -> int:
             candidates.sort(key=lambda row: (-row["ess_per_sec_doubleOcc_mean"], row["tau_int_doubleOcc_mean"], row["nfrog"] * row["hmc_dt"]))
             best = candidates[0]
         else:
-            case_rows.sort(key=lambda row: (-row["ess_per_sec_doubleOcc_mean"], abs(row["acceptance_mean"] - 0.775)))
+            case_rows.sort(key=lambda row: (abs(row["acceptance_mean"] - 0.775), -row["ess_per_sec_doubleOcc_mean"], row["tau_int_doubleOcc_mean"]))
             best = case_rows[0]
         tuned_cases.append(
             {
