@@ -7,6 +7,7 @@ from pathlib import Path
 from hmc_tools import (
     DEFAULT_BINARY,
     default_parameter_sets,
+    ess_per_second,
     integrated_autocorr_time,
     lag1_autocorr,
     parse_info_metrics,
@@ -41,6 +42,7 @@ def main() -> int:
     parser.add_argument("--bins", type=int, default=32)
     parser.add_argument("--sweeps", type=int, default=6)
     parser.add_argument("--warm", type=int, default=8)
+    parser.add_argument("--jitter", type=int, default=0)
     parser.add_argument("--seed", type=int, default=314159)
     parser.add_argument("--work-root", default=str(Path("/tmp") / "bpqmc_tune"))
     parser.add_argument("--binary", default=str(DEFAULT_BINARY))
@@ -55,26 +57,40 @@ def main() -> int:
     rows = []
     for idx, (nfrog, dt) in enumerate(grid):
         run_dir = work_root / f"{cfg.name}_nf{nfrog}_dt{dt:.4f}".replace(".", "p")
-        prepare_run_dir(run_dir, cfg, is_global=True, nfrog=nfrog, hmc_dt=dt, seed=args.seed + 1000 * idx, binary=binary)
+        prepare_run_dir(
+            run_dir,
+            cfg,
+            is_global=True,
+            nfrog=nfrog,
+            hmc_dt=dt,
+            hmc_jitter=args.jitter,
+            seed=args.seed + 1000 * idx,
+            binary=binary,
+        )
         run_case(run_dir)
         info = parse_info_metrics(run_dir)
         acc = info["Accept_HMC"]
         double_occ = read_scalar_series(run_dir, "doubleOcc")
         tau_int = integrated_autocorr_time(double_occ)
         rho1 = lag1_autocorr(double_occ)
-        rows.append((nfrog, dt, acc, tau_int, rho1))
+        speed = ess_per_second(double_occ, info["Tot_CPU_time"])
+        rows.append((nfrog, dt, acc, tau_int, rho1, speed))
 
     print(f"# tuning set: {cfg.name}")
-    print("Nfrog dt acceptance tau_int(doubleOcc) lag1(doubleOcc)")
-    for nfrog, dt, acc, tau_int, rho1 in rows:
-        print(f"{nfrog:5d} {dt:7.4f} {acc:10.3f} {tau_int:18.3f} {rho1:16.3f}")
+    print(f"# jitter: {args.jitter}")
+    print("Nfrog dt acceptance tau_int(doubleOcc) lag1(doubleOcc) ess_per_sec")
+    for nfrog, dt, acc, tau_int, rho1, speed in rows:
+        print(f"{nfrog:5d} {dt:7.4f} {acc:10.3f} {tau_int:18.3f} {rho1:16.3f} {speed:12.3f}")
 
     candidates = [row for row in rows if 0.70 <= row[2] <= 0.85]
     if candidates:
-        candidates.sort(key=lambda row: (row[3], row[0] * row[1]))
+        candidates.sort(key=lambda row: (-row[5], row[3], row[0] * row[1]))
         best = candidates[0]
         print("\n# recommended candidate")
-        print(f"Nfrog={best[0]} dt={best[1]:.4f} acceptance={best[2]:.3f} tau_int={best[3]:.3f} lag1={best[4]:.3f}")
+        print(
+            f"Nfrog={best[0]} dt={best[1]:.4f} acceptance={best[2]:.3f} "
+            f"tau_int={best[3]:.3f} lag1={best[4]:.3f} ess_per_sec={best[5]:.3f}"
+        )
     else:
         print("\n# no candidate hit the target acceptance window [0.70, 0.85]")
 

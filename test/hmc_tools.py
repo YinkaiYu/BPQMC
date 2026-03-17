@@ -77,8 +77,9 @@ def default_parameter_sets() -> dict[str, RunConfig]:
             ltrot=8,
             beta=1.6,
             nwrap=2,
-            nbin=24,
-            nsweep=6,
+            nbin=400,
+            nsweep=8,
+            nthermal=200,
         ),
         "mixed_u1_u2": RunConfig(
             name="mixed_u1_u2",
@@ -91,8 +92,9 @@ def default_parameter_sets() -> dict[str, RunConfig]:
             ltrot=10,
             beta=2.0,
             nwrap=2,
-            nbin=24,
-            nsweep=6,
+            nbin=400,
+            nsweep=8,
+            nthermal=200,
         ),
         "strong_u2": RunConfig(
             name="strong_u2",
@@ -105,8 +107,39 @@ def default_parameter_sets() -> dict[str, RunConfig]:
             ltrot=12,
             beta=2.4,
             nwrap=3,
-            nbin=24,
-            nsweep=6,
+            nbin=400,
+            nsweep=8,
+            nthermal=200,
+        ),
+        "mixed_nbos3": RunConfig(
+            name="mixed_nbos3",
+            rt=1.0,
+            ru1=-0.4,
+            ru2=1.6,
+            nbos=3,
+            nlx=2,
+            nly=2,
+            ltrot=10,
+            beta=2.0,
+            nwrap=2,
+            nbin=400,
+            nsweep=8,
+            nthermal=200,
+        ),
+        "mixed_l3x2_nbos9": RunConfig(
+            name="mixed_l3x2_nbos9",
+            rt=1.0,
+            ru1=-0.4,
+            ru2=1.6,
+            nbos=9,
+            nlx=3,
+            nly=2,
+            ltrot=10,
+            beta=2.0,
+            nwrap=2,
+            nbin=2400,
+            nsweep=8,
+            nthermal=1200,
         ),
     }
 
@@ -115,7 +148,7 @@ def fortran_bool(value: bool) -> str:
     return ".true." if value else ".false."
 
 
-def write_param_file(path: Path, cfg: RunConfig, *, is_global: bool, nfrog: int, hmc_dt: float) -> None:
+def write_param_file(path: Path, cfg: RunConfig, *, is_global: bool, nfrog: int, hmc_dt: float, hmc_jitter: int = 0) -> None:
     nlx_therm, nly_therm, ltrot_therm = cfg.therm_dims()
     lines = [
         f"{cfg.rt} {cfg.ru1} {cfg.ru2} {cfg.nbos}",
@@ -124,7 +157,7 @@ def write_param_file(path: Path, cfg: RunConfig, *, is_global: bool, nfrog: int,
         f"{cfg.nwrap} {cfg.nbin} {cfg.nsweep} {cfg.shift_loc}",
         f"{fortran_bool(cfg.is_tau)} {cfg.nthermal}",
         f"{fortran_bool(cfg.is_warm)} {cfg.nwarm} {cfg.shift_warm_1} {cfg.shift_warm_2}",
-        f"{fortran_bool(is_global)} {nfrog} {hmc_dt}",
+        f"{fortran_bool(is_global)} {nfrog} {hmc_dt} {hmc_jitter}",
         f"{cfg.ini_type} {cfg.ini_ampl} {cfg.ini_bias_1} {cfg.ini_bias_2}",
         f"{cfg.ini_ham} {cfg.ini_twist} {cfg.imbalance}",
     ]
@@ -137,13 +170,13 @@ def write_seed_files(run_dir: Path, seed: int) -> None:
     (run_dir / "seeds.txt").write_text("\n".join(str(item) for item in seeds) + "\n", encoding="ascii")
 
 
-def prepare_run_dir(run_dir: Path, cfg: RunConfig, *, is_global: bool, nfrog: int, hmc_dt: float, seed: int, binary: Path = DEFAULT_BINARY) -> None:
+def prepare_run_dir(run_dir: Path, cfg: RunConfig, *, is_global: bool, nfrog: int, hmc_dt: float, seed: int, hmc_jitter: int = 0, binary: Path = DEFAULT_BINARY) -> None:
     if run_dir.exists():
         shutil.rmtree(run_dir)
     run_dir.mkdir(parents=True)
     shutil.copy2(binary, run_dir / "BPQMC.out")
     write_seed_files(run_dir, seed)
-    write_param_file(run_dir / "paramC_sets.txt", cfg, is_global=is_global, nfrog=nfrog, hmc_dt=hmc_dt)
+    write_param_file(run_dir / "paramC_sets.txt", cfg, is_global=is_global, nfrog=nfrog, hmc_dt=hmc_dt, hmc_jitter=hmc_jitter)
 
 
 def run_case(run_dir: Path, *, np_ranks: int = 1) -> None:
@@ -236,3 +269,14 @@ def integrated_autocorr_time(values: list[float], max_lag: int | None = None) ->
             break
         tau += rho
     return max(tau, 0.5)
+
+
+def effective_sample_size(values: list[float]) -> float:
+    tau = integrated_autocorr_time(values)
+    return len(values) / (2.0 * tau)
+
+
+def ess_per_second(values: list[float], total_cpu_time: float) -> float:
+    if total_cpu_time <= 0.0:
+        return 0.0
+    return effective_sample_size(values) / total_cpu_time

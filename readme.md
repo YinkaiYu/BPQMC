@@ -113,13 +113,14 @@ where the last overlap is computed from the normalized vectors kept in memory.
 The sampler is selected through the extra line in `test/paramC_sets.txt`:
 
 ```text
-is_global   Nfrog   hmc_dt
+is_global   Nfrog   hmc_dt   NfrogJitter
 ```
 
 - `is_global = .false.` keeps the local-update sampler.
 - `is_global = .true.` enables the HMC sampler.
-- `Nfrog` is the leapfrog step count.
+- `Nfrog` is the nominal leapfrog step count.
 - `hmc_dt` is the leapfrog step size.
+- `NfrogJitter` is the optional half-width for uniform trajectory-length randomization.  `0` keeps a fixed trajectory length; a positive value draws the actual leapfrog count uniformly from `max(1, Nfrog-NfrogJitter) ... Nfrog+NfrogJitter`.
 
 The local-update path still uses `shiftLoc`.  The HMC path ignores `shiftLoc` during production sweeps and uses the full HMC warm-up/sampling trajectory instead.
 
@@ -127,13 +128,28 @@ The local-update path still uses `shiftLoc`.  The HMC path ignores `shiftLoc` du
 
 The repository now includes two helper scripts under `test/`:
 
-- `python test/tune_hmc.py ...` scans `Nfrog` and `hmc_dt`, reports acceptance and autocorrelation estimates, and recommends candidates inside the target acceptance window when available.
-- `python test/benchmark_hmc.py ...` runs local-update and HMC jobs on the same parameter sets and compares the main scalar observables plus several representative momentum-point observables.
+- `python test/tune_hmc.py ...` scans `Nfrog` and `hmc_dt`, reports acceptance, autocorrelation, and `ESS/sec`, and recommends candidates inside the target acceptance window when available.  `--jitter` enables trajectory-length randomization during the scan.
+- `python test/benchmark_hmc.py ...` runs local-update and HMC jobs on the same parameter sets and compares the main scalar observables plus several representative momentum-point observables after a per-set thermal cut.  The default benchmark now uses a `2 sigma` combined-error criterion over independent repeats.
 
-Representative HMC candidates obtained from the offline scans in this repository are
+The default benchmark suites in `test/benchmark_hmc.py` use the following tuned HMC parameters:
 
-- `weak_u2`: `Nfrog = 8`, `hmc_dt = 0.010`
-- `mixed_u1_u2`: `Nfrog = 12`, `hmc_dt = 0.400`
-- `strong_u2`: `Nfrog = 10`, `hmc_dt = 0.004`
+- `weak_u2`: `Nfrog = 8`, `hmc_dt = 0.0098`, `NfrogJitter = 2`
+- `mixed_u1_u2`: `Nfrog = 12`, `hmc_dt = 0.400`, `NfrogJitter = 0`
+- `strong_u2`: `Nfrog = 24`, `hmc_dt = 0.0025`, `NfrogJitter = 0`
+- `mixed_nbos3`: `Nfrog = 12`, `hmc_dt = 0.450`, `NfrogJitter = 0`
+- `mixed_l3x2_nbos9`: `Nfrog = 12`, `hmc_dt = 0.450`, `NfrogJitter = 0`
 
-For the mixed-coupling case, longer trajectories were needed before HMC and local-update runs entered the same high-double-occupancy region.  In practice the benchmark scripts should be run with sufficiently long thermal cuts before comparing means.
+The benchmark defaults are intentionally long:
+
+- `weak_u2`, `mixed_u1_u2`, `strong_u2`, `mixed_nbos3`: `Nbin = 400`, `Nthermal = 200`
+- `mixed_l3x2_nbos9`: `Nbin = 2400`, `Nthermal = 1200`
+
+Representative `ESS/sec` ratios from the current benchmark run are
+
+- `weak_u2`: `0.11` (`HMC/local`)
+- `mixed_u1_u2`: `1.11`
+- `strong_u2`: `0.05`
+- `mixed_nbos3`: `0.96`
+- `mixed_l3x2_nbos9`: `0.88`
+
+In other words, the present HMC implementation is already faster than local updates in the mixed `U1/U2` regime, nearly break-even for `mixed_nbos3`, and still more expensive in wall-clock `ESS/sec` for the weak/strong `2x2` points and for the conservative `3x2` benchmark.  The optional trajectory-length jitter was added specifically to remove near-harmonic resonances that showed up in weak-coupling scans.

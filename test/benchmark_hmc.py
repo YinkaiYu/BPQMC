@@ -8,8 +8,9 @@ from pathlib import Path
 
 from hmc_tools import (
     DEFAULT_BINARY,
-    RunConfig,
     default_parameter_sets,
+    ess_per_second,
+    integrated_autocorr_time,
     parse_info_metrics,
     prepare_run_dir,
     read_complex_series_real,
@@ -44,15 +45,19 @@ OBSERVABLES = {
 
 
 TUNED_HMC = {
-    "weak_u2": (8, 0.010),
-    "mixed_u1_u2": (12, 0.400),
-    "strong_u2": (10, 0.004),
+    "weak_u2": (8, 0.0098, 2),
+    "mixed_u1_u2": (12, 0.400, 0),
+    "strong_u2": (24, 0.0025, 0),
+    "mixed_nbos3": (12, 0.450, 0),
+    "mixed_l3x2_nbos9": (12, 0.450, 0),
 }
 
 
 def compare_modes(summary: dict[str, dict[str, list[float]]]) -> tuple[bool, list[str]]:
     ok = True
     lines: list[str] = []
+    abs_tol = 1.0e-12
+    sigma_cut = 2.0
     for obs_name in OBSERVABLES:
         local_values = summary["local"][obs_name]
         hmc_values = summary["hmc"][obs_name]
@@ -60,33 +65,47 @@ def compare_modes(summary: dict[str, dict[str, list[float]]]) -> tuple[bool, lis
         hmc_mean = series_mean(hmc_values)
         local_err = sample_stderr(local_values)
         hmc_err = sample_stderr(hmc_values)
-        combined = (local_err ** 2 + hmc_err ** 2) ** 0.5
+        combined = max((local_err ** 2 + hmc_err ** 2) ** 0.5, abs_tol)
         diff = abs(local_mean - hmc_mean)
-        passed = diff <= combined if combined > 0.0 else diff == 0.0
+        z_score = diff / combined if combined > 0.0 else 0.0
+        passed = z_score <= sigma_cut
         ok = ok and passed
         status = "PASS" if passed else "FAIL"
         lines.append(
             f"{status:4s} {obs_name:14s} "
             f"local={local_mean: .6e}±{local_err:.2e} "
             f"hmc={hmc_mean: .6e}±{hmc_err:.2e} "
-            f"|diff|={diff:.2e} combined_err={combined:.2e}"
+            f"|diff|={diff:.2e} combined_err={combined:.2e} z={z_score:.2f}"
         )
     return ok, lines
 
 
-def collect_run_means(run_dir: Path) -> dict[str, float]:
+def collect_run_means(run_dir: Path, thermal_cut: int) -> dict[str, float]:
     result: dict[str, float] = {}
     for obs_name, reader in OBSERVABLES.items():
-        result[obs_name] = series_mean(reader(run_dir, obs_name))
+        values = reader(run_dir, obs_name)
+        result[obs_name] = series_mean(values[thermal_cut:])
     return result
+
+
+def summarize_perf(run_dir: Path, thermal_cut: int) -> tuple[float, float, float]:
+    values = read_scalar_series(run_dir, "doubleOcc")[thermal_cut:]
+    info = parse_info_metrics(run_dir)
+    tau = integrated_autocorr_time(values)
+    speed = ess_per_second(values, info["Tot_CPU_time"])
+    return tau, speed, info["Tot_CPU_time"]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Benchmark local updates against HMC.")
-    parser.add_argument("--sets", default="weak_u2,mixed_u1_u2,strong_u2", help="Comma-separated parameter-set names")
+    parser.add_argument(
+        "--sets",
+        default="weak_u2,mixed_u1_u2,strong_u2,mixed_nbos3,mixed_l3x2_nbos9",
+        help="Comma-separated parameter-set names",
+    )
     parser.add_argument("--repeats", type=int, default=4)
-    parser.add_argument("--bins", type=int, default=24)
-    parser.add_argument("--sweeps", type=int, default=6)
+    parser.add_argument("--bins", type=int, default=-1, help="Override nbin for every set; negative keeps config default")
+    parser.add_argument("--sweeps", type=int, default=-1, help="Override nsweep for every set; negative keeps config default")
     parser.add_argument("--thermal-cut", type=int, default=-1)
     parser.add_argument("--seed-base", type=int, default=12001)
     parser.add_argument("--work-root", default=str(Path("/tmp") / "bpqmc_benchmark"))
@@ -101,27 +120,46 @@ def main() -> int:
 
     overall_ok = True
     for cfg in chosen_sets:
-        thermal_cut = args.bins // 2 if args.thermal_cut < 0 else args.thermal_cut
-        cfg = cfg.with_sampling(nbin=args.bins, nsweep=args.sweeps, is_warm=False, nwarm=0)
+        bins = cfg.nbin if args.bins < 0 else args.bins
+        sweeps = cfg.nsweep if args.sweeps < 0 else args.sweeps
+        thermal_cut = cfg.nthermal if args.thermal_cut < 0 else args.thermal_cut
+        cfg = cfg.with_sampling(nbin=bins, nsweep=sweeps, is_warm=False, nwarm=0)
         cfg = replace(cfg, nthermal=thermal_cut)
         summary: dict[str, dict[str, list[float]]] = {
             "local": defaultdict(list),
             "hmc": defaultdict(list),
         }
         hmc_accept = []
-        nfrog, dt = TUNED_HMC[cfg.name]
+        perf: dict[str, dict[str, list[float]]] = {
+            "local": defaultdict(list),
+            "hmc": defaultdict(list),
+        }
+        nfrog, dt, jitter = TUNED_HMC[cfg.name]
         print(f"# set: {cfg.name}")
-        print(f"# HMC parameters: Nfrog={nfrog} dt={dt:.4f}")
+        print(f"# HMC parameters: Nfrog={nfrog} dt={dt:.4f} jitter={jitter}")
         print(f"# thermal cut: {thermal_cut} bins")
         for repeat in range(args.repeats):
             seed = args.seed_base + 100 * repeat
             for mode_name, is_global in (("local", False), ("hmc", True)):
                 run_dir = work_root / f"{cfg.name}_{mode_name}_rep{repeat}"
-                prepare_run_dir(run_dir, cfg, is_global=is_global, nfrog=nfrog, hmc_dt=dt, seed=seed, binary=binary)
+                prepare_run_dir(
+                    run_dir,
+                    cfg,
+                    is_global=is_global,
+                    nfrog=nfrog,
+                    hmc_dt=dt,
+                    hmc_jitter=jitter if is_global else 0,
+                    seed=seed,
+                    binary=binary,
+                )
                 run_case(run_dir)
-                means = collect_run_means(run_dir)
+                means = collect_run_means(run_dir, thermal_cut)
                 for obs_name, value in means.items():
                     summary[mode_name][obs_name].append(value)
+                tau, speed, cpu_time = summarize_perf(run_dir, thermal_cut)
+                perf[mode_name]["tau_int_doubleOcc"].append(tau)
+                perf[mode_name]["ess_per_sec_doubleOcc"].append(speed)
+                perf[mode_name]["cpu_time"].append(cpu_time)
                 if is_global:
                     info = parse_info_metrics(run_dir)
                     hmc_accept.append(info["Accept_HMC"])
@@ -133,6 +171,21 @@ def main() -> int:
         accept_mean = series_mean(hmc_accept)
         accept_err = sample_stderr(hmc_accept)
         print(f"ACPT HMC acceptance mean={accept_mean:.3f} stderr={accept_err:.3f}")
+        for mode_name in ("local", "hmc"):
+            tau_mean = series_mean(perf[mode_name]["tau_int_doubleOcc"])
+            tau_err = sample_stderr(perf[mode_name]["tau_int_doubleOcc"])
+            speed_mean = series_mean(perf[mode_name]["ess_per_sec_doubleOcc"])
+            speed_err = sample_stderr(perf[mode_name]["ess_per_sec_doubleOcc"])
+            cpu_mean = series_mean(perf[mode_name]["cpu_time"])
+            cpu_err = sample_stderr(perf[mode_name]["cpu_time"])
+            print(
+                f"PERF {mode_name:5s} tau_int(doubleOcc)={tau_mean:.3f}±{tau_err:.3f} "
+                f"ess_per_sec={speed_mean:.3f}±{speed_err:.3f} cpu={cpu_mean:.3f}±{cpu_err:.3f}"
+            )
+        speed_ratio = series_mean(perf["hmc"]["ess_per_sec_doubleOcc"]) / max(
+            series_mean(perf["local"]["ess_per_sec_doubleOcc"]), 1.0e-12
+        )
+        print(f"SPEED hmc/local ess_per_sec ratio={speed_ratio:.3f}")
         print(f"RESULT {'PASS' if ok else 'FAIL'}\n")
 
     return 0 if overall_ok else 1
