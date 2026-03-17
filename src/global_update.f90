@@ -29,6 +29,7 @@ module GlobalUpdate_mod
         procedure :: init => Global_init
         procedure :: clear => Global_clear
         procedure :: debug_eval => Global_debug_eval
+        procedure :: debug_roundtrip => Global_debug_roundtrip
         procedure :: reset_diag => Global_reset_diag
         procedure, private :: reset => Global_reset
         procedure, private :: prepare_work => Global_prepare_work
@@ -125,6 +126,42 @@ contains
         ok = .true.
         return
     end subroutine Global_debug_eval
+
+    subroutine Global_debug_roundtrip(this, iseed, nsteps, diff_phi, diff_momentum, diff_action)
+        class(GlobalUpdate), intent(inout) :: this
+        integer, intent(inout) :: iseed
+        integer, intent(in) :: nsteps
+        real(kind=8), intent(out) :: diff_phi, diff_momentum, diff_action
+        real(kind=8), allocatable :: phi_start(:,:,:), momentum_start(:,:,:)
+        real(kind=8) :: action_trial, action_start
+
+        call this%ensure_state()
+        allocate(phi_start(Naux, Ndim, Ltrot))
+        allocate(momentum_start(Naux, Ndim, Ltrot))
+
+        phi_start = Conf%phi_list
+        action_start = this%action_cur
+        call this%sample_momentum(iseed)
+        momentum_start = this%momentum
+
+        call this%leapfrog(action_trial, nsteps, -1)
+        this%action_cur = action_trial
+        this%state_ready = .true.
+        this%momentum = -this%momentum
+
+        call this%leapfrog(action_trial, nsteps, -2)
+        diff_phi = maxval(abs(Conf%phi_list - phi_start))
+        diff_momentum = maxval(abs(this%momentum + momentum_start))
+        diff_action = abs(action_trial - action_start)
+
+        Conf%phi_list = phi_start
+        call this%eval_state(this%action_cur, this%force_cur)
+        this%state_ready = .true.
+
+        deallocate(phi_start)
+        deallocate(momentum_start)
+        return
+    end subroutine Global_debug_roundtrip
 
     subroutine Global_reset(this, toggle)
         class(GlobalUpdate), intent(inout) :: this
