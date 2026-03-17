@@ -193,18 +193,20 @@ contains
             enddo
         enddo
 
-        do imj = 1, Lq
-            this%C3_corr(imj) = this%C3_corr(imj) + ( &
-                & 4*den_temp(imj,1,1) + 4*den_temp(imj,2,2) + 4*den_temp(imj,3,3) &
-                & - 2*den_temp(imj,1,2) - 2*den_temp(imj,2,1) &
-                & - 2*den_temp(imj,1,3) - 2*den_temp(imj,3,1) &
-                & - 2*den_temp(imj,2,3) - 2*den_temp(imj,3,2) ) / dcmplx(6.d0,0.d0)
-            this%C3_corr_up(imj) = this%C3_corr_up(imj) + ( &
-                & 4*den_temp_up(imj,1,1) + 4*den_temp_up(imj,2,2) + 4*den_temp_up(imj,3,3) &
-                & - 2*den_temp_up(imj,1,2) - 2*den_temp_up(imj,2,1) &
-                & - 2*den_temp_up(imj,1,3) - 2*den_temp_up(imj,3,1) &
-                & - 2*den_temp_up(imj,2,3) - 2*den_temp_up(imj,3,2) ) / dcmplx(6.d0,0.d0)
-        enddo
+        if (Norb >= 3) then
+            do imj = 1, Lq
+                this%C3_corr(imj) = this%C3_corr(imj) + ( &
+                    & 4*den_temp(imj,1,1) + 4*den_temp(imj,2,2) + 4*den_temp(imj,3,3) &
+                    & - 2*den_temp(imj,1,2) - 2*den_temp(imj,2,1) &
+                    & - 2*den_temp(imj,1,3) - 2*den_temp(imj,3,1) &
+                    & - 2*den_temp(imj,2,3) - 2*den_temp(imj,3,2) ) / dcmplx(6.d0,0.d0)
+                this%C3_corr_up(imj) = this%C3_corr_up(imj) + ( &
+                    & 4*den_temp_up(imj,1,1) + 4*den_temp_up(imj,2,2) + 4*den_temp_up(imj,3,3) &
+                    & - 2*den_temp_up(imj,1,2) - 2*den_temp_up(imj,2,1) &
+                    & - 2*den_temp_up(imj,1,3) - 2*den_temp_up(imj,3,1) &
+                    & - 2*den_temp_up(imj,2,3) - 2*den_temp_up(imj,3,2) ) / dcmplx(6.d0,0.d0)
+            enddo
+        endif
 
         do ii = 1, Ndim
             do nb = 1, Nbond
