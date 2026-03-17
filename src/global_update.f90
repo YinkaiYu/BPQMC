@@ -45,6 +45,9 @@ module GlobalUpdate_mod
     type(Dynamics) :: Dyn
     type(AccCounter) :: Acc_HMC, Acc_HMC_warm
     real(kind=8), parameter :: overlap_floor = 1.d-300
+    real(kind=8), save :: HMC_deltaH_sum = 0.d0
+    real(kind=8), save :: HMC_deltaH_absmax = 0.d0
+    integer, save :: HMC_deltaH_count = 0
 
 contains
     subroutine Global_init(this, Init_obj)
@@ -109,6 +112,9 @@ contains
 
         call Acc_HMC%reset()
         call Obs_equal_hmc%reset()
+        HMC_deltaH_sum = 0.d0
+        HMC_deltaH_absmax = 0.d0
+        HMC_deltaH_count = 0
         if (toggle) call Obs_tau_hmc%reset()
         return
     end subroutine Global_reset
@@ -219,6 +225,9 @@ contains
         ham_new = 0.5d0 * sum(this%momentum * this%momentum) + action_new
 
         delta_h = ham_old - ham_new
+        HMC_deltaH_sum = HMC_deltaH_sum + delta_h
+        HMC_deltaH_absmax = max(HMC_deltaH_absmax, abs(delta_h))
+        HMC_deltaH_count = HMC_deltaH_count + 1
         if (delta_h >= 0.d0) then
             ratio = 1.d0
         else
@@ -322,13 +331,24 @@ contains
     subroutine Global_control_print(toggle)
         include 'mpif.h'
         logical, intent(in) :: toggle
-        real(kind=8) :: collect
+        real(kind=8) :: collect, collect_sum, collect_absmax
+        integer :: collect_count
 
         collect = 0.d0
         call MPI_Reduce(Acc_HMC%acc, collect, 1, MPI_Real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
+        collect_sum = 0.d0
+        call MPI_Reduce(HMC_deltaH_sum, collect_sum, 1, MPI_Real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
+        collect_absmax = 0.d0
+        call MPI_Reduce(HMC_deltaH_absmax, collect_absmax, 1, MPI_Real8, MPI_MAX, 0, MPI_COMM_WORLD, IERR)
+        collect_count = 0
+        call MPI_Reduce(HMC_deltaH_count, collect_count, 1, MPI_Integer, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
         if (IRANK == 0) then
             Acc_HMC%acc = collect / dble(ISIZE * Nbin)
             write(50,*) 'Accept_HMC                                     :', Acc_HMC%acc
+            if (collect_count > 0) then
+                write(50,*) 'HMC DeltaH mean                                :', collect_sum / dble(collect_count)
+                write(50,*) 'HMC DeltaH abs max                             :', collect_absmax
+            endif
         endif
         if (toggle) call Dyn%ctrl_print()
         return
@@ -341,7 +361,11 @@ contains
         collect = 0.d0
         call MPI_Reduce(Acc_HMC_warm%acc, collect, 1, MPI_Real8, MPI_SUM, 0, MPI_COMM_WORLD, IERR)
         if (IRANK == 0) then
-            Acc_HMC_warm%acc = collect / dble(ISIZE * Nwarm)
+            if (Nwarm > 0) then
+                Acc_HMC_warm%acc = collect / dble(ISIZE * Nwarm)
+            else
+                Acc_HMC_warm%acc = 0.d0
+            endif
             write(50,*) 'Thermalize HMC Accept Ratio                    :', Acc_HMC_warm%acc
         endif
         return

@@ -129,7 +129,11 @@ contains
     
     subroutine Acc_calc_ratio(this)
         class(AccCounter), intent(inout) :: this
-        this%acc = this%acc + this%ACC_eff_up / this%NC_eff_up
+        if (this%NC_eff_up > 0.d0) then
+            this%acc = this%acc + this%ACC_eff_up / this%NC_eff_up
+        else
+            this%acc = this%acc + 0.d0
+        endif
         return
     end subroutine Acc_calc_ratio
 end module OperatorHubbard_mod
