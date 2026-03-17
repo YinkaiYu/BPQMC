@@ -164,9 +164,11 @@ def run_tune(args: argparse.Namespace) -> int:
     repeat_rows = []
     cases = []
     for cfg in configs.values():
+        print(f"[tune] case={cfg.name}")
         scan_rows = []
         for mass in masses:
             for nfrog, dt in grid:
+                print(f"  [candidate] nfrog={nfrog} dt={dt:.6g} jitter={args.hmc_jitter} mass={mass:g}")
                 rows_for_choice = []
                 for repeat in range(args.repeats):
                     seed = args.seed_base + 1000 * repeat + 17 * nfrog + int(round(1.0e8 * dt)) + int(round(10 * mass))
@@ -212,6 +214,15 @@ def run_tune(args: argparse.Namespace) -> int:
                         row["hmc_deltaH_abs_max"] = info["HMC_DeltaH_abs_max"]
                     repeat_rows.append(row)
                     rows_for_choice.append(row)
+                    print(
+                        "    [repeat] repeat={repeat} accept={accept:.3f} tau={tau:.3f} ess/sec={ess:.4g} cpu={cpu:.3f}".format(
+                            repeat=repeat,
+                            accept=row["acceptance"],
+                            tau=row["tau_int_doubleOcc"],
+                            ess=row["ess_per_sec_doubleOcc"],
+                            cpu=row["cpu_time"],
+                        )
+                    )
                 summary = {
                     "name": cfg.name,
                     "nfrog": nfrog,
@@ -227,6 +238,14 @@ def run_tune(args: argparse.Namespace) -> int:
                     summary[f"{key}_stderr"] = sample_stderr(values)
                 scan_rows.append(summary)
                 case_rows.append(summary)
+                print(
+                    "  [summary] accept={accept:.3f} tau={tau:.3f} ess/sec={ess:.4g} stuck={stuck}".format(
+                        accept=summary["acceptance_mean"],
+                        tau=summary["tau_int_doubleOcc_mean"],
+                        ess=summary["ess_per_sec_doubleOcc_mean"],
+                        stuck=summary["stuck_repeats"],
+                    )
+                )
         scan_rows.sort(
             key=lambda row: (
                 row["stuck_repeats"],
@@ -240,6 +259,16 @@ def run_tune(args: argparse.Namespace) -> int:
             )
         )
         cases.append({"name": cfg.name, "config": asdict(cfg), "rows": scan_rows, "recommended": scan_rows[0]})
+        print(
+            "  [recommended] nfrog={nfrog} dt={dt:.6g} mass={mass:g} accept={accept:.3f} tau={tau:.3f} ess/sec={ess:.4g}".format(
+                nfrog=scan_rows[0]["nfrog"],
+                dt=scan_rows[0]["hmc_dt"],
+                mass=scan_rows[0]["hmc_mass"],
+                accept=scan_rows[0]["acceptance_mean"],
+                tau=scan_rows[0]["tau_int_doubleOcc_mean"],
+                ess=scan_rows[0]["ess_per_sec_doubleOcc_mean"],
+            )
+        )
 
     summary = {"mode": "small_tune", "cases": cases, "grid": [{"nfrog": nfrog, "hmc_dt": dt} for nfrog, dt in grid], "masses": masses}
     (work_root / "small_tune.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
@@ -316,6 +345,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
     overall_ok = True
 
     for cfg in configs.values():
+        print(f"[benchmark] case={cfg.name}")
         hmc_params = tuned_map.get(
             cfg.name,
             {"nfrog": args.hmc_nfrog, "hmc_dt": args.hmc_dt, "hmc_jitter": args.hmc_jitter, "hmc_mass": args.hmc_mass},
@@ -380,6 +410,16 @@ def run_benchmark(args: argparse.Namespace) -> int:
                                     "value": value,
                                 }
                             )
+                print(
+                    "  [repeat] mode={mode} repeat={repeat} accept={accept} tau={tau:.3f} ess/sec={ess:.4g} cpu={cpu:.3f}".format(
+                        mode=mode_name,
+                        repeat=repeat,
+                        accept=f"{info['Accept_HMC']:.3f}" if is_global else "n/a",
+                        tau=perf["tau_int_doubleOcc"],
+                        ess=perf["ess_per_sec_doubleOcc"],
+                        cpu=perf["cpu_time"],
+                    )
+                )
 
         ok, obs_rows = compare_mode_stats(summary)
         if local_stuck_repeats > 0 or hmc_stuck_repeats > 0:
@@ -435,6 +475,16 @@ def run_benchmark(args: argparse.Namespace) -> int:
         )
         for row in obs_rows:
             observable_rows.append({"name": cfg.name, "Nbos": cfg.nbos, "U2": cfg.ru2, **row})
+        failing = [row["observable"] for row in obs_rows if not row["passed"]]
+        print(
+            "  [result] pass={passed} accept={accept:.3f} tau_local={tau_l:.3f} tau_hmc={tau_h:.3f} fail_obs={fail_obs}".format(
+                passed=ok,
+                accept=accept_mean,
+                tau_l=perf_summary["local"]["tau_int_doubleOcc"],
+                tau_h=perf_summary["hmc"]["tau_int_doubleOcc"],
+                fail_obs=",".join(failing) if failing else "none",
+            )
+        )
 
     summary = {
         "mode": "small_benchmark",
