@@ -101,6 +101,19 @@ def estimate_period_from_zero_cross(values: list[float], dt: float) -> tuple[flo
     return avg_steps, avg_steps * dt
 
 
+def linear_fit(xs: list[float], ys: list[float]) -> tuple[float, float] | None:
+    if len(xs) != len(ys) or len(xs) < 2:
+        return None
+    mean_x = sum(xs) / len(xs)
+    mean_y = sum(ys) / len(ys)
+    denom = sum((x - mean_x) ** 2 for x in xs)
+    if denom == 0.0:
+        return None
+    slope = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys)) / denom
+    intercept = mean_y - slope * mean_x
+    return intercept, slope
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Analyze a trajectory-level HMC trace.")
     parser.add_argument("trace", type=Path, help="Path to hmc_trace.dat")
@@ -125,6 +138,11 @@ def main() -> int:
 
     peaks = dominant_fft_periods(centered, args.top_k)
     zero_cross_period = estimate_period_from_zero_cross(centered, dt)
+    fit_result = None
+    if args.series in {"phi_f1", "phi_f2"}:
+        force_name = "force_f1" if args.series == "phi_f1" else "force_f2"
+        forces = [float(row[force_name]) for row in proposal_rows]
+        fit_result = linear_fit(values, forces)
 
     print(f"proposal={proposal} stage={stage} rows={len(proposal_rows)} nsteps={nsteps}")
     print(f"series={args.series} md_dt={dt:.16e}")
@@ -136,6 +154,16 @@ def main() -> int:
         steps, md_period = zero_cross_period
         print(f"zero_cross_period_steps={steps:.6f} zero_cross_period_md={md_period:.16e}")
         print(f"quarter_period_md={0.25 * md_period:.16e}")
+    if fit_result is not None:
+        intercept, slope = fit_result
+        print(f"force_fit: force = {intercept:.16e} + ({slope:.16e}) * phi")
+        if slope < 0.0:
+            k_eff = -slope
+            omega_eff = math.sqrt(k_eff)
+            period_eff = 2.0 * math.pi / omega_eff
+            print(f"k_eff={k_eff:.16e} omega_eff={omega_eff:.16e} period_eff_md={period_eff:.16e} quarter_eff_md={0.25 * period_eff:.16e}")
+        else:
+            print("k_eff: unavailable (non-restoring linear fit)")
     print("top_fft_peaks:")
     for amplitude, kfreq, period_steps in peaks:
         period_md = period_steps * dt
