@@ -7,6 +7,7 @@ module GlobalUpdate_mod
     use ObserEqual_mod
     use OperatorHubbard_mod, only: AccCounter, OperatorHubbard
     use Stabilize_mod
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     implicit none
 
     public
@@ -25,6 +26,7 @@ module GlobalUpdate_mod
         real(kind=8), dimension(:,:,:), allocatable, private :: phi_backup
         real(kind=8), private :: action_cur
         logical, private :: state_ready
+        integer, private :: ii_begin, ii_end
         integer, private :: tau_begin, tau_end
     contains
         procedure, public :: init => Global_init
@@ -37,11 +39,13 @@ module GlobalUpdate_mod
         procedure, private :: prepare_work => Global_prepare_work
         procedure, private :: ensure_state => Global_ensure_state
         procedure, private :: eval_state => Global_eval_state
+        procedure, private :: select_site_block => Global_select_site_block
         procedure, private :: select_tau_block => Global_select_tau_block
         procedure, private :: sample_momentum => Global_sample_momentum
         procedure, private :: leapfrog => Global_leapfrog
         procedure, private :: step => Global_step
         procedure, private :: measure_config => Global_measure_config
+        procedure, private :: check_equal_obs => Global_check_equal_obs
         procedure :: therm => Global_therm
         procedure :: sweep => Global_sweep
         procedure, nopass :: ctrl_print => Global_control_print
@@ -67,6 +71,7 @@ module GlobalUpdate_mod
     integer, save :: HMC_trace_proposal = 0
     integer, save :: HMC_trace_stage = 0
     integer, save :: HMC_trace_nsteps = 0
+    integer, save :: HMC_debug_measure = 0
 
 contains
     subroutine Global_init(this, Init_obj)
@@ -86,6 +91,8 @@ contains
         this%phi_backup = 0.d0
         this%action_cur = 0.d0
         this%state_ready = .false.
+        this%ii_begin = 1
+        this%ii_end = Ndim
         this%tau_begin = 1
         this%tau_end = Ltrot
 
@@ -100,6 +107,7 @@ contains
         call Acc_HMC%init()
         call Acc_HMC_warm%init()
         call this%reset_diag()
+        call HMC_read_env_int("BPQMC_HMC_DEBUG_MEASURE", HMC_debug_measure)
         call HMC_monitor_init()
         call HMC_trace_init()
         return
@@ -146,6 +154,7 @@ contains
 
         phi_start = Conf%phi_list
         action_start = this%action_cur
+        call this%select_site_block(iseed)
         call this%select_tau_block(iseed)
         call this%sample_momentum(iseed)
         momentum_start = this%momentum
@@ -175,12 +184,11 @@ contains
         integer :: nobs, nobst
 
         call Obs_equal_hmc%reset()
-        if (toggle .and. is_tau) call Obs_tau_hmc%reset()
-        nobs = 0
-        nobst = 0
-        call this%measure_config(toggle .and. is_tau, nobs, nobst)
+        if (toggle .and. is_tau .and. allocated(Obs_tau_hmc)) call Obs_tau_hmc%reset()
+        call this%measure_config(toggle .and. is_tau .and. allocated(Obs_tau_hmc), nobs, nobst)
         call Obs_equal_hmc%ave(nobs)
-        if (toggle .and. is_tau) call Obs_tau_hmc%ave(nobst)
+        call this%check_equal_obs('debug_measure_current', nobs, nobst, toggle)
+        if (toggle .and. is_tau .and. allocated(Obs_tau_hmc)) call Obs_tau_hmc%ave(nobst)
         return
     end subroutine Global_debug_measure_current
 
@@ -190,7 +198,7 @@ contains
 
         call Acc_HMC%reset()
         call Obs_equal_hmc%reset()
-        if (toggle) call Obs_tau_hmc%reset()
+        if (toggle .and. is_tau .and. allocated(Obs_tau_hmc)) call Obs_tau_hmc%reset()
         return
     end subroutine Global_reset
 
@@ -256,6 +264,29 @@ contains
         return
     end subroutine Global_eval_state
 
+    subroutine Global_select_site_block(this, iseed)
+        class(GlobalUpdate), intent(inout) :: this
+        integer, intent(inout) :: iseed
+        integer :: span
+
+        if (Ndim <= 0) then
+            this%ii_begin = 1
+            this%ii_end = 0
+            return
+        endif
+
+        if (hmc_block_sites <= 0 .or. hmc_block_sites >= Ndim) then
+            this%ii_begin = 1
+            this%ii_end = Ndim
+            return
+        endif
+
+        span = Ndim - hmc_block_sites + 1
+        this%ii_begin = nranf(iseed, span)
+        this%ii_end = this%ii_begin + hmc_block_sites - 1
+        return
+    end subroutine Global_select_site_block
+
     subroutine Global_select_tau_block(this, iseed)
         class(GlobalUpdate), intent(inout) :: this
         integer, intent(inout) :: iseed
@@ -289,7 +320,7 @@ contains
         this%momentum = 0.d0
 
         do nt = this%tau_begin, this%tau_end
-            do ii = 1, Ndim
+            do ii = this%ii_begin, this%ii_end
                 do nf = 1, Naux
                     this%momentum(nf, ii, nt) = sigma_p * HMC_rng_gaussian(iseed)
                 enddo
@@ -302,28 +333,48 @@ contains
         class(GlobalUpdate), intent(inout) :: this
         real(kind=8), intent(out) :: action_new
         integer, intent(in) :: nsteps, stage_id
-        integer :: nlf
+        integer :: nlf, nt, ii, nf
 
-        if (this%tau_begin <= this%tau_end) then
-            this%momentum(:,:,this%tau_begin:this%tau_end) = this%momentum(:,:,this%tau_begin:this%tau_end) + &
-                0.5d0 * hmc_dt * this%force_cur(:,:,this%tau_begin:this%tau_end)
+        if (this%ii_begin <= this%ii_end .and. this%tau_begin <= this%tau_end) then
+            do nt = this%tau_begin, this%tau_end
+                do ii = this%ii_begin, this%ii_end
+                    do nf = 1, Naux
+                        this%momentum(nf, ii, nt) = this%momentum(nf, ii, nt) + 0.5d0 * hmc_dt * this%force_cur(nf, ii, nt)
+                    enddo
+                enddo
+            enddo
         endif
         call HMC_trace_begin(stage_id, nsteps, this%action_cur, this%momentum, this%force_cur)
         do nlf = 1, nsteps
-            if (this%tau_begin <= this%tau_end) then
-                Conf%phi_list(:,:,this%tau_begin:this%tau_end) = Conf%phi_list(:,:,this%tau_begin:this%tau_end) + &
-                    (hmc_dt / hmc_mass) * this%momentum(:,:,this%tau_begin:this%tau_end)
+            if (this%ii_begin <= this%ii_end .and. this%tau_begin <= this%tau_end) then
+                do nt = this%tau_begin, this%tau_end
+                    do ii = this%ii_begin, this%ii_end
+                        do nf = 1, Naux
+                            Conf%phi_list(nf, ii, nt) = Conf%phi_list(nf, ii, nt) + (hmc_dt / hmc_mass) * this%momentum(nf, ii, nt)
+                        enddo
+                    enddo
+                enddo
             endif
             call this%eval_state(action_new, this%force_cur)
             if (nlf == nsteps) then
-                if (this%tau_begin <= this%tau_end) then
-                    this%momentum(:,:,this%tau_begin:this%tau_end) = this%momentum(:,:,this%tau_begin:this%tau_end) + &
-                        0.5d0 * hmc_dt * this%force_cur(:,:,this%tau_begin:this%tau_end)
+                if (this%ii_begin <= this%ii_end .and. this%tau_begin <= this%tau_end) then
+                    do nt = this%tau_begin, this%tau_end
+                        do ii = this%ii_begin, this%ii_end
+                            do nf = 1, Naux
+                                this%momentum(nf, ii, nt) = this%momentum(nf, ii, nt) + 0.5d0 * hmc_dt * this%force_cur(nf, ii, nt)
+                            enddo
+                        enddo
+                    enddo
                 endif
             else
-                if (this%tau_begin <= this%tau_end) then
-                    this%momentum(:,:,this%tau_begin:this%tau_end) = this%momentum(:,:,this%tau_begin:this%tau_end) + &
-                        hmc_dt * this%force_cur(:,:,this%tau_begin:this%tau_end)
+                if (this%ii_begin <= this%ii_end .and. this%tau_begin <= this%tau_end) then
+                    do nt = this%tau_begin, this%tau_end
+                        do ii = this%ii_begin, this%ii_end
+                            do nf = 1, Naux
+                                this%momentum(nf, ii, nt) = this%momentum(nf, ii, nt) + hmc_dt * this%force_cur(nf, ii, nt)
+                            enddo
+                        enddo
+                    enddo
                 endif
             endif
             call HMC_trace_step(nlf, action_new, this%momentum, this%force_cur)
@@ -343,6 +394,7 @@ contains
 
         call this%ensure_state()
         this%phi_backup = Conf%phi_list
+        call this%select_site_block(iseed)
         call this%select_tau_block(iseed)
         call this%sample_momentum(iseed)
         ham_old = 0.5d0 * sum(this%momentum * this%momentum) / hmc_mass + this%action_cur
@@ -350,6 +402,15 @@ contains
         nsteps = HMC_draw_nfrog(iseed)
         call this%leapfrog(action_new, nsteps, stage_id)
         ham_new = 0.5d0 * sum(this%momentum * this%momentum) / hmc_mass + action_new
+        if (.not. ieee_is_finite(this%action_cur) .or. .not. ieee_is_finite(action_new) .or. &
+            .not. ieee_is_finite(ham_old) .or. .not. ieee_is_finite(ham_new)) then
+            write(6,*) 'Non-finite HMC energy detected at rank=', IRANK
+            write(6,*) '  action_cur=', this%action_cur, ' action_new=', action_new
+            write(6,*) '  ham_old=', ham_old, ' ham_new=', ham_new
+            write(6,*) '  block sites=', this%ii_begin, this%ii_end, ' block tau=', this%tau_begin, this%tau_end
+            write(6,*) '  nsteps=', nsteps, ' hmc_dt=', hmc_dt, ' hmc_mass=', hmc_mass
+            stop 1
+        endif
 
         delta_h = ham_old - ham_new
         HMC_deltaH_sum = HMC_deltaH_sum + delta_h
@@ -395,9 +456,14 @@ contains
     subroutine Global_measure_config(this, toggle, Nobs, Nobst)
         class(GlobalUpdate), intent(inout) :: this
         logical, intent(in) :: toggle
-        integer, intent(inout) :: Nobs, Nobst
+        integer, intent(out) :: Nobs, Nobst
         integer :: nt
 
+        Nobs = 0
+        Nobst = 0
+        if (HMC_debug_measure > 0 .and. IRANK == 0) then
+            write(6,*) 'Global_measure_config start: Nobs=', Nobs, ' Nobst=', Nobst, ' Ltrot=', Ltrot
+        endif
         call this%prepare_work()
         if (Ltrot == 0) then
             call Obs_equal_hmc%calc(this%prop_work, 0)
@@ -413,15 +479,51 @@ contains
         enddo
 
         call HMC_measure_sweep_L(this%prop_work, this%wr_work, Nobs)
-        if (toggle) then
+        if (HMC_debug_measure > 0 .and. IRANK == 0) then
+            write(6,*) 'Global_measure_config after sweep_L: Nobs=', Nobs
+        endif
+        if (toggle .and. is_tau .and. allocated(Obs_tau_hmc)) then
             call HMC_set_overlap(this%prop_work)
             call Dyn%reset(this%prop_work)
             call Dyn%sweep_R(Obs_tau_hmc, this%wr_work)
             Nobst = Nobst + 1
         endif
         call HMC_measure_sweep_R(this%prop_work, this%wr_work, Nobs)
+        if (HMC_debug_measure > 0 .and. IRANK == 0) then
+            write(6,*) 'Global_measure_config after sweep_R: Nobs=', Nobs, ' Nobst=', Nobst
+        endif
         return
     end subroutine Global_measure_config
+
+    subroutine Global_check_equal_obs(this, stage, Nobs, Nobst, toggle)
+        class(GlobalUpdate), intent(in) :: this
+        character(len=*), intent(in) :: stage
+        integer, intent(in) :: Nobs, Nobst
+        logical, intent(in) :: toggle
+
+        if (Nobs <= 0) then
+            write(6,*) 'Global_check_equal_obs: no equal-time samples in stage ', trim(stage)
+            write(6,*) '  Nobs=', Nobs, ' Nobst=', Nobst, ' Nsweep=', Nsweep, ' toggle=', toggle
+            write(6,*) '  block sites=', this%ii_begin, this%ii_end, ' block tau=', this%tau_begin, this%tau_end
+            stop 1
+        endif
+        if (.not. ieee_is_finite(Obs_equal_hmc%density_up) .or. .not. ieee_is_finite(Obs_equal_hmc%density_do) .or. &
+            .not. ieee_is_finite(Obs_equal_hmc%kinetic) .or. .not. ieee_is_finite(Obs_equal_hmc%doubleOcc) .or. &
+            .not. ieee_is_finite(Obs_equal_hmc%squareOcc) .or. .not. ieee_is_finite(Obs_equal_hmc%IPR) .or. &
+            .not. ieee_is_finite(Obs_equal_hmc%nearestOcc) .or. .not. ieee_is_finite(Obs_equal_hmc%num_up) .or. &
+            .not. ieee_is_finite(Obs_equal_hmc%num_do) .or. .not. ieee_is_finite(Obs_equal_hmc%numsquare_up) .or. &
+            .not. ieee_is_finite(Obs_equal_hmc%numsquare_do)) then
+            write(6,*) 'Global_check_equal_obs: non-finite equal-time scalar in stage ', trim(stage)
+            write(6,*) '  Nobs=', Nobs, ' Nobst=', Nobst, ' toggle=', toggle
+            write(6,*) '  density_up=', Obs_equal_hmc%density_up, ' density_do=', Obs_equal_hmc%density_do
+            write(6,*) '  kinetic=', Obs_equal_hmc%kinetic, ' doubleOcc=', Obs_equal_hmc%doubleOcc
+            write(6,*) '  squareOcc=', Obs_equal_hmc%squareOcc, ' IPR=', Obs_equal_hmc%IPR
+            write(6,*) '  nearestOcc=', Obs_equal_hmc%nearestOcc
+            write(6,*) '  block sites=', this%ii_begin, this%ii_end, ' block tau=', this%tau_begin, this%tau_end
+            stop 1
+        endif
+        return
+    end subroutine Global_check_equal_obs
 
     subroutine Global_therm(this, iseed)
         class(GlobalUpdate), intent(inout) :: this
@@ -440,18 +542,30 @@ contains
         integer, intent(inout) :: iseed
         logical, intent(inout) :: is_beta
         logical, intent(in) :: toggle
-        integer :: Nobs, Nobst, nsw
+        integer :: Nobs, Nobst, nobs_cfg, nobst_cfg, nsw
 
         call this%reset(toggle)
         Nobs = 0
         Nobst = 0
         do nsw = 1, Nsweep
+            if (HMC_debug_measure > 0 .and. IRANK == 0) then
+                write(6,*) 'Global_sweep before step: sweep=', nsw, ' Nobs=', Nobs, ' Nobst=', Nobst
+            endif
             call this%step(iseed, Acc_HMC, 1)
-            call this%measure_config(toggle, Nobs, Nobst)
+            if (HMC_debug_measure > 0 .and. IRANK == 0) then
+                write(6,*) 'Global_sweep after step: sweep=', nsw, ' Nobs=', Nobs, ' Nobst=', Nobst
+            endif
+            call this%measure_config(toggle, nobs_cfg, nobst_cfg)
+            Nobs = Nobs + nobs_cfg
+            Nobst = Nobst + nobst_cfg
+            if (HMC_debug_measure > 0 .and. IRANK == 0) then
+                write(6,*) 'Global_sweep after measure: sweep=', nsw, ' Nobs=', Nobs, ' Nobst=', Nobst
+            endif
         enddo
 
         call Obs_equal_hmc%ave(Nobs)
-        if (toggle) call Obs_tau_hmc%ave(Nobst)
+        call this%check_equal_obs('global_sweep', Nobs, Nobst, toggle)
+        if (toggle .and. is_tau .and. allocated(Obs_tau_hmc)) call Obs_tau_hmc%ave(Nobst)
         call Acc_HMC%ratio()
         return
     end subroutine Global_sweep
@@ -478,7 +592,7 @@ contains
                 write(50,*) 'HMC DeltaH abs max                             :', collect_absmax
             endif
         endif
-        if (toggle) call Dyn%ctrl_print()
+        if (toggle .and. is_tau) call Dyn%ctrl_print()
         return
     end subroutine Global_control_print
 
@@ -531,9 +645,15 @@ contains
         do nt = Ltrot, 1, -1
             if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_L(Prop, WrList, nt, "M")
             if (nt == Ltrot/2) then
+                if (HMC_debug_measure > 0 .and. IRANK == 0) then
+                    write(6,*) 'HMC_measure_sweep_L hit ntau=', nt, ' Nobs before=', Nobs
+                endif
                 call HMC_set_overlap(Prop)
                 call Obs_equal_hmc%calc(Prop, nt)
                 Nobs = Nobs + 1
+                if (HMC_debug_measure > 0 .and. IRANK == 0) then
+                    write(6,*) 'HMC_measure_sweep_L after calc: Nobs=', Nobs, ' doubleOcc=', Obs_equal_hmc%doubleOcc
+                endif
             endif
             call propT_L(Prop)
             if (abs(RU2) > Zero) call propU_L(Op_U2, Prop, 2, nt)
@@ -554,9 +674,15 @@ contains
             call propT_R(Prop)
             if (mod(nt, Nwrap) == 0 .or. nt == Ltrot) call Wrap_R(Prop, WrList, nt, "M")
             if (nt == Ltrot/2) then
+                if (HMC_debug_measure > 0 .and. IRANK == 0) then
+                    write(6,*) 'HMC_measure_sweep_R hit ntau=', nt, ' Nobs before=', Nobs
+                endif
                 call HMC_set_overlap(Prop)
                 call Obs_equal_hmc%calc(Prop, nt)
                 Nobs = Nobs + 1
+                if (HMC_debug_measure > 0 .and. IRANK == 0) then
+                    write(6,*) 'HMC_measure_sweep_R after calc: Nobs=', Nobs, ' doubleOcc=', Obs_equal_hmc%doubleOcc
+                endif
             endif
         enddo
         return

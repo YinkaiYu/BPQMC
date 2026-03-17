@@ -1,6 +1,7 @@
 module ObserEqual_mod
     use ProcessMatrix
     use DQMC_Model_mod
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     implicit none
     
     type, public :: ObserEqual
@@ -64,6 +65,10 @@ contains
         class(ObserEqual), intent(inout) :: this
         integer, intent(in) :: Nobs
         real(kind=8) :: znorm
+        if (Nobs <= 0) then
+            write(6,*) 'Obs_equal_ave: Nobs must be positive, got', Nobs
+            stop 1
+        endif
         znorm = 1.d0 / dble(Nobs)
         this%den_corr_up = this%den_corr_up * znorm
         this%den_corr_do = this%den_corr_do * znorm
@@ -85,6 +90,18 @@ contains
         this%num_do      = this%num_do * znorm
         this%numsquare_up = this%numsquare_up * znorm
         this%numsquare_do = this%numsquare_do * znorm
+        if (.not. ieee_is_finite(this%density_up) .or. .not. ieee_is_finite(this%density_do) .or. &
+            .not. ieee_is_finite(this%kinetic) .or. .not. ieee_is_finite(this%doubleOcc) .or. &
+            .not. ieee_is_finite(this%squareOcc) .or. .not. ieee_is_finite(this%IPR) .or. &
+            .not. ieee_is_finite(this%nearestOcc) .or. .not. ieee_is_finite(this%num_up) .or. &
+            .not. ieee_is_finite(this%num_do) .or. .not. ieee_is_finite(this%numsquare_up) .or. &
+            .not. ieee_is_finite(this%numsquare_do)) then
+            write(6,*) 'Obs_equal_ave: non-finite scalar detected after averaging with Nobs=', Nobs
+            write(6,*) '  density_up=', this%density_up, ' density_do=', this%density_do
+            write(6,*) '  kinetic=', this%kinetic, ' doubleOcc=', this%doubleOcc
+            write(6,*) '  squareOcc=', this%squareOcc, ' IPR=', this%IPR, ' nearestOcc=', this%nearestOcc
+            stop 1
+        endif
         return
     end subroutine Obs_equal_ave
     

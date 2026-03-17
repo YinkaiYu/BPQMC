@@ -30,6 +30,7 @@ module CalcBasic ! Global parameters
     real(kind=8),           public              :: hmc_dt
     real(kind=8),           public              :: hmc_mass
     integer,                public              :: hmc_block_tau
+    integer,                public              :: hmc_block_sites
 ! initial state parameters
     integer,                public              :: iniType ! type of initial phonon field configuration
     real(kind=8),           public              :: iniAmpl ! Gaussian amplitude of initial phonon fields
@@ -72,16 +73,25 @@ contains
             NfrogJitter = 0
             hmc_mass = 1.d0
             hmc_block_tau = 0
-            read(hmc_line, *, iostat=ios_hmc) is_global, Nfrog, hmc_dt, NfrogJitter, hmc_mass, hmc_block_tau
+            hmc_block_sites = 0
+            read(hmc_line, *, iostat=ios_hmc) is_global, Nfrog, hmc_dt, NfrogJitter, hmc_mass, hmc_block_tau, hmc_block_sites
+            if (ios_hmc /= 0) then
+                read(hmc_line, *, iostat=ios_hmc) is_global, Nfrog, hmc_dt, NfrogJitter, hmc_mass, hmc_block_tau
+                if (ios_hmc == 0) hmc_block_sites = 0
+            endif
             if (ios_hmc /= 0) then
                 read(hmc_line, *, iostat=ios_hmc) is_global, Nfrog, hmc_dt, NfrogJitter, hmc_mass
-                if (ios_hmc == 0) hmc_block_tau = 0
+                if (ios_hmc == 0) then
+                    hmc_block_tau = 0
+                    hmc_block_sites = 0
+                endif
             endif
             if (ios_hmc /= 0) then
                 read(hmc_line, *, iostat=ios_hmc) is_global, Nfrog, hmc_dt, NfrogJitter
                 if (ios_hmc == 0) then
                     hmc_mass = 1.d0
                     hmc_block_tau = 0
+                    hmc_block_sites = 0
                 endif
             endif
             if (ios_hmc /= 0) then
@@ -90,6 +100,7 @@ contains
                     NfrogJitter = 0
                     hmc_mass = 1.d0
                     hmc_block_tau = 0
+                    hmc_block_sites = 0
                 endif
             endif
             if (ios_hmc /= 0) then
@@ -114,6 +125,7 @@ contains
         call MPI_BCAST(hmc_dt, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_mass, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_block_tau, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(hmc_block_sites, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(shiftWarm, Naux, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(iniAmpl, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(iniBias, Naux, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
@@ -177,6 +189,12 @@ contains
             endif
             if (hmc_block_tau > Ltrot) then
                 write(6,*) "hmc_block_tau cannot exceed Ltrot in HMC mode"; stop
+            endif
+            if (hmc_block_sites < 0) then
+                write(6,*) "hmc_block_sites must be non-negative in HMC mode"; stop
+            endif
+            if (hmc_block_sites > Ndim) then
+                write(6,*) "hmc_block_sites cannot exceed Ndim in HMC mode"; stop
             endif
         endif
         if (Ltrot <= 0) then
@@ -315,6 +333,7 @@ contains
                 write(50,*) 'Leapfrog step size                             :', hmc_dt
                 write(50,*) 'Leapfrog mass                                  :', hmc_mass
                 write(50,*) 'HMC tau block size                             :', hmc_block_tau
+                write(50,*) 'HMC site block size                            :', hmc_block_sites
             else
                 write(50,*) 'Sampler                                        :', 'Local'
                 write(50,*) 'Local update auxiliary field magnitude Shift   :', shiftLoc
