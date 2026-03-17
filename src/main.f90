@@ -35,11 +35,12 @@ program BPQMC
     endif
 ! boson warm-up
     if (is_warm) then
+        if (.not. is_global) call Sweep_local%pre(Prop, WrList)
         do nth = 1, Nwarm
             if (is_global) then
                 call Sweep_global%therm(iseed)
             else
-                call Sweep_local%therm(iseed)
+                call Sweep_local%therm(Prop, WrList, iseed)
             endif
         enddo
         if (is_global) then
@@ -51,7 +52,7 @@ program BPQMC
         if (IRANK == 0) write(50,*) "Skipping Bosonic warm-up"
     endif
 ! Sweep
-    if (.not. is_global) call Sweep_local%pre(Prop, WrList)
+    if (.not. is_global .and. .not. is_warm) call Sweep_local%pre(Prop, WrList)
     is_beta = .true.; istau_tmp = .false.
     do nbc = 1, Nbin
         if (nbc .gt. Nthermal) istau_tmp = is_tau

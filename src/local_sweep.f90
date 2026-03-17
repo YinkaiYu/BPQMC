@@ -63,17 +63,33 @@ contains
         return
     end subroutine Local_sweep_reset
     
-    subroutine Local_sweep_therm(this, iseed)
+    subroutine Local_sweep_therm(this, Prop, WrList, iseed)
         class(LocalSweep), intent(inout) :: this
+        class(Propagator), intent(inout) :: Prop
+        class(WrapList), intent(inout) :: WrList
         integer, intent(inout) :: iseed
-        integer :: ii, nt
+        integer :: Nobs, Nobst
+        real(kind=8) :: old_acc_u1, old_acc_u2
+
         call this%reset(.false.)
-        do nt = 1, Ltrot
-            if (abs(RU1) > Zero) call LocalU_prop_therm(Op_U1, iseed, 1, nt)
-            if (abs(RU2) > Zero) call LocalU_prop_therm(Op_U2, iseed, 2, nt)
-        enddo
-        if (abs(RU1) > Zero) call Op_U1%Acc_U_therm%ratio()
-        if (abs(RU2) > Zero) call Op_U2%Acc_U_therm%ratio()
+        Nobs = 0
+        Nobst = 0
+        old_acc_u1 = Op_U1%Acc_U_local%acc
+        old_acc_u2 = Op_U2%Acc_U_local%acc
+        if (Ltrot > 0) then
+            call this%sweep_L(Prop, WrList, iseed, Nobs)
+            call this%sweep_R(Prop, WrList, iseed, .false., Nobs, Nobst)
+        endif
+        if (abs(RU1) > Zero) then
+            call Op_U1%Acc_U_local%ratio()
+            Op_U1%Acc_U_therm%acc = Op_U1%Acc_U_therm%acc + (Op_U1%Acc_U_local%acc - old_acc_u1)
+            Op_U1%Acc_U_local%acc = old_acc_u1
+        endif
+        if (abs(RU2) > Zero) then
+            call Op_U2%Acc_U_local%ratio()
+            Op_U2%Acc_U_therm%acc = Op_U2%Acc_U_therm%acc + (Op_U2%Acc_U_local%acc - old_acc_u2)
+            Op_U2%Acc_U_local%acc = old_acc_u2
+        endif
         return
     end subroutine Local_sweep_therm
     
