@@ -318,6 +318,17 @@ def collect_stage_case(
     for repeat in range(args.repeats):
         seed = args.seed_base + case_index * args.seed_step + repeat * args.repeat_seed_step
         run_dir = Path(args.work_root).resolve() / "runs" / cfg.name / f"hmc_rep{repeat}"
+        print(
+            "  [{mode}] repeat={repeat} seed={seed} nfrog={nfrog} dt={dt:.6g} mass={mass:g}".format(
+                mode="run" if execute else "reuse",
+                repeat=repeat,
+                seed=seed,
+                nfrog=nfrog,
+                dt=hmc_dt,
+                mass=hmc_mass,
+            ),
+            flush=True,
+        )
         if execute:
             prepare_run_dir(
                 run_dir,
@@ -448,11 +459,16 @@ def run_tune(args: argparse.Namespace) -> int:
     for cfg in configs.values():
         cfg = cfg.with_sampling(is_warm=args.warm > 0, nwarm=max(args.warm, 0))
         case_rows = []
+        print(f"[tune] case={cfg.name} mass={args.hmc_mass:g} jitter={args.hmc_jitter}", flush=True)
         for idx, (nfrog, dt) in enumerate(grid):
             repeat_rows = []
             for repeat in range(args.repeats):
                 seed = args.seed_base + args.seed_step * idx + args.repeat_seed_step * repeat
                 run_dir = work_root / "runs" / cfg.name / f"nf{nfrog}_dt{format_dt_tag(dt)}" / f"rep{repeat}"
+                print(
+                    f"  [run] nfrog={nfrog} dt={dt:g} repeat={repeat} seed={seed}",
+                    flush=True,
+                )
                 prepare_run_dir(
                     run_dir,
                     cfg,
@@ -494,16 +510,28 @@ def run_tune(args: argparse.Namespace) -> int:
             csv_rows.append(summary_row)
 
         healthy_rows = [row for row in case_rows if row["stuck_repeats"] == 0]
-        candidates = [row for row in healthy_rows if args.accept_min <= row["acceptance_mean"] <= args.accept_max]
-        if candidates:
-            candidates.sort(key=lambda row: (-row["ess_per_sec_doubleOcc_mean"], row["tau_int_doubleOcc_mean"], row["nfrog"] * row["hmc_dt"]))
-            best = candidates[0]
-        elif healthy_rows:
-            healthy_rows.sort(key=lambda row: (abs(row["acceptance_mean"] - 0.775), -row["ess_per_sec_doubleOcc_mean"], row["tau_int_doubleOcc_mean"]))
-            best = healthy_rows[0]
-        else:
-            case_rows.sort(key=lambda row: (row["stuck_repeats"], abs(row["acceptance_mean"] - 0.775), -row["ess_per_sec_doubleOcc_mean"], row["tau_int_doubleOcc_mean"]))
-            best = case_rows[0]
+        candidates = healthy_rows if healthy_rows else case_rows
+        candidates.sort(
+            key=lambda row: (
+                row["stuck_repeats"],
+                -row["ess_per_sec_doubleOcc_mean"],
+                row["tau_int_doubleOcc_mean"],
+                0 if args.accept_min <= row["acceptance_mean"] <= args.accept_max else 1,
+                abs(row["acceptance_mean"] - 0.80),
+                row["nfrog"] * row["hmc_dt"],
+            )
+        )
+        best = candidates[0]
+        print(
+            "  [recommended] nfrog={nfrog} dt={dt:.6g} acc={acc:.3f} tau={tau:.3f} ess={ess:.3f}".format(
+                nfrog=int(best["nfrog"]),
+                dt=float(best["hmc_dt"]),
+                acc=float(best["acceptance_mean"]),
+                tau=float(best["tau_int_doubleOcc_mean"]),
+                ess=float(best["ess_per_sec_doubleOcc_mean"]),
+            ),
+            flush=True,
+        )
         tuned_cases.append(
             {
                 "name": cfg.name,
@@ -742,6 +770,10 @@ def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
     sample_rows: list[dict[str, object]] = []
 
     for case_index, cfg in enumerate(configs.values()):
+        print(
+            f"[{'stage' if execute else 'collect'}] case={cfg.name}",
+            flush=True,
+        )
         case_summary, case_row_list, case_obs_rows, row_bundle = collect_stage_case(
             cfg,
             args,
