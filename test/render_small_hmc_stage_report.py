@@ -70,8 +70,8 @@ def save_observable_curves(cases: pd.DataFrame, observables: pd.DataFrame, out_d
         obs_df = merged[merged["observable"] == obs_name].sort_values(["Nbos", "U2"])
         if obs_df.empty:
             continue
-        fig, ax = plt.subplots(figsize=(8.5, 5.0))
         for nbos, group in obs_df.groupby("Nbos"):
+            fig, ax = plt.subplots(figsize=(7.6, 4.8))
             color = color_map[nbos]
             ax.errorbar(
                 group["U2"],
@@ -79,7 +79,7 @@ def save_observable_curves(cases: pd.DataFrame, observables: pd.DataFrame, out_d
                 yerr=group["local_err"],
                 marker="o",
                 linestyle="-",
-                label=f"Local N={int(nbos)}",
+                label="Local",
                 color=color,
             )
             ax.errorbar(
@@ -88,19 +88,20 @@ def save_observable_curves(cases: pd.DataFrame, observables: pd.DataFrame, out_d
                 yerr=group["hmc_err"],
                 marker="s",
                 linestyle="--",
-                label=f"HMC N={int(nbos)}",
+                label="HMC",
                 color=color,
+                alpha=0.95,
             )
-        ax.set_xscale("log")
-        ax.set_xlabel("U2")
-        ax.set_ylabel(obs_name)
-        ax.set_title(f"{obs_name} vs U2")
-        ax.legend(ncol=2, fontsize=9)
-        fig.tight_layout()
-        filename = f"observable_{obs_name}.png"
-        fig.savefig(out_dir / filename, dpi=180)
-        plt.close(fig)
-        saved.append(filename)
+            ax.set_xscale("log")
+            ax.set_xlabel("U2")
+            ax.set_ylabel(obs_name)
+            ax.set_title(f"{obs_name} vs U2, Nbos={int(nbos)}")
+            ax.legend()
+            fig.tight_layout()
+            filename = f"observable_{obs_name}_n{int(nbos)}.png"
+            fig.savefig(out_dir / filename, dpi=180)
+            plt.close(fig)
+            saved.append(filename)
     return saved
 
 
@@ -196,15 +197,37 @@ def write_markdown(
     out_dir: Path,
 ) -> None:
     passed = int(cases["passed"].sum())
+    lattice_values = sorted(cases["name"].str.split("_").str[0].unique())
+    l_values = ", ".join(str(int(value)) for value in sorted(cases["L"].unique()))
+    beta_values = ", ".join(f"{value:g}" for value in sorted(cases["beta"].unique()))
+    dtau_values = ", ".join(f"{value:g}" for value in sorted(cases["dtau"].unique()))
+    nbos_values = ", ".join(str(int(value)) for value in sorted(cases["Nbos"].unique()))
+    u2_values = ", ".join(f"{value:g}" for value in sorted(cases["U2"].unique()))
+    overview_cases = cases.sort_values(["Nbos", "U2"])
     lines = [
         "# Small Triangular HMC Stage Report",
         "",
         f"Health points passed: `{passed}/{len(cases)}`",
         "",
+        "## Campaign Parameters",
+        "",
+        f"- Lattice: `{', '.join(lattice_values)}`",
+        f"- `L`: `{l_values}`",
+        f"- `beta`: `{beta_values}`",
+        f"- `dtau`: `{dtau_values}`",
+        f"- `U1`: `0`",
+        f"- `Nbos` covered in this stage report: `{nbos_values}`",
+        f"- `U2` covered in this stage report: `{u2_values}`",
+        "",
+        "This report only aggregates strict local-vs-HMC benchmark directories that already passed the current health criterion.",
+        "Acceptance is shown as a diagnostic, but the actual health criterion is agreement of post-cut observable means within the combined statistical error bars.",
+        "",
+        "## Case Summary",
+        "",
         "| Case | Acceptance | tau_local | tau_hmc | ESS/sec local | ESS/sec HMC | Speed ratio | Result |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
-    for row in cases.sort_values(["Nbos", "U2"]).itertuples():
+    for row in overview_cases.itertuples():
         lines.append(
             "| {name} | {acc:.3f} | {tau_l:.3f} | {tau_h:.3f} | {ess_l:.3f} | {ess_h:.3f} | {ratio:.3f} | {result} |".format(
                 name=row.name,
@@ -228,6 +251,11 @@ def write_markdown(
             "",
             "## Overview",
             "",
+            "The top panel shows the mean HMC acceptance for each strict health point.",
+            "The middle panel compares the integrated autocorrelation time of `doubleOcc`; smaller is better.",
+            "The bottom panel compares `ESS/sec`; larger is better.",
+            "At this stage, the main purpose of these three panels is to separate correctness from efficiency: a point can be correct even when HMC is slower than local.",
+            "",
             "![overview](overview.png)",
             "",
             "## Observable Curves",
@@ -236,16 +264,39 @@ def write_markdown(
     )
     for filename in observable_figs:
         lines.extend([f"![{filename}]({filename})", ""])
-    lines.extend(["## Thermalization Traces", ""])
+    lines.extend(
+        [
+            "Each observable figure now fixes one `Nbos` and compares only the two samplers on the same axes.",
+            "This avoids the scale-compression problem that happens when different `Nbos` values are mixed in one panel.",
+            "",
+            "## Thermalization Traces",
+            "",
+            "Each trace figure overlays the local and HMC sample histories for one strict benchmark case.",
+            "The vertical dotted line marks the thermal cut used when computing the benchmark means and error bars.",
+            "",
+        ]
+    )
     for filename in trace_figs:
         lines.extend([f"![{filename}]({filename})", ""])
     if tune_figs:
-        lines.extend(["## Tuning Evidence", ""])
+        lines.extend(
+            [
+                "## Tuning Evidence",
+                "",
+                "Each tuning panel corresponds to one physical point.",
+                "Every marker is one HMC candidate from the short warm=0 scan.",
+                "The x-axis is the MD trajectory length `Nfrog * dt`; changing this moves the proposal across different fractions of the effective auxiliary-field oscillation period.",
+                "The left panel is acceptance, the middle panel is `tau_int(doubleOcc)`, and the right panel is `ESS/sec(doubleOcc)`.",
+                "Mass values are shown both by color and by the text annotations next to the markers.",
+                "These plots are meant to show why a candidate was chosen before the long strict benchmark was launched.",
+                "",
+            ]
+        )
         for filename in tune_figs:
             lines.extend([f"![{filename}]({filename})", ""])
         if tune_df is not None:
             lines.extend([""])
-            for row in cases.sort_values(["Nbos", "U2"]).itertuples():
+            for row in overview_cases.itertuples():
                 case_tune = tune_df[tune_df["name"] == row.name].copy()
                 if case_tune.empty:
                     continue
