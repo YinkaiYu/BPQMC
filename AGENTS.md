@@ -135,6 +135,8 @@
 - Current staged small-benchmark reports live under `data/triangular_hmc_small_benchmark/stage_report_*`.
 - The current staged checkpoint used during development is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
 - `test/small_hmc_stage_report.ipynb` now exposes both `NBOS_SELECT` and `TRACE_REPEAT` for interactive slicing of the rendered staged report.
+- `HMC-REFERENCE.md` is the running handoff note for validated health points, unresolved slow modes,
+  tuning heuristics, and production/HPC-oriented lessons.
 
 ## Preferred Commit Granularity
 - Commit source changes in small, reviewable chunks.
