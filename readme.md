@@ -263,7 +263,7 @@ cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
   data/triangular_hmc_small_benchmark/strict_healthy_n100_u1e0_v1 \
   data/triangular_hmc_small_benchmark/strict_healthy_n1000_u1em1_v1 \
   --tune-csv data/triangular_hmc_small_benchmark/full_global_tune_grid_v2/small_tune.csv \
-  --output-dir data/triangular_hmc_small_benchmark/stage_report_v5a
+  --output-dir data/triangular_hmc_small_benchmark/stage_report_v6a
 ```
 
 This writes:
@@ -285,6 +285,7 @@ For notebook-based review of the rendered report, open:
 The notebook reads the CSV and PNG files from a rendered report directory. Set `REPORT_DIR` inside the notebook before running its cells.
 `stage_samples.csv` now stores the key observable traces for every repeat, not only `repeat=0`, so you can do repeated thermal-cut checks directly inside the notebook or in a post-processing script.
 The notebook exposes both `NBOS_SELECT` and `TRACE_REPEAT`, which lets you inspect one particle-number slice and one benchmark repeat without regenerating the report.
+The current staged checkpoint with 9 strict-passing health points is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
 
 ### Production Tune Workflow
 

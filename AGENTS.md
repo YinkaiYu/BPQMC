@@ -133,7 +133,7 @@
   - `tune_*.png`
   - `report.md`
 - Current staged small-benchmark reports live under `data/triangular_hmc_small_benchmark/stage_report_*`.
-- The current staged checkpoint used during development is `data/triangular_hmc_small_benchmark/stage_report_v5a`.
+- The current staged checkpoint used during development is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
 - `test/small_hmc_stage_report.ipynb` now exposes both `NBOS_SELECT` and `TRACE_REPEAT` for interactive slicing of the rendered staged report.
 
 ## Preferred Commit Granularity
