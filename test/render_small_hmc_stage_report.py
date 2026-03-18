@@ -32,7 +32,12 @@ def load_tables(bench_roots: list[Path]) -> tuple[pd.DataFrame, pd.DataFrame, pd
         cases.append(case_df)
         observables.append(obs_df)
         samples.append(sample_df)
-    return pd.concat(cases, ignore_index=True), pd.concat(observables, ignore_index=True), pd.concat(samples, ignore_index=True)
+    case_df = pd.concat(cases, ignore_index=True)
+    obs_df = pd.concat(observables, ignore_index=True)
+    sample_df = pd.concat(samples, ignore_index=True)
+    repeat_counts = sample_df.groupby("case_id")["repeat"].nunique().rename("num_repeats").reset_index()
+    case_df = case_df.merge(repeat_counts, on="case_id", how="left")
+    return case_df, obs_df, sample_df
 
 
 def save_overview(cases: pd.DataFrame, out_dir: Path) -> None:
@@ -250,15 +255,16 @@ def write_markdown(
         )
     lines.extend(
         [
-            "| Case | Acceptance | tau_local | tau_hmc | ESS/sec local | ESS/sec HMC | Speed ratio | Result |",
-            "| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+            "| Case | Repeats | Acceptance | tau_local | tau_hmc | ESS/sec local | ESS/sec HMC | Speed ratio | Result |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
         ]
     )
     for row in overview_cases.itertuples():
         lines.append(
-            "| {name} ({root}) | {acc:.3f} | {tau_l:.3f} | {tau_h:.3f} | {ess_l:.3f} | {ess_h:.3f} | {ratio:.3f} | {result} |".format(
+            "| {name} ({root}) | {repeats} | {acc:.3f} | {tau_l:.3f} | {tau_h:.3f} | {ess_l:.3f} | {ess_h:.3f} | {ratio:.3f} | {result} |".format(
                 name=row.name,
                 root=Path(row.benchmark_root).name,
+                repeats=int(row.num_repeats),
                 acc=row.acceptance_mean,
                 tau_l=row.local_tau_int_doubleOcc,
                 tau_h=row.hmc_tau_int_doubleOcc,
@@ -297,6 +303,14 @@ def write_markdown(
         case_obs = observables[observables["case_id"] == row.case_id].copy()
         fail_df = case_obs[~case_obs["passed"]].sort_values("z_score", ascending=False)
         lines.extend([f"### {row.name} ({Path(row.benchmark_root).name})", ""])
+        if int(row.num_repeats) < 2:
+            lines.extend(
+                [
+                    "This is a single-repeat probe. Its trace plots are still useful,",
+                    "but the reported standard errors and z-scores are not reliable strict-benchmark statistics.",
+                    "",
+                ]
+            )
         if fail_df.empty:
             lines.extend(["All tracked observables pass the current strict benchmark criterion.", ""])
             continue
