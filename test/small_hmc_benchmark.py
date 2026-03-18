@@ -497,23 +497,22 @@ def run_benchmark(args: argparse.Namespace) -> int:
                         "info": info,
                     }
                 )
-                if repeat == 0:
-                    for obs_name in SERIES_OBSERVABLES:
-                        values = load_series(run_dir, obs_name)
-                        for sample_idx, value in enumerate(values):
-                            sample_rows.append(
-                                {
-                                    "name": cfg.name,
-                                    "Nbos": cfg.nbos,
-                                    "U2": cfg.ru2,
-                                    "thermal_cut": cfg.nthermal,
-                                    "mode": mode_name,
-                                    "repeat": repeat,
-                                    "observable": obs_name,
-                                    "sample_index": sample_idx,
-                                    "value": value,
-                                }
-                            )
+                for obs_name in SERIES_OBSERVABLES:
+                    values = load_series(run_dir, obs_name)
+                    for sample_idx, value in enumerate(values):
+                        sample_rows.append(
+                            {
+                                "name": cfg.name,
+                                "Nbos": cfg.nbos,
+                                "U2": cfg.ru2,
+                                "thermal_cut": cfg.nthermal,
+                                "mode": mode_name,
+                                "repeat": repeat,
+                                "observable": obs_name,
+                                "sample_index": sample_idx,
+                                "value": value,
+                            }
+                        )
                 print(
                     "  [repeat] mode={mode} repeat={repeat} accept={accept} tau={tau:.3f} ess/sec={ess:.4g} cpu={cpu:.3f}".format(
                         mode=mode_name,
