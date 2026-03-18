@@ -4,9 +4,14 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import sys
 from collections import defaultdict
 from dataclasses import asdict
 from pathlib import Path
+
+TEST_ROOT = Path(__file__).resolve().parents[1]
+if str(TEST_ROOT) not in sys.path:
+    sys.path.insert(0, str(TEST_ROOT))
 
 from hmc_tools import (
     DEFAULT_BINARY,

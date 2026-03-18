@@ -7,10 +7,10 @@ import sys
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DATA_ROOT = ROOT / "data" / "triangular_hmc_small_benchmark"
 ARCHIVE_ROOT = DATA_ROOT / "archive_20260319"
-RENDER_SCRIPT = ROOT / "test" / "render_small_hmc_stage_report.py"
+RENDER_SCRIPT = Path(__file__).resolve().with_name("render_small_hmc_stage_report.py")
 
 DEFAULT_CASE_ROOTS = (
     "strict_healthy_n10_u1em2_v2",

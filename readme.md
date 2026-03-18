@@ -24,6 +24,10 @@ cp ../src/BPQMC.out .
 mpirun -np 1 ./BPQMC.out
 ```
 
+The cleaned `test/` layout is documented in `test/README.md`.
+Top-level `test/` is now reserved for active production/HPC workflows; archived
+small-benchmark tools live under `test/archive_small_benchmark/`.
+
 Run a triangular-lattice HMC smoke test in a fresh temporary directory:
 
 ```bash
@@ -155,22 +159,22 @@ cd src && make FFLAGS='-O0 -g -traceback -check all -fpe0 -c -I/home/yyk/Lib_90_
 
 ## Sampling and Benchmarks
 
-### Development Tune Scan
+### Archived Development Tune Scan
 
-Scan HMC parameters on the built-in development sets:
+The old development-only tune helper is still available as an archived reference:
 
 ```bash
 cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
-python3 test/tune_hmc.py --set triangular_weak_u2 --grid '8:0.01,10:0.012,12:0.015' --bins 80 --sweeps 4 --warm 20
+python3 test/archive_small_benchmark/tune_hmc.py --set triangular_weak_u2 --grid '8:0.01,10:0.012,12:0.015' --bins 80 --sweeps 4 --warm 20
 ```
 
-### Development Benchmark
+### Archived Development Benchmark
 
-Compare local and HMC on a development set:
+The old development benchmark helper is also archived:
 
 ```bash
 cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
-python3 test/benchmark_hmc.py --sets triangular_weak_u2 --repeats 2
+python3 test/archive_small_benchmark/benchmark_hmc.py --sets triangular_weak_u2 --repeats 2
 ```
 
 The benchmark reports:
@@ -183,7 +187,7 @@ The benchmark reports:
 
 ### Small Triangular Correctness Workflow
 
-The repository now has a dedicated small-parameter triangular workflow for correctness-first HMC validation:
+The repository has a dedicated small-parameter triangular correctness campaign:
 
 - `L = 6`
 - `beta = 32`
@@ -196,83 +200,22 @@ This benchmark campaign is now treated as closed for correctness validation.
 The active entry point is the final rendered report under `data/triangular_hmc_small_benchmark/full_grid_progress_v3/`.
 Raw benchmark/tuning directories were moved under `data/triangular_hmc_small_benchmark/archive_20260319/` so future production work is not buried under old development runs.
 
-1. Build the executable:
+Use this section as an archived reference, not as the active development target.
+
+Archived benchmark tooling now lives under:
+
+- `test/archive_small_benchmark/`
+- `test/README.md` summarizes the current active-vs-archived `test/` layout
+
+The final correctness report is:
+
+- `data/triangular_hmc_small_benchmark/full_grid_progress_v3/report.md`
+
+To re-render the full 3x5 visual report from the archived benchmark directories:
 
 ```bash
 cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
-make -C src
-```
-
-2. Generate validated local warm-start seeds for all 15 points:
-
-```bash
-cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
-/home/yyk/conda/envs/notebook/bin/python test/small_hmc_benchmark.py local-seed \
-  --seed-warm 256 \
-  --seed-bins 160 \
-  --work-root data/triangular_hmc_small_benchmark/local_seed_grid_v2
-```
-
-3. Run a full-field HMC tune scan on the small grid:
-
-```bash
-cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
-/home/yyk/conda/envs/notebook/bin/python test/small_hmc_benchmark.py tune \
-  --bins 64 \
-  --warm 0 \
-  --sweeps 1 \
-  --grid '8:0.15,12:0.12,16:0.10,20:0.08,24:0.06' \
-  --hmc-mass-grid 1 \
-  --hmc-block-grid 0 \
-  --hmc-site-block-grid 0 \
-  --repeats 1 \
-  --hmc-jitter 2 \
-  --confin-root data/triangular_hmc_small_benchmark/local_seed_grid_v2 \
-  --work-root data/triangular_hmc_small_benchmark/full_global_tune_grid_v2
-```
-
-4. Run a strict local-vs-HMC benchmark for one health point. Example: `Nbos=10, U2=1e-2`:
-
-```bash
-cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
-/home/yyk/conda/envs/notebook/bin/python test/small_hmc_benchmark.py benchmark \
-  --nbos-values 10 \
-  --u2-values 1e-2 \
-  --bins 640 \
-  --thermal-cut 384 \
-  --warm 0 \
-  --repeats 4 \
-  --hmc-nfrog 16 \
-  --hmc-dt 0.1 \
-  --hmc-jitter 2 \
-  --hmc-mass 1.0 \
-  --hmc-block-tau 0 \
-  --hmc-block-sites 0 \
-  --confin-root data/triangular_hmc_small_benchmark/local_seed_grid_v2 \
-  --work-root data/triangular_hmc_small_benchmark/strict_healthy_n10_u1em2_v2
-```
-
-5. Render a stage report from the strict benchmark directories that already pass:
-
-```bash
-cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
-/home/yyk/conda/envs/notebook/bin/python test/render_small_hmc_stage_report.py \
-  data/triangular_hmc_small_benchmark/strict_healthy_n10_u1em2_v2 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n10_u1em1_v1 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n10_u1e0_v1 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n10_u1e1_v1 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n100_u1em1_v1 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n100_u1e0_v1 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n1000_u1em1_v1 \
-  --tune-csv data/triangular_hmc_small_benchmark/full_global_tune_grid_v2/small_tune.csv \
-  --output-dir data/triangular_hmc_small_benchmark/stage_report_v6a
-```
-
-6. Render the fixed full 3x5 visual report from the currently selected best benchmark/probe directories:
-
-```bash
-cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
-/home/yyk/conda/envs/notebook/bin/python test/render_small_hmc_full_grid.py \
+/home/yyk/conda/envs/notebook/bin/python test/archive_small_benchmark/render_small_hmc_full_grid.py \
   --python /home/yyk/conda/envs/notebook/bin/python \
   --output-dir data/triangular_hmc_small_benchmark/full_grid_progress_v3
 ```
@@ -284,13 +227,13 @@ The renderer labels them separately:
 - `PROBE` means the point is present for visual comparison, but its `z-score` is not treated as a strict statistic
 - for `PROBE` cases, the report emphasizes `|diff| / span`, absolute differences, and sample-index traces instead of repeat-based `z-score`
 
-6. If a long strict benchmark already finished its `runs/` directories but the summary
-   `json/csv` files were not written, rebuild them without rerunning:
+If an archived long strict benchmark already finished its `runs/` directories but the summary
+`json/csv` files were not written, rebuild them without rerunning:
 
 ```bash
 cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
-/home/yyk/conda/envs/notebook/bin/python test/small_hmc_benchmark.py collect-benchmark \
-  --work-root data/triangular_hmc_small_benchmark/strict_healthy_n100_u1e1_v3_m4 \
+/home/yyk/conda/envs/notebook/bin/python test/archive_small_benchmark/small_hmc_benchmark.py collect-benchmark \
+  --work-root data/triangular_hmc_small_benchmark/archive_20260319/strict_healthy_n100_u1e1_v3_m4 \
   --nbos-values 100 \
   --u2-values 1e1 \
   --bins 640 \
@@ -317,7 +260,7 @@ This writes:
 
 For notebook-based review of the rendered report, open:
 
-- `test/small_hmc_stage_report.ipynb`
+- `test/archive_small_benchmark/small_hmc_stage_report.ipynb`
 
 The report renderer and notebook expect `pandas` and `matplotlib`; in this repository the
 recommended interpreter is `/home/yyk/conda/envs/notebook/bin/python`.
@@ -325,7 +268,7 @@ The notebook reads the CSV and PNG files from a rendered report directory. Set `
 `stage_samples.csv` now stores the key observable traces for every repeat, not only `repeat=0`, so you can do repeated thermal-cut checks directly inside the notebook or in a post-processing script.
 The notebook exposes both `NBOS_SELECT` and `TRACE_REPEAT`, which lets you inspect one particle-number slice and one benchmark repeat without regenerating the report.
 The current staged checkpoint with 9 strict-passing health points is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
-The fixed full-grid visual report is rendered with `test/render_small_hmc_full_grid.py`; its default output target is `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
+The fixed full-grid visual report is rendered with `test/archive_small_benchmark/render_small_hmc_full_grid.py`; its default output target is `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
 The current full-grid rendered report is `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
 The archived raw benchmark campaign lives under `data/triangular_hmc_small_benchmark/archive_20260319`.
 
@@ -337,6 +280,7 @@ Practical conclusion from this benchmark campaign:
 - future work in this branch should focus on production-grade HMC thermalization, preconditioning, and HPC workflows rather than further local-vs-HMC benchmarking
 For the running handoff note covering validated health points, unresolved modes, tuning trends,
 and production-oriented lessons, see `HMC-REFERENCE.md`.
+For the cleaned `test/` directory layout and archive locations, see `test/README.md`.
 For unresolved slow-mode diagnostics, the same renderer can also be used on non-passing benchmark
 directories. A current example is `data/triangular_hmc_small_benchmark/progress_report_n1000_u1e0_v2`,
 which shows per-repeat `sample index` traces including `SF_Gamma`.

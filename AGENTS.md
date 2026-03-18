@@ -9,7 +9,8 @@
 
 ## Project Structure & Modules
 - `src/`: Fortran 90 sources and build logic (`Makefile`, `Compile`).
-- `test/`: Run area, SLURM script `dqmc`, configs (`confin.txt`, `paramC_sets.txt`, `seeds.txt`), HMC benchmark/tuning/report scripts.
+- `test/`: Active run area for SLURM/runtime inputs plus production/HPC HMC scripts.
+- `test/README.md` documents the cleaned test layout. Top-level `test/` is now production/HPC-facing; archived benchmark/check tools live in subdirectories there.
 - `app/`: Archived/deployed binaries (optional).
 - `data/`: Inputs or artifacts not created by builds.
 - `auto.sh`: Chain build → copy binary → submit SLURM job.
@@ -38,11 +39,10 @@
 - `test/production_hmc.py` is the main driver for production tuning and direct local-vs-HMC benchmarks.
 - `test/render_hmc_report.py` converts benchmark JSON into PNG plots and a Markdown summary.
 - `test/hmc_report_template.ipynb` is the notebook entry point for interactive post-processing.
-- `test/small_hmc_benchmark.py` is the correctness-first triangular `L=6` workflow for local seeds, HMC tune scans, and strict local-vs-HMC benchmarks.
-- `test/small_hmc_benchmark.py collect-benchmark` rebuilds strict-benchmark `json/csv` summaries from an existing `runs/` directory without rerunning the QMC jobs.
-- `test/render_small_hmc_stage_report.py` aggregates passed small-benchmark directories into a staged PNG/Markdown report.
-- `test/render_small_hmc_full_grid.py` renders the fixed 3x5 triangular small-benchmark visual report from the currently selected best strict/probe directories.
-- `test/small_hmc_stage_report.ipynb` is the notebook entry point for those staged small-benchmark reports.
+- `test/archive_small_benchmark/` contains the closed triangular `L=6` local-vs-HMC correctness campaign:
+  `small_hmc_benchmark.py`, `render_small_hmc_stage_report.py`, `render_small_hmc_full_grid.py`, and the archived benchmark notebooks.
+- `test/archive_manual_checks/` contains the older Fortran-side force/ratio/round-trip/check programs and their outputs.
+- `test/runtime_outputs/root_run_20260319/` contains the last root-level manual run dump that used to clutter `test/`.
 - The small-parameter correctness campaign is considered closed. Keep the final visible report at `data/triangular_hmc_small_benchmark/full_grid_progress_v3` and keep raw campaign data under `data/triangular_hmc_small_benchmark/archive_20260319`.
 
 ## Coding Style & Naming
@@ -58,16 +58,11 @@
 - For HMC work, keep the test loop modular:
   - compile after each source-module change
   - run a small smoke test
-  - run `test/tune_hmc.py` or `test/production_hmc.py tune`
-  - run direct `local` vs `HMC` comparison with `test/benchmark_hmc.py` or `test/production_hmc.py benchmark`
+  - run `test/production_hmc.py tune`
+  - run `test/production_hmc.py benchmark` when a direct production comparison is still needed
   - render figures with `test/render_hmc_report.py`
-- For the triangular small-parameter correctness campaign, use:
-  - `test/small_hmc_benchmark.py local-seed` to build validated `confout.txt` warm starts
-  - `test/small_hmc_benchmark.py tune` for short `warm=0` full-field HMC scans
-  - `test/small_hmc_benchmark.py benchmark` for long strict local-vs-HMC checks
-  - `test/small_hmc_benchmark.py collect-benchmark` if the long benchmark finished but the summary files were not written
-  - `test/render_small_hmc_stage_report.py` to produce staged visual reports from the passing cases
-  - `test/render_small_hmc_full_grid.py` to render the fixed full 15-point visual report without retyping all benchmark roots
+- The triangular small-parameter correctness campaign is archived under `test/archive_small_benchmark/`.
+  Use it only as a historical reference or if the final report must be regenerated.
 - Use debug builds when a new lattice path crashes:
   - `cd src && make clean && make FFLAGS='-O0 -g -traceback -check all -fpe0 -c -I/home/yyk/Lib_90_new/Modules'`
 - Production triangular targets in this branch are typically:
@@ -78,7 +73,7 @@
   - lattice-specific observable bug
   - HMC tuning/warm-up issue
   - stabilization or force inconsistency
-- Do not trust a warm-start `confout.txt` blindly. `test/hmc_tools.py` now validates its line count against `(Naux, Ndim, Ltrot)` and `test/small_hmc_benchmark.py` will skip invalid warm starts.
+- Do not trust a warm-start `confout.txt` blindly. `test/hmc_tools.py` validates its line count against `(Naux, Ndim, Ltrot)`. The archived small-benchmark driver also checks this before reusing a warm start.
 - For strict small-benchmark health points, `doubleOcc` alone is not enough. Re-check thermal cut against at least `squareOcc`, `nearestOcc`, `IPR`, and `PF_Gamma`.
 
 ## Commits & Pull Requests
@@ -112,8 +107,6 @@
 - One full-size HMC force buffer has been removed to reduce peak memory usage.
 
 ## HMC and Triangular Workflow
-- `test/tune_hmc.py` is still useful for small development scans on built-in parameter sets.
-- `test/benchmark_hmc.py` is the fast regression benchmark for development-sized cases.
 - `test/production_hmc.py tune` is the main production tuning entry point.
 - `test/production_hmc.py benchmark` runs direct local-vs-HMC comparisons over a user-specified `(L, Nbos, U2)` grid and writes JSON/CSV summaries.
 - `test/render_hmc_report.py` reads `production_benchmark.json` and writes:
@@ -123,11 +116,11 @@
   - `zscore_heatmap.png`
   - `report.md`
 - `test/hmc_report_template.ipynb` can be pointed at the same JSON for interactive visualization.
-- `test/small_hmc_benchmark.py` writes:
+- `test/archive_small_benchmark/small_hmc_benchmark.py` writes:
   - `small_tune.csv`, `small_tune.json`, `recommended_hmc.json`
   - `small_benchmark_cases.csv`, `small_benchmark_observables.csv`, `small_benchmark_samples.csv`
   - `small_benchmark_samples.csv` now keeps the key trace observables for all repeats, so repeated thermal-cut scans can be reconstructed without reopening each run manually
-- `test/render_small_hmc_stage_report.py` reads one or more strict benchmark directories and writes:
+- `test/archive_small_benchmark/render_small_hmc_stage_report.py` reads one or more strict benchmark directories and writes:
   - `stage_cases.csv`
   - `stage_observables.csv`
   - `stage_samples.csv`
@@ -137,13 +130,13 @@
   - `trace_*_rep*.png`
   - `tune_*.png`
   - `report.md`
-- `test/render_small_hmc_full_grid.py` is a convenience wrapper around the stage renderer. It points at the repository's current best 15-point directory selection and defaults to `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
+- `test/archive_small_benchmark/render_small_hmc_full_grid.py` is a convenience wrapper around the stage renderer. It points at the repository's current best 15-point directory selection and defaults to `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
 - The stage renderer depends on `pandas` and `matplotlib`; in this repository the recommended interpreter is `/home/yyk/conda/envs/notebook/bin/python`.
 - Current staged small-benchmark reports live under `data/triangular_hmc_small_benchmark/stage_report_*`.
 - The current staged checkpoint used during development is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
 - The current full-grid rendered visual report is `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
 - The archived raw benchmark/tuning directories now live under `data/triangular_hmc_small_benchmark/archive_20260319`.
-- `test/small_hmc_stage_report.ipynb` now exposes both `NBOS_SELECT` and `TRACE_REPEAT` for interactive slicing of the rendered staged report.
+- `test/archive_small_benchmark/small_hmc_stage_report.ipynb` exposes both `NBOS_SELECT` and `TRACE_REPEAT` for interactive slicing of the rendered staged report.
 - `HMC-REFERENCE.md` is the running handoff note for validated health points, unresolved slow modes,
   tuning heuristics, and production/HPC-oriented lessons.
 - The renderer can also be used on unresolved benchmark directories to build progress reports with per-repeat traces.

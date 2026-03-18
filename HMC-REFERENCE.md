@@ -3,6 +3,8 @@
 This document is the working handoff note for the triangular-lattice HMC campaign.
 It records what has already been validated, what is still unresolved, and which tuning
 trends look robust enough to reuse when moving toward larger lattices and HPC runs.
+For the current `test/` directory layout, see `test/README.md`; archived small-benchmark
+helpers referenced here now live under `test/archive_small_benchmark/`.
 
 ## Scope
 
@@ -15,20 +17,20 @@ trends look robust enough to reuse when moving toward larger lattices and HPC ru
 
 The current staged visual report is:
 
-- [stage_report_v6a](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_small_benchmark/stage_report_v6a/report.md)
+- [stage_report_v6a](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_small_benchmark/archive_20260319/stage_report_v6a/report.md)
 
 An example unresolved progress report is:
 
-- [progress_report_n1000_u1e0_v2](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_small_benchmark/progress_report_n1000_u1e0_v2/report.md)
-- [progress_report_n100_u1e1_v3](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_small_benchmark/progress_report_n100_u1e1_v3/report.md)
+- [progress_report_n1000_u1e0_v2](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_small_benchmark/archive_20260319/progress_report_n1000_u1e0_v2/report.md)
+- [progress_report_n100_u1e1_v3](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_small_benchmark/archive_20260319/progress_report_n100_u1e1_v3/report.md)
 
 The notebook entry point is:
 
-- [small_hmc_stage_report.ipynb](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/small_hmc_stage_report.ipynb)
+- [small_hmc_stage_report.ipynb](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/archive_small_benchmark/small_hmc_stage_report.ipynb)
 
 The fixed full-grid renderer is:
 
-- [render_small_hmc_full_grid.py](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/render_small_hmc_full_grid.py)
+- [render_small_hmc_full_grid.py](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/archive_small_benchmark/render_small_hmc_full_grid.py)
 
 The current full-grid visual report is:
 
@@ -151,11 +153,11 @@ The staged report tooling now also writes per-repeat thermalization traces and i
 `SF_Gamma` directly in the default trace panel, because this observable has become the
 main diagnostic for the unresolved `Nbos=1000, U2=1` mode.
 If a long benchmark finishes its `runs/` directories but the summary files are missing,
-`test/small_hmc_benchmark.py collect-benchmark` can now rebuild the `json/csv` tables
+`test/archive_small_benchmark/small_hmc_benchmark.py collect-benchmark` can now rebuild the `json/csv` tables
 without rerunning the QMC jobs.
 
 If you want one command for the current 15-point visual report,
-`test/render_small_hmc_full_grid.py` wraps the staged renderer with the repository's
+`test/archive_small_benchmark/render_small_hmc_full_grid.py` wraps the staged renderer with the repository's
 current best directory selection.
 
 ## Current Unresolved Modes
@@ -370,7 +372,7 @@ For each physical point, keep a small table of:
 Small strong-coupling tune:
 
 ```bash
-/home/yyk/conda/envs/notebook/bin/python test/small_hmc_benchmark.py tune \
+/home/yyk/conda/envs/notebook/bin/python test/archive_small_benchmark/small_hmc_benchmark.py tune \
   --nbos-values 100 \
   --u2-values 1e1 \
   --warm 0 \
@@ -387,7 +389,7 @@ Small strong-coupling tune:
 Strict benchmark from a tuned candidate:
 
 ```bash
-/home/yyk/conda/envs/notebook/bin/python test/small_hmc_benchmark.py benchmark \
+/home/yyk/conda/envs/notebook/bin/python test/archive_small_benchmark/small_hmc_benchmark.py benchmark \
   --nbos-values 100 \
   --u2-values 1e1 \
   --bins 640 \
@@ -405,16 +407,16 @@ Strict benchmark from a tuned candidate:
 Rebuild a staged report from the known strict-pass set:
 
 ```bash
-/home/yyk/conda/envs/notebook/bin/python test/render_small_hmc_stage_report.py \
-  data/triangular_hmc_small_benchmark/strict_healthy_n10_u1em2_v2 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n10_u1em1_v1 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n10_u1e0_v1 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n10_u1e1_v1 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n100_u1em2_v2 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n100_u1em1_v1 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n100_u1e0_v1 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n1000_u1em2_v1 \
-  data/triangular_hmc_small_benchmark/strict_healthy_n1000_u1em1_v1 \
-  --tune-csv data/triangular_hmc_small_benchmark/full_global_tune_grid_v2/small_tune.csv \
-  --output-dir data/triangular_hmc_small_benchmark/stage_report_v6a
+/home/yyk/conda/envs/notebook/bin/python test/archive_small_benchmark/render_small_hmc_stage_report.py \
+  data/triangular_hmc_small_benchmark/archive_20260319/strict_healthy_n10_u1em2_v2 \
+  data/triangular_hmc_small_benchmark/archive_20260319/strict_healthy_n10_u1em1_v1 \
+  data/triangular_hmc_small_benchmark/archive_20260319/strict_healthy_n10_u1e0_v1 \
+  data/triangular_hmc_small_benchmark/archive_20260319/strict_healthy_n10_u1e1_v1 \
+  data/triangular_hmc_small_benchmark/archive_20260319/strict_healthy_n100_u1em2_v2 \
+  data/triangular_hmc_small_benchmark/archive_20260319/strict_healthy_n100_u1em1_v1 \
+  data/triangular_hmc_small_benchmark/archive_20260319/strict_healthy_n100_u1e0_v1 \
+  data/triangular_hmc_small_benchmark/archive_20260319/strict_healthy_n1000_u1em2_v1 \
+  data/triangular_hmc_small_benchmark/archive_20260319/strict_healthy_n1000_u1em1_v1 \
+  --tune-csv data/triangular_hmc_small_benchmark/archive_20260319/full_global_tune_grid_v2/small_tune.csv \
+  --output-dir data/triangular_hmc_small_benchmark/archive_20260319/stage_report_v6a
 ```
