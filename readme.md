@@ -266,6 +266,22 @@ cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
   --output-dir data/triangular_hmc_small_benchmark/stage_report_v6a
 ```
 
+6. Render the fixed full 3x5 visual report from the currently selected best benchmark/probe directories:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/render_small_hmc_full_grid.py \
+  --python /home/yyk/conda/envs/notebook/bin/python \
+  --output-dir data/triangular_hmc_small_benchmark/full_grid_progress_v3
+```
+
+This full-grid report intentionally mixes strict benchmark directories and single-repeat visual probes.
+The renderer labels them separately:
+
+- `PASS` / `FAIL` only apply to cases with at least two repeats
+- `PROBE` means the point is present for visual comparison, but its `z-score` is not treated as a strict statistic
+- for `PROBE` cases, the report emphasizes `|diff| / span`, absolute differences, and sample-index traces instead of repeat-based `z-score`
+
 6. If a long strict benchmark already finished its `runs/` directories but the summary
    `json/csv` files were not written, rebuild them without rerunning:
 
@@ -307,6 +323,7 @@ The notebook reads the CSV and PNG files from a rendered report directory. Set `
 `stage_samples.csv` now stores the key observable traces for every repeat, not only `repeat=0`, so you can do repeated thermal-cut checks directly inside the notebook or in a post-processing script.
 The notebook exposes both `NBOS_SELECT` and `TRACE_REPEAT`, which lets you inspect one particle-number slice and one benchmark repeat without regenerating the report.
 The current staged checkpoint with 9 strict-passing health points is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
+The fixed full-grid visual report is rendered with `test/render_small_hmc_full_grid.py`; its default output target is `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
 For the running handoff note covering validated health points, unresolved modes, tuning trends,
 and production-oriented lessons, see `HMC-REFERENCE.md`.
 For unresolved slow-mode diagnostics, the same renderer can also be used on non-passing benchmark

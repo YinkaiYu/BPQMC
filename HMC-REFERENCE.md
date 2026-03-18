@@ -26,6 +26,10 @@ The notebook entry point is:
 
 - [small_hmc_stage_report.ipynb](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/small_hmc_stage_report.ipynb)
 
+The fixed full-grid renderer is:
+
+- [render_small_hmc_full_grid.py](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/render_small_hmc_full_grid.py)
+
 ## What Is Already Confirmed
 
 ### 1. The HMC action and force are self-consistent
@@ -129,6 +133,10 @@ main diagnostic for the unresolved `Nbos=1000, U2=1` mode.
 If a long benchmark finishes its `runs/` directories but the summary files are missing,
 `test/small_hmc_benchmark.py collect-benchmark` can now rebuild the `json/csv` tables
 without rerunning the QMC jobs.
+
+If you want one command for the current 15-point visual report,
+`test/render_small_hmc_full_grid.py` wraps the staged renderer with the repository's
+current best directory selection.
 
 ## Current Unresolved Modes
 

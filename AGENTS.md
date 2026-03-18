@@ -41,6 +41,7 @@
 - `test/small_hmc_benchmark.py` is the correctness-first triangular `L=6` workflow for local seeds, HMC tune scans, and strict local-vs-HMC benchmarks.
 - `test/small_hmc_benchmark.py collect-benchmark` rebuilds strict-benchmark `json/csv` summaries from an existing `runs/` directory without rerunning the QMC jobs.
 - `test/render_small_hmc_stage_report.py` aggregates passed small-benchmark directories into a staged PNG/Markdown report.
+- `test/render_small_hmc_full_grid.py` renders the fixed 3x5 triangular small-benchmark visual report from the currently selected best strict/probe directories.
 - `test/small_hmc_stage_report.ipynb` is the notebook entry point for those staged small-benchmark reports.
 
 ## Coding Style & Naming
@@ -65,6 +66,7 @@
   - `test/small_hmc_benchmark.py benchmark` for long strict local-vs-HMC checks
   - `test/small_hmc_benchmark.py collect-benchmark` if the long benchmark finished but the summary files were not written
   - `test/render_small_hmc_stage_report.py` to produce staged visual reports from the passing cases
+  - `test/render_small_hmc_full_grid.py` to render the fixed full 15-point visual report without retyping all benchmark roots
 - Use debug builds when a new lattice path crashes:
   - `cd src && make clean && make FFLAGS='-O0 -g -traceback -check all -fpe0 -c -I/home/yyk/Lib_90_new/Modules'`
 - Production triangular targets in this branch are typically:
@@ -134,6 +136,7 @@
   - `trace_*_rep*.png`
   - `tune_*.png`
   - `report.md`
+- `test/render_small_hmc_full_grid.py` is a convenience wrapper around the stage renderer. It points at the repository's current best 15-point directory selection and defaults to `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
 - The stage renderer depends on `pandas` and `matplotlib`; in this repository the recommended interpreter is `/home/yyk/conda/envs/notebook/bin/python`.
 - Current staged small-benchmark reports live under `data/triangular_hmc_small_benchmark/stage_report_*`.
 - The current staged checkpoint used during development is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
