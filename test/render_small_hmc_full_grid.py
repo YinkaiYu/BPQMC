@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_ROOT = ROOT / "data" / "triangular_hmc_small_benchmark"
+ARCHIVE_ROOT = DATA_ROOT / "archive_20260319"
 RENDER_SCRIPT = ROOT / "test" / "render_small_hmc_stage_report.py"
 
 DEFAULT_CASE_ROOTS = (
@@ -50,7 +51,17 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    case_roots = [DATA_ROOT / item for item in (args.case_root or DEFAULT_CASE_ROOTS)]
+    case_roots = []
+    for item in (args.case_root or DEFAULT_CASE_ROOTS):
+        path = Path(item)
+        if not path.is_absolute():
+            direct = DATA_ROOT / item
+            archived = ARCHIVE_ROOT / item
+            if (direct / "small_benchmark_cases.csv").exists():
+                path = direct
+            else:
+                path = archived
+        case_roots.append(path)
     missing = [path for path in case_roots if not (path / "small_benchmark_cases.csv").exists()]
     if missing:
         print("Missing benchmark directories:", file=sys.stderr)

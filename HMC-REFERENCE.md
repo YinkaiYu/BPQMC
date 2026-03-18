@@ -34,6 +34,22 @@ The current full-grid visual report is:
 
 - [full_grid_progress_v3](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_small_benchmark/full_grid_progress_v3/report.md)
 
+The archived raw benchmark and tuning directories are now under:
+
+- [archive_20260319](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_small_benchmark/archive_20260319)
+
+## Campaign Status
+
+The small-parameter triangular correctness benchmark is considered complete enough to close.
+
+Final interpretation:
+
+- The HMC action and force implementation passed the ratio and finite-difference checks.
+- The weak/moderate-coupling triangular benchmarks established a nontrivial strict-pass set.
+- The final 15-point visual report is sufficient as the correctness handoff artifact for this campaign.
+- On large `Nbos` and large `U2`, workstation-length local and HMC runs can both remain unthermalized, so those points are not useful as correctness references.
+- Future work should stop centering local-vs-HMC comparison and instead focus on production-grade HMC thermalization, preconditioning, and HPC execution.
+
 ## What Is Already Confirmed
 
 ### 1. The HMC action and force are self-consistent

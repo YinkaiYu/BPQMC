@@ -192,7 +192,9 @@ The repository now has a dedicated small-parameter triangular workflow for corre
 - `Nbos = 10, 100, 1000`
 - `U2 = 1e-2, 1e-1, 1e0, 1e1, 1e2`
 
-All data from this workflow is meant to live under `data/triangular_hmc_small_benchmark/`.
+This benchmark campaign is now treated as closed for correctness validation.
+The active entry point is the final rendered report under `data/triangular_hmc_small_benchmark/full_grid_progress_v3/`.
+Raw benchmark/tuning directories were moved under `data/triangular_hmc_small_benchmark/archive_20260319/` so future production work is not buried under old development runs.
 
 1. Build the executable:
 
@@ -325,6 +327,14 @@ The notebook exposes both `NBOS_SELECT` and `TRACE_REPEAT`, which lets you inspe
 The current staged checkpoint with 9 strict-passing health points is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
 The fixed full-grid visual report is rendered with `test/render_small_hmc_full_grid.py`; its default output target is `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
 The current full-grid rendered report is `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
+The archived raw benchmark campaign lives under `data/triangular_hmc_small_benchmark/archive_20260319`.
+
+Practical conclusion from this benchmark campaign:
+
+- the HMC action/force implementation is considered validated on the small-parameter triangular testbed
+- the final correctness reference is the rendered full-grid report, not the individual raw run directories
+- for large `Nbos` and `U2`, local and HMC can both remain unthermalized on workstation-length runs; those points are not useful correctness references
+- future work in this branch should focus on production-grade HMC thermalization, preconditioning, and HPC workflows rather than further local-vs-HMC benchmarking
 For the running handoff note covering validated health points, unresolved modes, tuning trends,
 and production-oriented lessons, see `HMC-REFERENCE.md`.
 For unresolved slow-mode diagnostics, the same renderer can also be used on non-passing benchmark

@@ -43,6 +43,7 @@
 - `test/render_small_hmc_stage_report.py` aggregates passed small-benchmark directories into a staged PNG/Markdown report.
 - `test/render_small_hmc_full_grid.py` renders the fixed 3x5 triangular small-benchmark visual report from the currently selected best strict/probe directories.
 - `test/small_hmc_stage_report.ipynb` is the notebook entry point for those staged small-benchmark reports.
+- The small-parameter correctness campaign is considered closed. Keep the final visible report at `data/triangular_hmc_small_benchmark/full_grid_progress_v3` and keep raw campaign data under `data/triangular_hmc_small_benchmark/archive_20260319`.
 
 ## Coding Style & Naming
 - Fortran 90/95; 4-space indent; aim ≤ 100 columns.
@@ -141,12 +142,16 @@
 - Current staged small-benchmark reports live under `data/triangular_hmc_small_benchmark/stage_report_*`.
 - The current staged checkpoint used during development is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
 - The current full-grid rendered visual report is `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
+- The archived raw benchmark/tuning directories now live under `data/triangular_hmc_small_benchmark/archive_20260319`.
 - `test/small_hmc_stage_report.ipynb` now exposes both `NBOS_SELECT` and `TRACE_REPEAT` for interactive slicing of the rendered staged report.
 - `HMC-REFERENCE.md` is the running handoff note for validated health points, unresolved slow modes,
   tuning heuristics, and production/HPC-oriented lessons.
 - The renderer can also be used on unresolved benchmark directories to build progress reports with per-repeat traces.
   A current example is `data/triangular_hmc_small_benchmark/progress_report_n1000_u1e0_v2`.
   Another current example is `data/triangular_hmc_small_benchmark/progress_report_n100_u1e1_v3`.
+- Future work should not treat the archived local-vs-HMC small benchmark as the main task.
+  The benchmark proved small-parameter correctness well enough.
+  The next priority is production-grade HMC thermalization and HPC-scale workflows, not further local-update comparison on difficult large-`Nbos`, large-`U2` points.
 
 ## Preferred Commit Granularity
 - Commit source changes in small, reviewable chunks.
