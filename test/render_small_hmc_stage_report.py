@@ -64,12 +64,15 @@ def save_overview(cases: pd.DataFrame, out_dir: Path) -> None:
 def save_observable_curves(cases: pd.DataFrame, observables: pd.DataFrame, out_dir: Path) -> list[str]:
     saved = []
     merged = observables.merge(cases[["name", "Nbos", "U2"]], on=["name", "Nbos", "U2"], how="left")
+    nbos_values = sorted(merged["Nbos"].unique())
+    color_map = {nbos: plt.get_cmap("tab10")(idx % 10) for idx, nbos in enumerate(nbos_values)}
     for obs_name in OBS_PLOTS:
         obs_df = merged[merged["observable"] == obs_name].sort_values(["Nbos", "U2"])
         if obs_df.empty:
             continue
         fig, ax = plt.subplots(figsize=(8.5, 5.0))
         for nbos, group in obs_df.groupby("Nbos"):
+            color = color_map[nbos]
             ax.errorbar(
                 group["U2"],
                 group["local_mean"],
@@ -77,7 +80,7 @@ def save_observable_curves(cases: pd.DataFrame, observables: pd.DataFrame, out_d
                 marker="o",
                 linestyle="-",
                 label=f"Local N={int(nbos)}",
-                color="#666666",
+                color=color,
             )
             ax.errorbar(
                 group["U2"],
@@ -86,7 +89,7 @@ def save_observable_curves(cases: pd.DataFrame, observables: pd.DataFrame, out_d
                 marker="s",
                 linestyle="--",
                 label=f"HMC N={int(nbos)}",
-                color="#c44e52",
+                color=color,
             )
         ax.set_xscale("log")
         ax.set_xlabel("U2")
@@ -137,23 +140,43 @@ def save_tune_plots(cases: pd.DataFrame, tune_df: pd.DataFrame | None, out_dir: 
         if case_tune.empty:
             continue
         case_tune["traj_len"] = case_tune["nfrog"] * case_tune["hmc_dt"]
-        fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
+        fig, axes = plt.subplots(1, 3, figsize=(15, 4.2))
 
-        sc0 = axes[0].scatter(case_tune["traj_len"], case_tune["acceptance_mean"], c=case_tune["ess_per_sec_doubleOcc_mean"], cmap="viridis", s=70)
+        sc0 = axes[0].scatter(case_tune["traj_len"], case_tune["acceptance_mean"], c=case_tune["hmc_mass"], cmap="viridis", s=80)
         for tune_row in case_tune.itertuples():
-            axes[0].annotate(f"{int(tune_row.nfrog)}x{tune_row.hmc_dt:g}", (tune_row.traj_len, tune_row.acceptance_mean), fontsize=8)
+            axes[0].annotate(
+                f"{int(tune_row.nfrog)}x{tune_row.hmc_dt:g}\nm={tune_row.hmc_mass:g}",
+                (tune_row.traj_len, tune_row.acceptance_mean),
+                fontsize=7,
+            )
         axes[0].set_xlabel("Trajectory length = Nfrog * dt")
         axes[0].set_ylabel("Acceptance")
-        axes[0].set_title("Tune scan")
-        fig.colorbar(sc0, ax=axes[0], label="ESS / sec")
+        axes[0].set_title("Acceptance")
+        fig.colorbar(sc0, ax=axes[0], label="Mass")
 
-        sc1 = axes[1].scatter(case_tune["traj_len"], case_tune["tau_int_doubleOcc_mean"], c=case_tune["acceptance_mean"], cmap="plasma", s=70)
+        sc1 = axes[1].scatter(case_tune["traj_len"], case_tune["tau_int_doubleOcc_mean"], c=case_tune["acceptance_mean"], cmap="plasma", s=80)
         for tune_row in case_tune.itertuples():
-            axes[1].annotate(f"{int(tune_row.nfrog)}x{tune_row.hmc_dt:g}", (tune_row.traj_len, tune_row.tau_int_doubleOcc_mean), fontsize=8)
+            axes[1].annotate(
+                f"{int(tune_row.nfrog)}x{tune_row.hmc_dt:g}\nm={tune_row.hmc_mass:g}",
+                (tune_row.traj_len, tune_row.tau_int_doubleOcc_mean),
+                fontsize=7,
+            )
         axes[1].set_xlabel("Trajectory length = Nfrog * dt")
         axes[1].set_ylabel("tau_int(doubleOcc)")
-        axes[1].set_title("Tune scan")
+        axes[1].set_title("Autocorrelation")
         fig.colorbar(sc1, ax=axes[1], label="Acceptance")
+
+        sc2 = axes[2].scatter(case_tune["traj_len"], case_tune["ess_per_sec_doubleOcc_mean"], c=case_tune["acceptance_mean"], cmap="cividis", s=80)
+        for tune_row in case_tune.itertuples():
+            axes[2].annotate(
+                f"{int(tune_row.nfrog)}x{tune_row.hmc_dt:g}\nm={tune_row.hmc_mass:g}",
+                (tune_row.traj_len, tune_row.ess_per_sec_doubleOcc_mean),
+                fontsize=7,
+            )
+        axes[2].set_xlabel("Trajectory length = Nfrog * dt")
+        axes[2].set_ylabel("ESS / sec")
+        axes[2].set_title("Efficiency")
+        fig.colorbar(sc2, ax=axes[2], label="Acceptance")
 
         fig.suptitle(f"Tuning evidence: {row.name}")
         fig.tight_layout()
@@ -169,6 +192,7 @@ def write_markdown(
     observable_figs: list[str],
     trace_figs: list[str],
     tune_figs: list[str],
+    tune_df: pd.DataFrame | None,
     out_dir: Path,
 ) -> None:
     passed = int(cases["passed"].sum())
@@ -196,6 +220,12 @@ def write_markdown(
     lines.extend(
         [
             "",
+            "## Metric Definitions",
+            "",
+            "- `tau_int(doubleOcc)`: integrated autocorrelation time estimated from the post-cut `doubleOcc` series. Larger values mean slower mixing.",
+            "- `ESS / sec`: effective sample size per wall-clock second, estimated from the same `doubleOcc` series. Larger values mean more statistically independent samples per unit time.",
+            "- `Speed ratio`: `ESS/sec(HMC) / ESS/sec(Local)`.",
+            "",
             "## Overview",
             "",
             "![overview](overview.png)",
@@ -213,6 +243,34 @@ def write_markdown(
         lines.extend(["## Tuning Evidence", ""])
         for filename in tune_figs:
             lines.extend([f"![{filename}]({filename})", ""])
+        if tune_df is not None:
+            lines.extend([""])
+            for row in cases.sort_values(["Nbos", "U2"]).itertuples():
+                case_tune = tune_df[tune_df["name"] == row.name].copy()
+                if case_tune.empty:
+                    continue
+                case_tune["traj_len"] = case_tune["nfrog"] * case_tune["hmc_dt"]
+                lines.extend(
+                    [
+                        f"### {row.name}",
+                        "",
+                        "| Nfrog | dt | mass | traj_len | acceptance | tau_int | ESS/sec |",
+                        "| ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+                    ]
+                )
+                for tune_row in case_tune.sort_values(["hmc_mass", "traj_len"]).itertuples():
+                    lines.append(
+                        "| {nfrog} | {dt:.6g} | {mass:.3g} | {traj:.6g} | {acc:.3f} | {tau:.3f} | {ess:.3f} |".format(
+                            nfrog=int(tune_row.nfrog),
+                            dt=tune_row.hmc_dt,
+                            mass=tune_row.hmc_mass,
+                            traj=tune_row.traj_len,
+                            acc=tune_row.acceptance_mean,
+                            tau=tune_row.tau_int_doubleOcc_mean,
+                            ess=tune_row.ess_per_sec_doubleOcc_mean,
+                        )
+                    )
+                lines.extend([""])
     (out_dir / "report.md").write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -244,7 +302,7 @@ def main() -> int:
     observable_figs = save_observable_curves(cases, observables, out_dir)
     trace_figs = save_trace_plots(cases, samples, out_dir)
     tune_figs = save_tune_plots(cases, tune_df, out_dir)
-    write_markdown(cases, observable_figs, trace_figs, tune_figs, out_dir)
+    write_markdown(cases, observable_figs, trace_figs, tune_figs, tune_df, out_dir)
     return 0
 
 
