@@ -20,6 +20,7 @@ The current staged visual report is:
 An example unresolved progress report is:
 
 - [progress_report_n1000_u1e0_v2](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_small_benchmark/progress_report_n1000_u1e0_v2/report.md)
+- [progress_report_n100_u1e1_v3](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_small_benchmark/progress_report_n100_u1e1_v3/report.md)
 
 The notebook entry point is:
 
@@ -125,6 +126,9 @@ This is the correct design for future production debugging because it enables:
 The staged report tooling now also writes per-repeat thermalization traces and includes
 `SF_Gamma` directly in the default trace panel, because this observable has become the
 main diagnostic for the unresolved `Nbos=1000, U2=1` mode.
+If a long benchmark finishes its `runs/` directories but the summary files are missing,
+`test/small_hmc_benchmark.py collect-benchmark` can now rebuild the `json/csv` tables
+without rerunning the QMC jobs.
 
 ## Current Unresolved Modes
 

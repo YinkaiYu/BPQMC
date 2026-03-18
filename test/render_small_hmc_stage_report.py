@@ -199,6 +199,7 @@ def save_tune_plots(cases: pd.DataFrame, tune_df: pd.DataFrame | None, out_dir: 
 
 def write_markdown(
     cases: pd.DataFrame,
+    observables: pd.DataFrame,
     observable_figs: list[str],
     trace_figs: list[str],
     tune_figs: list[str],
@@ -285,6 +286,40 @@ def write_markdown(
             "",
             "![overview](overview.png)",
             "",
+            "## Case Diagnostics",
+            "",
+            "For unresolved cases, the tables below list the observables that still sit outside the combined error-bar criterion.",
+            "The `z-score` is the absolute local-vs-HMC mean mismatch divided by the combined standard error.",
+            "",
+        ]
+    )
+    for row in overview_cases.itertuples():
+        case_obs = observables[observables["case_id"] == row.case_id].copy()
+        fail_df = case_obs[~case_obs["passed"]].sort_values("z_score", ascending=False)
+        lines.extend([f"### {row.name} ({Path(row.benchmark_root).name})", ""])
+        if fail_df.empty:
+            lines.extend(["All tracked observables pass the current strict benchmark criterion.", ""])
+            continue
+        lines.extend(
+            [
+                "| Observable | z-score | Local mean | HMC mean | Local err | HMC err |",
+                "| --- | ---: | ---: | ---: | ---: | ---: |",
+            ]
+        )
+        for fail in fail_df.itertuples():
+            lines.append(
+                "| {obs} | {z:.3f} | {local:.6g} | {hmc:.6g} | {local_err:.3g} | {hmc_err:.3g} |".format(
+                    obs=fail.observable,
+                    z=fail.z_score,
+                    local=fail.local_mean,
+                    hmc=fail.hmc_mean,
+                    local_err=fail.local_err,
+                    hmc_err=fail.hmc_err,
+                )
+            )
+        lines.extend([""])
+    lines.extend(
+        [
             "## Observable Curves",
             "",
         ]
@@ -380,7 +415,7 @@ def main() -> int:
     observable_figs = save_observable_curves(cases, observables, out_dir)
     trace_figs = save_trace_plots(cases, samples, out_dir)
     tune_figs = save_tune_plots(cases, tune_df, out_dir)
-    write_markdown(cases, observable_figs, trace_figs, tune_figs, tune_df, out_dir)
+    write_markdown(cases, observables, observable_figs, trace_figs, tune_figs, tune_df, out_dir)
     return 0
 
 

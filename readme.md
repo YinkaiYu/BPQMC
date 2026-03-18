@@ -266,6 +266,25 @@ cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
   --output-dir data/triangular_hmc_small_benchmark/stage_report_v6a
 ```
 
+6. If a long strict benchmark already finished its `runs/` directories but the summary
+   `json/csv` files were not written, rebuild them without rerunning:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/small_hmc_benchmark.py collect-benchmark \
+  --work-root data/triangular_hmc_small_benchmark/strict_healthy_n100_u1e1_v3_m4 \
+  --nbos-values 100 \
+  --u2-values 1e1 \
+  --bins 640 \
+  --thermal-cut 384 \
+  --warm 0 \
+  --repeats 4 \
+  --hmc-nfrog 32 \
+  --hmc-dt 0.04 \
+  --hmc-jitter 2 \
+  --hmc-mass 4
+```
+
 This writes:
 
 - `stage_cases.csv`
@@ -282,6 +301,8 @@ For notebook-based review of the rendered report, open:
 
 - `test/small_hmc_stage_report.ipynb`
 
+The report renderer and notebook expect `pandas` and `matplotlib`; in this repository the
+recommended interpreter is `/home/yyk/conda/envs/notebook/bin/python`.
 The notebook reads the CSV and PNG files from a rendered report directory. Set `REPORT_DIR` inside the notebook before running its cells.
 `stage_samples.csv` now stores the key observable traces for every repeat, not only `repeat=0`, so you can do repeated thermal-cut checks directly inside the notebook or in a post-processing script.
 The notebook exposes both `NBOS_SELECT` and `TRACE_REPEAT`, which lets you inspect one particle-number slice and one benchmark repeat without regenerating the report.
@@ -291,6 +312,8 @@ and production-oriented lessons, see `HMC-REFERENCE.md`.
 For unresolved slow-mode diagnostics, the same renderer can also be used on non-passing benchmark
 directories. A current example is `data/triangular_hmc_small_benchmark/progress_report_n1000_u1e0_v2`,
 which shows per-repeat `sample index` traces including `SF_Gamma`.
+Another current example is `data/triangular_hmc_small_benchmark/progress_report_n100_u1e1_v3`,
+which tracks the strong-coupling `Nbos=100, U2=10` point across multiple benchmark variants.
 
 ### Production Tune Workflow
 

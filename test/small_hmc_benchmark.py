@@ -142,6 +142,60 @@ def collect_perf(run_dir: Path, thermal_cut: int) -> dict[str, float]:
     return metrics
 
 
+def run_or_collect_benchmark_repeat(
+    args: argparse.Namespace,
+    cfg: RunConfig,
+    run_dir: Path,
+    is_global: bool,
+    repeat: int,
+    seed: int,
+    hmc_params: dict[str, object],
+    binary: Path,
+    run_missing: bool,
+) -> tuple[dict[str, float], dict[str, float], dict[str, float], list[dict[str, object]]]:
+    if run_missing:
+        prepare_run_dir(
+            run_dir,
+            cfg,
+            is_global=is_global,
+            nfrog=int(hmc_params["nfrog"]),
+            hmc_dt=float(hmc_params["hmc_dt"]),
+            hmc_jitter=int(hmc_params.get("hmc_jitter", 0)) if is_global else 0,
+            hmc_mass=float(hmc_params.get("hmc_mass", 1.0)) if is_global else 1.0,
+            hmc_block_tau=int(hmc_params.get("hmc_block_tau", 0)) if is_global else 0,
+            hmc_block_sites=int(hmc_params.get("hmc_block_sites", 0)) if is_global else 0,
+            seed=seed,
+            binary=binary,
+            confin_from=case_confin_path(args.confin_root, cfg),
+        )
+        run_case(run_dir, np_ranks=args.np)
+    elif not run_dir.exists():
+        raise FileNotFoundError(f"missing benchmark run directory: {run_dir}")
+
+    run_means = collect_means(run_dir, cfg.nthermal)
+    perf = collect_perf(run_dir, cfg.nthermal)
+    info = parse_info_metrics(run_dir)
+    sample_rows: list[dict[str, object]] = []
+    mode_name = "hmc" if is_global else "local"
+    for obs_name in SERIES_OBSERVABLES:
+        values = load_series(run_dir, obs_name)
+        for sample_idx, value in enumerate(values):
+            sample_rows.append(
+                {
+                    "name": cfg.name,
+                    "Nbos": cfg.nbos,
+                    "U2": cfg.ru2,
+                    "thermal_cut": cfg.nthermal,
+                    "mode": mode_name,
+                    "repeat": repeat,
+                    "observable": obs_name,
+                    "sample_index": sample_idx,
+                    "value": value,
+                }
+            )
+    return run_means, perf, info, sample_rows
+
+
 def aggregate_perf(rows: list[dict[str, float]]) -> dict[str, float]:
     keys = rows[0].keys()
     return {key: series_mean([row[key] for row in rows]) for key in keys}
@@ -422,7 +476,7 @@ def run_tune(args: argparse.Namespace) -> int:
     return 0
 
 
-def run_benchmark(args: argparse.Namespace) -> int:
+def benchmark_core(args: argparse.Namespace, run_missing: bool) -> int:
     configs = make_small_configs(args)
     binary = Path(args.binary).resolve()
     work_root = Path(args.work_root).resolve()
@@ -461,27 +515,20 @@ def run_benchmark(args: argparse.Namespace) -> int:
             seed = args.seed_base + 100 * repeat
             for mode_name, is_global in (("local", False), ("hmc", True)):
                 run_dir = work_root / "runs" / cfg.name / f"{mode_name}_rep{repeat}"
-                prepare_run_dir(
-                    run_dir,
+                run_means, perf, info, run_samples = run_or_collect_benchmark_repeat(
+                    args,
                     cfg,
-                    is_global=is_global,
-                    nfrog=int(hmc_params["nfrog"]),
-                    hmc_dt=float(hmc_params["hmc_dt"]),
-                    hmc_jitter=int(hmc_params.get("hmc_jitter", 0)) if is_global else 0,
-                    hmc_mass=float(hmc_params.get("hmc_mass", 1.0)) if is_global else 1.0,
-                    hmc_block_tau=int(hmc_params.get("hmc_block_tau", 0)) if is_global else 0,
-                    hmc_block_sites=int(hmc_params.get("hmc_block_sites", 0)) if is_global else 0,
-                    seed=seed,
-                    binary=binary,
-                    confin_from=case_confin_path(args.confin_root, cfg),
+                    run_dir,
+                    is_global,
+                    repeat,
+                    seed,
+                    hmc_params,
+                    binary,
+                    run_missing,
                 )
-                run_case(run_dir, np_ranks=args.np)
-                run_means = collect_means(run_dir, cfg.nthermal)
                 for obs_name, value in run_means.items():
                     summary[mode_name][obs_name].append(value)
-                perf = collect_perf(run_dir, cfg.nthermal)
                 perf_rows[mode_name].append(perf)
-                info = parse_info_metrics(run_dir)
                 if is_global:
                     hmc_accept.append(info["Accept_HMC"])
                     if info["Accept_HMC"] <= args.min_run_accept or perf["ess_per_sec_doubleOcc"] <= 0.0:
@@ -497,22 +544,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                         "info": info,
                     }
                 )
-                for obs_name in SERIES_OBSERVABLES:
-                    values = load_series(run_dir, obs_name)
-                    for sample_idx, value in enumerate(values):
-                        sample_rows.append(
-                            {
-                                "name": cfg.name,
-                                "Nbos": cfg.nbos,
-                                "U2": cfg.ru2,
-                                "thermal_cut": cfg.nthermal,
-                                "mode": mode_name,
-                                "repeat": repeat,
-                                "observable": obs_name,
-                                "sample_index": sample_idx,
-                                "value": value,
-                            }
-                        )
+                sample_rows.extend(run_samples)
                 print(
                     "  [repeat] mode={mode} repeat={repeat} accept={accept} tau={tau:.3f} ess/sec={ess:.4g} cpu={cpu:.3f}".format(
                         mode=mode_name,
@@ -641,6 +673,14 @@ def run_benchmark(args: argparse.Namespace) -> int:
     return 0 if overall_ok else 1
 
 
+def run_benchmark(args: argparse.Namespace) -> int:
+    return benchmark_core(args, run_missing=True)
+
+
+def collect_benchmark(args: argparse.Namespace) -> int:
+    return benchmark_core(args, run_missing=False)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Small triangular HMC/local benchmark workflow.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -698,6 +738,22 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--hmc-block-sites", type=int, default=0)
     bench.add_argument("--min-run-accept", type=float, default=0.0)
     bench.set_defaults(func=run_benchmark)
+
+    collect = subparsers.add_parser(
+        "collect-benchmark",
+        help="Rebuild small benchmark summaries from an existing work-root without rerunning.",
+    )
+    add_common(collect)
+    collect.add_argument("--repeats", type=int, default=6)
+    collect.add_argument("--hmc-json", default="")
+    collect.add_argument("--hmc-nfrog", type=int, default=8)
+    collect.add_argument("--hmc-dt", type=float, default=6.0e-5)
+    collect.add_argument("--hmc-jitter", type=int, default=0)
+    collect.add_argument("--hmc-mass", type=float, default=1.0)
+    collect.add_argument("--hmc-block-tau", type=int, default=0)
+    collect.add_argument("--hmc-block-sites", type=int, default=0)
+    collect.add_argument("--min-run-accept", type=float, default=0.0)
+    collect.set_defaults(func=collect_benchmark)
     return parser
 
 

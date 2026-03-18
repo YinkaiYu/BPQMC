@@ -39,6 +39,7 @@
 - `test/render_hmc_report.py` converts benchmark JSON into PNG plots and a Markdown summary.
 - `test/hmc_report_template.ipynb` is the notebook entry point for interactive post-processing.
 - `test/small_hmc_benchmark.py` is the correctness-first triangular `L=6` workflow for local seeds, HMC tune scans, and strict local-vs-HMC benchmarks.
+- `test/small_hmc_benchmark.py collect-benchmark` rebuilds strict-benchmark `json/csv` summaries from an existing `runs/` directory without rerunning the QMC jobs.
 - `test/render_small_hmc_stage_report.py` aggregates passed small-benchmark directories into a staged PNG/Markdown report.
 - `test/small_hmc_stage_report.ipynb` is the notebook entry point for those staged small-benchmark reports.
 
@@ -62,6 +63,7 @@
   - `test/small_hmc_benchmark.py local-seed` to build validated `confout.txt` warm starts
   - `test/small_hmc_benchmark.py tune` for short `warm=0` full-field HMC scans
   - `test/small_hmc_benchmark.py benchmark` for long strict local-vs-HMC checks
+  - `test/small_hmc_benchmark.py collect-benchmark` if the long benchmark finished but the summary files were not written
   - `test/render_small_hmc_stage_report.py` to produce staged visual reports from the passing cases
 - Use debug builds when a new lattice path crashes:
   - `cd src && make clean && make FFLAGS='-O0 -g -traceback -check all -fpe0 -c -I/home/yyk/Lib_90_new/Modules'`
@@ -132,6 +134,7 @@
   - `trace_*_rep*.png`
   - `tune_*.png`
   - `report.md`
+- The stage renderer depends on `pandas` and `matplotlib`; in this repository the recommended interpreter is `/home/yyk/conda/envs/notebook/bin/python`.
 - Current staged small-benchmark reports live under `data/triangular_hmc_small_benchmark/stage_report_*`.
 - The current staged checkpoint used during development is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
 - `test/small_hmc_stage_report.ipynb` now exposes both `NBOS_SELECT` and `TRACE_REPEAT` for interactive slicing of the rendered staged report.
@@ -139,6 +142,7 @@
   tuning heuristics, and production/HPC-oriented lessons.
 - The renderer can also be used on unresolved benchmark directories to build progress reports with per-repeat traces.
   A current example is `data/triangular_hmc_small_benchmark/progress_report_n1000_u1e0_v2`.
+  Another current example is `data/triangular_hmc_small_benchmark/progress_report_n100_u1e1_v3`.
 
 ## Preferred Commit Granularity
 - Commit source changes in small, reviewable chunks.
