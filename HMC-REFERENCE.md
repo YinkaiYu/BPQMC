@@ -30,6 +30,10 @@ The fixed full-grid renderer is:
 
 - [render_small_hmc_full_grid.py](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/render_small_hmc_full_grid.py)
 
+The current full-grid visual report is:
+
+- [full_grid_progress_v3](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_small_benchmark/full_grid_progress_v3/report.md)
+
 ## What Is Already Confirmed
 
 ### 1. The HMC action and force are self-consistent

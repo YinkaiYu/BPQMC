@@ -324,6 +324,7 @@ The notebook reads the CSV and PNG files from a rendered report directory. Set `
 The notebook exposes both `NBOS_SELECT` and `TRACE_REPEAT`, which lets you inspect one particle-number slice and one benchmark repeat without regenerating the report.
 The current staged checkpoint with 9 strict-passing health points is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
 The fixed full-grid visual report is rendered with `test/render_small_hmc_full_grid.py`; its default output target is `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
+The current full-grid rendered report is `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
 For the running handoff note covering validated health points, unresolved modes, tuning trends,
 and production-oriented lessons, see `HMC-REFERENCE.md`.
 For unresolved slow-mode diagnostics, the same renderer can also be used on non-passing benchmark

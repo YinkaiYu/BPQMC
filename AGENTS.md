@@ -140,6 +140,7 @@
 - The stage renderer depends on `pandas` and `matplotlib`; in this repository the recommended interpreter is `/home/yyk/conda/envs/notebook/bin/python`.
 - Current staged small-benchmark reports live under `data/triangular_hmc_small_benchmark/stage_report_*`.
 - The current staged checkpoint used during development is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
+- The current full-grid rendered visual report is `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
 - `test/small_hmc_stage_report.ipynb` now exposes both `NBOS_SELECT` and `TRACE_REPEAT` for interactive slicing of the rendered staged report.
 - `HMC-REFERENCE.md` is the running handoff note for validated health points, unresolved slow modes,
   tuning heuristics, and production/HPC-oriented lessons.

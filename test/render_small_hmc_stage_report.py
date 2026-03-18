@@ -29,14 +29,20 @@ def load_tables(bench_roots: list[Path]) -> tuple[pd.DataFrame, pd.DataFrame, pd
         case_df["benchmark_root"] = str(root)
         obs_df["benchmark_root"] = str(root)
         sample_df["benchmark_root"] = str(root)
+        repeat_rows = []
+        for case_name in case_df["name"].astype(str).unique():
+            sample_repeats = int(sample_df[sample_df["name"] == case_name]["repeat"].nunique())
+            run_root = root / "runs" / case_name
+            run_repeats = len(list(run_root.glob("local_rep*"))) if run_root.exists() else 0
+            repeat_rows.append({"name": case_name, "num_repeats": max(sample_repeats, run_repeats)})
+        repeat_df = pd.DataFrame(repeat_rows)
+        case_df = case_df.merge(repeat_df, on="name", how="left")
         cases.append(case_df)
         observables.append(obs_df)
         samples.append(sample_df)
     case_df = pd.concat(cases, ignore_index=True)
     obs_df = pd.concat(observables, ignore_index=True)
     sample_df = pd.concat(samples, ignore_index=True)
-    repeat_counts = sample_df.groupby("case_id")["repeat"].nunique().rename("num_repeats").reset_index()
-    case_df = case_df.merge(repeat_counts, on="case_id", how="left")
     return case_df, obs_df, sample_df
 
 
