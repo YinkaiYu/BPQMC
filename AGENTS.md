@@ -134,6 +134,7 @@
   - `report/trace_*.png`
   - `report/report.md`
 - `test/hmc_report_template.ipynb` can be pointed at the same JSON for interactive visualization.
+  It now supports `stage`, `tune`, and `benchmark` summaries and rewrites `report.md` image paths for notebook display.
 - `test/archive_small_benchmark/small_hmc_benchmark.py` writes:
   - `small_tune.csv`, `small_tune.json`, `recommended_hmc.json`
   - `small_benchmark_cases.csv`, `small_benchmark_observables.csv`, `small_benchmark_samples.csv`

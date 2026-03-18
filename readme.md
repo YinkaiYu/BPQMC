@@ -253,6 +253,16 @@ cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
   --summary-kind stage
 ```
 
+Open the notebook template against the same summary root for interactive inspection:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC/test
+jupyter notebook hmc_report_template.ipynb
+```
+
+The notebook now understands `stage`, `tune`, and `benchmark` summaries and rewrites
+the image paths from `report.md` so PNG figures display correctly inside the notebook.
+
 The `stage` report writes:
 
 - `production_stage.json`

@@ -14,7 +14,7 @@ These are the files intended for ongoing use:
 - `hmc_tools.py`: shared Python helpers
 - `production_hmc.py`: main production tuning / stage / collect / report driver
 - `render_hmc_report.py`: production report renderer for `tune`, `stage`, and legacy `benchmark` summaries
-- `hmc_report_template.ipynb`: production report notebook template
+- `hmc_report_template.ipynb`: production report notebook template for `stage`, `tune`, and `benchmark` summaries
 - `analyze_hmc_monitor.py`, `analyze_hmc_trace.py`: HMC trajectory diagnostics that may still be useful in production debugging
 
 ## Archived Benchmark Tools
