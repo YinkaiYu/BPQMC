@@ -38,6 +38,9 @@
 - `test/production_hmc.py` is the main driver for production tuning and direct local-vs-HMC benchmarks.
 - `test/render_hmc_report.py` converts benchmark JSON into PNG plots and a Markdown summary.
 - `test/hmc_report_template.ipynb` is the notebook entry point for interactive post-processing.
+- `test/small_hmc_benchmark.py` is the correctness-first triangular `L=6` workflow for local seeds, HMC tune scans, and strict local-vs-HMC benchmarks.
+- `test/render_small_hmc_stage_report.py` aggregates passed small-benchmark directories into a staged PNG/Markdown report.
+- `test/small_hmc_stage_report.ipynb` is the notebook entry point for those staged small-benchmark reports.
 
 ## Coding Style & Naming
 - Fortran 90/95; 4-space indent; aim ≤ 100 columns.
@@ -55,6 +58,11 @@
   - run `test/tune_hmc.py` or `test/production_hmc.py tune`
   - run direct `local` vs `HMC` comparison with `test/benchmark_hmc.py` or `test/production_hmc.py benchmark`
   - render figures with `test/render_hmc_report.py`
+- For the triangular small-parameter correctness campaign, use:
+  - `test/small_hmc_benchmark.py local-seed` to build validated `confout.txt` warm starts
+  - `test/small_hmc_benchmark.py tune` for short `warm=0` full-field HMC scans
+  - `test/small_hmc_benchmark.py benchmark` for long strict local-vs-HMC checks
+  - `test/render_small_hmc_stage_report.py` to produce staged visual reports from the passing cases
 - Use debug builds when a new lattice path crashes:
   - `cd src && make clean && make FFLAGS='-O0 -g -traceback -check all -fpe0 -c -I/home/yyk/Lib_90_new/Modules'`
 - Production triangular targets in this branch are typically:
@@ -65,6 +73,8 @@
   - lattice-specific observable bug
   - HMC tuning/warm-up issue
   - stabilization or force inconsistency
+- Do not trust a warm-start `confout.txt` blindly. `test/hmc_tools.py` now validates its line count against `(Naux, Ndim, Ltrot)` and `test/small_hmc_benchmark.py` will skip invalid warm starts.
+- For strict small-benchmark health points, `doubleOcc` alone is not enough. Re-check thermal cut against at least `squareOcc`, `nearestOcc`, `IPR`, and `PF_Gamma`.
 
 ## Commits & Pull Requests
 - Commits: imperative subject (≤ 72 chars), optional scope (e.g., `lattice:`), concise body explaining why.
@@ -108,6 +118,20 @@
   - `zscore_heatmap.png`
   - `report.md`
 - `test/hmc_report_template.ipynb` can be pointed at the same JSON for interactive visualization.
+- `test/small_hmc_benchmark.py` writes:
+  - `small_tune.csv`, `small_tune.json`, `recommended_hmc.json`
+  - `small_benchmark_cases.csv`, `small_benchmark_observables.csv`, `small_benchmark_samples.csv`
+- `test/render_small_hmc_stage_report.py` reads one or more strict benchmark directories and writes:
+  - `stage_cases.csv`
+  - `stage_observables.csv`
+  - `stage_samples.csv`
+  - `stage_summary.json`
+  - `overview.png`
+  - `observable_*.png`
+  - `trace_*.png`
+  - `tune_*.png`
+  - `report.md`
+- Current staged small-benchmark reports live under `data/triangular_hmc_small_benchmark/stage_report_*`.
 
 ## Preferred Commit Granularity
 - Commit source changes in small, reviewable chunks.

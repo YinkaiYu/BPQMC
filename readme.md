@@ -72,7 +72,7 @@ NlxTherm    NlyTherm    LtrotTherm
 Nwrap       Nbin        Nsweep      shiftLoc
 is_tau      Nthermal
 is_warm     Nwarm       shiftWarm1  shiftWarm2
-is_global   Nfrog       hmc_dt      NfrogJitter
+is_global   Nfrog       hmc_dt      NfrogJitter hmc_mass hmc_block_tau hmc_block_sites
 iniType     iniAmpl     iniBias1    iniBias2
 iniHam      iniTwist    imbalance
 ```
@@ -94,6 +94,18 @@ Meaning of the HMC line:
 - `Nfrog` is the nominal leapfrog step count
 - `hmc_dt` is the leapfrog step size
 - `NfrogJitter` randomizes trajectory length uniformly in `max(1, Nfrog-NfrogJitter) ... Nfrog+NfrogJitter`
+- `hmc_mass` is the leapfrog mass
+- `hmc_block_tau` and `hmc_block_sites` are optional block sizes; `0` means full-field HMC
+
+The parser is backward compatible. The following HMC line formats are accepted:
+
+```text
+is_global Nfrog hmc_dt
+is_global Nfrog hmc_dt NfrogJitter
+is_global Nfrog hmc_dt NfrogJitter hmc_mass
+is_global Nfrog hmc_dt NfrogJitter hmc_mass hmc_block_tau
+is_global Nfrog hmc_dt NfrogJitter hmc_mass hmc_block_tau hmc_block_sites
+```
 
 For production triangular runs used in this branch, the usual choice is:
 
@@ -168,6 +180,107 @@ The benchmark reports:
 - HMC acceptance
 - `tau_int(doubleOcc)`
 - `ESS/sec`
+
+### Small Triangular Correctness Workflow
+
+The repository now has a dedicated small-parameter triangular workflow for correctness-first HMC validation:
+
+- `L = 6`
+- `beta = 32`
+- `dtau = 0.01`
+- `U1 = 0`
+- `Nbos = 10, 100, 1000`
+- `U2 = 1e-2, 1e-1, 1e0, 1e1, 1e2`
+
+All data from this workflow is meant to live under `data/triangular_hmc_small_benchmark/`.
+
+1. Build the executable:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+make -C src
+```
+
+2. Generate validated local warm-start seeds for all 15 points:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/small_hmc_benchmark.py local-seed \
+  --seed-warm 256 \
+  --seed-bins 160 \
+  --work-root data/triangular_hmc_small_benchmark/local_seed_grid_v2
+```
+
+3. Run a full-field HMC tune scan on the small grid:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/small_hmc_benchmark.py tune \
+  --bins 64 \
+  --warm 0 \
+  --sweeps 1 \
+  --grid '8:0.15,12:0.12,16:0.10,20:0.08,24:0.06' \
+  --hmc-mass-grid 1 \
+  --hmc-block-grid 0 \
+  --hmc-site-block-grid 0 \
+  --repeats 1 \
+  --hmc-jitter 2 \
+  --confin-root data/triangular_hmc_small_benchmark/local_seed_grid_v2 \
+  --work-root data/triangular_hmc_small_benchmark/full_global_tune_grid_v2
+```
+
+4. Run a strict local-vs-HMC benchmark for one health point. Example: `Nbos=10, U2=1e-2`:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/small_hmc_benchmark.py benchmark \
+  --nbos-values 10 \
+  --u2-values 1e-2 \
+  --bins 640 \
+  --thermal-cut 384 \
+  --warm 0 \
+  --repeats 4 \
+  --hmc-nfrog 16 \
+  --hmc-dt 0.1 \
+  --hmc-jitter 2 \
+  --hmc-mass 1.0 \
+  --hmc-block-tau 0 \
+  --hmc-block-sites 0 \
+  --confin-root data/triangular_hmc_small_benchmark/local_seed_grid_v2 \
+  --work-root data/triangular_hmc_small_benchmark/strict_healthy_n10_u1em2_v2
+```
+
+5. Render a stage report from the strict benchmark directories that already pass:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/render_small_hmc_stage_report.py \
+  data/triangular_hmc_small_benchmark/strict_healthy_n10_u1em2_v2 \
+  data/triangular_hmc_small_benchmark/strict_healthy_n10_u1em1_v1 \
+  data/triangular_hmc_small_benchmark/strict_healthy_n10_u1e0_v1 \
+  data/triangular_hmc_small_benchmark/strict_healthy_n100_u1em1_v1 \
+  data/triangular_hmc_small_benchmark/strict_healthy_n1000_u1em1_v1 \
+  --tune-csv data/triangular_hmc_small_benchmark/full_global_tune_grid_v2/small_tune.csv \
+  --output-dir data/triangular_hmc_small_benchmark/stage_report_v2
+```
+
+This writes:
+
+- `stage_cases.csv`
+- `stage_observables.csv`
+- `stage_samples.csv`
+- `stage_summary.json`
+- `overview.png`
+- `observable_*.png`
+- `trace_*.png`
+- `tune_*.png`
+- `report.md`
+
+For notebook-based review of the rendered report, open:
+
+- `test/small_hmc_stage_report.ipynb`
+
+The notebook reads the CSV and PNG files from a rendered report directory. Set `REPORT_DIR` inside the notebook before running its cells.
 
 ### Production Tune Workflow
 
