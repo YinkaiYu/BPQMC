@@ -12,7 +12,7 @@ import pandas as pd
 
 
 OBS_PLOTS = ("doubleOcc", "squareOcc", "nearestOcc", "IPR", "PF_Gamma", "kinetic")
-TRACE_PLOTS = ("doubleOcc", "squareOcc", "nearestOcc", "IPR")
+TRACE_PLOTS = ("doubleOcc", "nearestOcc", "IPR", "SF_Gamma")
 
 
 def load_tables(bench_roots: list[Path]) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -23,6 +23,9 @@ def load_tables(bench_roots: list[Path]) -> tuple[pd.DataFrame, pd.DataFrame, pd
         case_df = pd.read_csv(root / "small_benchmark_cases.csv")
         obs_df = pd.read_csv(root / "small_benchmark_observables.csv")
         sample_df = pd.read_csv(root / "small_benchmark_samples.csv")
+        case_df["case_id"] = case_df["name"].astype(str) + "__" + root.name
+        obs_df["case_id"] = obs_df["name"].astype(str) + "__" + root.name
+        sample_df["case_id"] = sample_df["name"].astype(str) + "__" + root.name
         case_df["benchmark_root"] = str(root)
         obs_df["benchmark_root"] = str(root)
         sample_df["benchmark_root"] = str(root)
@@ -42,7 +45,10 @@ def save_overview(cases: pd.DataFrame, out_dir: Path) -> None:
     axes[0].bar(x, cases["acceptance_mean"], color="#3b6fb6")
     axes[0].axhspan(0.65, 0.85, color="#d7ebff", alpha=0.8)
     axes[0].set_ylabel("Acceptance")
-    axes[0].set_title("Strict Benchmark Overview")
+    if int(cases["passed"].sum()) == len(cases):
+        axes[0].set_title("Strict Benchmark Overview")
+    else:
+        axes[0].set_title("Benchmark Progress Overview")
 
     width = 0.38
     axes[1].bar([idx - width / 2 for idx in x], cases["local_tau_int_doubleOcc"], width, label="Local", color="#999999")
@@ -63,7 +69,7 @@ def save_overview(cases: pd.DataFrame, out_dir: Path) -> None:
 
 def save_observable_curves(cases: pd.DataFrame, observables: pd.DataFrame, out_dir: Path) -> list[str]:
     saved = []
-    merged = observables.merge(cases[["name", "Nbos", "U2"]], on=["name", "Nbos", "U2"], how="left")
+    merged = observables.merge(cases[["case_id", "name", "Nbos", "U2"]], on=["case_id", "name", "Nbos", "U2"], how="left")
     nbos_values = sorted(merged["Nbos"].unique())
     color_map = {nbos: plt.get_cmap("tab10")(idx % 10) for idx, nbos in enumerate(nbos_values)}
     for obs_name in OBS_PLOTS:
@@ -107,28 +113,31 @@ def save_observable_curves(cases: pd.DataFrame, observables: pd.DataFrame, out_d
 
 def save_trace_plots(cases: pd.DataFrame, samples: pd.DataFrame, out_dir: Path) -> list[str]:
     saved = []
-    samples = samples[samples["repeat"] == 0]
     for row in cases.itertuples():
-        fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True)
-        axes = axes.flatten()
-        case_samples = samples[samples["name"] == row.name]
+        case_samples = samples[samples["case_id"] == row.case_id]
         if case_samples.empty:
-            plt.close(fig)
             continue
-        for ax, obs_name in zip(axes, TRACE_PLOTS):
-            obs_df = case_samples[case_samples["observable"] == obs_name]
-            for mode_name, color in (("local", "#666666"), ("hmc", "#c44e52")):
-                mode_df = obs_df[obs_df["mode"] == mode_name]
-                ax.plot(mode_df["sample_index"], mode_df["value"], lw=1.0, label=mode_name, color=color)
-            ax.axvline(row.thermal_cut, color="#1f77b4", linestyle=":", lw=1.0)
-            ax.set_title(obs_name)
-        axes[0].legend()
-        fig.suptitle(f"Thermalization traces: N={int(row.Nbos)}, U2={row.U2:g}")
-        fig.tight_layout()
-        filename = f"trace_{row.name}.png"
-        fig.savefig(out_dir / filename, dpi=180)
-        plt.close(fig)
-        saved.append(filename)
+        for repeat in sorted(case_samples["repeat"].unique()):
+            rep_samples = case_samples[case_samples["repeat"] == repeat]
+            fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True)
+            axes = axes.flatten()
+            for ax, obs_name in zip(axes, TRACE_PLOTS):
+                obs_df = rep_samples[rep_samples["observable"] == obs_name]
+                for mode_name, color in (("local", "#666666"), ("hmc", "#c44e52")):
+                    mode_df = obs_df[obs_df["mode"] == mode_name]
+                    ax.plot(mode_df["sample_index"], mode_df["value"], lw=1.0, label=mode_name, color=color)
+                ax.axvline(row.thermal_cut, color="#1f77b4", linestyle=":", lw=1.0)
+                ax.set_title(obs_name)
+            axes[0].legend()
+            fig.suptitle(
+                f"Thermalization traces: N={int(row.Nbos)}, U2={row.U2:g}, repeat={int(repeat)}, "
+                f"run={Path(row.benchmark_root).name}"
+            )
+            fig.tight_layout()
+            filename = f"trace_{row.case_id}_rep{int(repeat)}.png"
+            fig.savefig(out_dir / filename, dpi=180)
+            plt.close(fig)
+            saved.append(filename)
     return saved
 
 
@@ -179,9 +188,9 @@ def save_tune_plots(cases: pd.DataFrame, tune_df: pd.DataFrame | None, out_dir: 
         axes[2].set_title("Efficiency")
         fig.colorbar(sc2, ax=axes[2], label="Acceptance")
 
-        fig.suptitle(f"Tuning evidence: {row.name}")
+        fig.suptitle(f"Tuning evidence: {row.name} ({Path(row.benchmark_root).name})")
         fig.tight_layout()
-        filename = f"tune_{row.name}.png"
+        filename = f"tune_{row.case_id}.png"
         fig.savefig(out_dir / filename, dpi=180)
         plt.close(fig)
         saved.append(filename)
@@ -219,18 +228,36 @@ def write_markdown(
         f"- `Nbos` covered in this stage report: `{nbos_values}`",
         f"- `U2` covered in this stage report: `{u2_values}`",
         "",
-        "This report only aggregates strict local-vs-HMC benchmark directories that already passed the current health criterion.",
-        "Acceptance is shown as a diagnostic, but the actual health criterion is agreement of post-cut observable means within the combined statistical error bars.",
-        "",
         "## Case Summary",
         "",
-        "| Case | Acceptance | tau_local | tau_hmc | ESS/sec local | ESS/sec HMC | Speed ratio | Result |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
+    if passed < len(cases):
+        lines.extend(
+            [
+                "This report includes unresolved or still-failing benchmark variants.",
+                "Use the case table and the sample-index traces to see whether the mismatch looks like a slow drift, a thermal-cut issue, or a persistent sampler bias.",
+                "",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "This report only aggregates strict local-vs-HMC benchmark directories that already passed the current health criterion.",
+                "Acceptance is shown as a diagnostic, but the actual health criterion is agreement of post-cut observable means within the combined statistical error bars.",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "| Case | Acceptance | tau_local | tau_hmc | ESS/sec local | ESS/sec HMC | Speed ratio | Result |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        ]
+    )
     for row in overview_cases.itertuples():
         lines.append(
-            "| {name} | {acc:.3f} | {tau_l:.3f} | {tau_h:.3f} | {ess_l:.3f} | {ess_h:.3f} | {ratio:.3f} | {result} |".format(
+            "| {name} ({root}) | {acc:.3f} | {tau_l:.3f} | {tau_h:.3f} | {ess_l:.3f} | {ess_h:.3f} | {ratio:.3f} | {result} |".format(
                 name=row.name,
+                root=Path(row.benchmark_root).name,
                 acc=row.acceptance_mean,
                 tau_l=row.local_tau_int_doubleOcc,
                 tau_h=row.hmc_tau_int_doubleOcc,
@@ -303,7 +330,7 @@ def write_markdown(
                 case_tune["traj_len"] = case_tune["nfrog"] * case_tune["hmc_dt"]
                 lines.extend(
                     [
-                        f"### {row.name}",
+                        f"### {row.name} ({Path(row.benchmark_root).name})",
                         "",
                         "| Nfrog | dt | mass | traj_len | acceptance | tau_int | ESS/sec |",
                         "| ---: | ---: | ---: | ---: | ---: | ---: | ---: |",

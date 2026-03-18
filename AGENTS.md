@@ -129,7 +129,7 @@
   - `stage_summary.json`
   - `overview.png`
   - `observable_*_n*.png`
-  - `trace_*.png`
+  - `trace_*_rep*.png`
   - `tune_*.png`
   - `report.md`
 - Current staged small-benchmark reports live under `data/triangular_hmc_small_benchmark/stage_report_*`.
@@ -137,6 +137,8 @@
 - `test/small_hmc_stage_report.ipynb` now exposes both `NBOS_SELECT` and `TRACE_REPEAT` for interactive slicing of the rendered staged report.
 - `HMC-REFERENCE.md` is the running handoff note for validated health points, unresolved slow modes,
   tuning heuristics, and production/HPC-oriented lessons.
+- The renderer can also be used on unresolved benchmark directories to build progress reports with per-repeat traces.
+  A current example is `data/triangular_hmc_small_benchmark/progress_report_n1000_u1e0_v2`.
 
 ## Preferred Commit Granularity
 - Commit source changes in small, reviewable chunks.

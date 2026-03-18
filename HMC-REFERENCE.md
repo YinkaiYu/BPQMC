@@ -17,6 +17,10 @@ The current staged visual report is:
 
 - [stage_report_v6a](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_small_benchmark/stage_report_v6a/report.md)
 
+An example unresolved progress report is:
+
+- [progress_report_n1000_u1e0_v2](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_small_benchmark/progress_report_n1000_u1e0_v2/report.md)
+
 The notebook entry point is:
 
 - [small_hmc_stage_report.ipynb](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/small_hmc_stage_report.ipynb)
@@ -117,6 +121,10 @@ This is the correct design for future production debugging because it enables:
 - repeated thermal-cut scans
 - repeat-to-repeat trace inspection
 - quick notebook-based diagnosis without reopening every run manually
+
+The staged report tooling now also writes per-repeat thermalization traces and includes
+`SF_Gamma` directly in the default trace panel, because this observable has become the
+main diagnostic for the unresolved `Nbos=1000, U2=1` mode.
 
 ## Current Unresolved Modes
 

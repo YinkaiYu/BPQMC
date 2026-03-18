@@ -288,6 +288,9 @@ The notebook exposes both `NBOS_SELECT` and `TRACE_REPEAT`, which lets you inspe
 The current staged checkpoint with 9 strict-passing health points is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
 For the running handoff note covering validated health points, unresolved modes, tuning trends,
 and production-oriented lessons, see `HMC-REFERENCE.md`.
+For unresolved slow-mode diagnostics, the same renderer can also be used on non-passing benchmark
+directories. A current example is `data/triangular_hmc_small_benchmark/progress_report_n1000_u1e0_v2`,
+which shows per-repeat `sample index` traces including `SF_Gamma`.
 
 ### Production Tune Workflow
 
