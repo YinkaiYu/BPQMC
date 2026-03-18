@@ -388,7 +388,8 @@ def write_markdown(
         case_obs = observables[observables["case_id"] == row.case_id].copy()
         fail_df = case_obs[~case_obs["passed"]].sort_values("z_score", ascending=False)
         lines.extend([f"### {row.name} ({Path(row.benchmark_root).name})", ""])
-        if int(row.num_repeats) < 2:
+        is_probe = int(row.num_repeats) < 2
+        if is_probe:
             lines.extend(
                 [
                     "This is a single-repeat probe. Its trace plots are still useful,",
@@ -402,33 +403,60 @@ def write_markdown(
                 "- Benchmark parameters: "
                 f"`L={int(row.L)}`, `beta={row.beta:g}`, `dtau={row.dtau:g}`, `Nbos={int(row.Nbos)}`, `U2={row.U2:g}`, "
                 f"`nfrog={int(row.nfrog)}`, `dt={row.hmc_dt:g}`, `jitter={int(row.hmc_jitter)}`, `mass={row.hmc_mass:g}`.",
-                f"- Worst z-score: `{row.worst_z_observable}` = `{row.worst_z_score:.3f}`.",
                 f"- Worst |diff| / span: `{row.worst_span_observable}` = `{row.worst_diff_over_span:.3f}`.",
                 f"- Failed observable count: `{int(row.failed_observable_count)}`.",
                 "",
             ]
         )
+        if is_probe:
+            lines.extend(
+                [
+                    "- Worst z-score: suppressed for single-repeat probes because the repeat-to-repeat standard error is not defined.",
+                    "",
+                ]
+            )
+        else:
+            lines.extend([f"- Worst z-score: `{row.worst_z_observable}` = `{row.worst_z_score:.3f}`.", ""])
         if fail_df.empty:
             lines.extend(["All tracked observables pass the current strict benchmark criterion.", ""])
             continue
-        lines.extend(
-            [
-                "| Observable | z-score | |diff| / span | Local mean | HMC mean | Local err | HMC err |",
-                "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
-            ]
-        )
-        for fail in fail_df.itertuples():
-            lines.append(
-                "| {obs} | {z:.3f} | {span:.3f} | {local:.6g} | {hmc:.6g} | {local_err:.3g} | {hmc_err:.3g} |".format(
-                    obs=fail.observable,
-                    z=fail.z_score,
-                    span=fail.diff_over_span_same_nbos,
-                    local=fail.local_mean,
-                    hmc=fail.hmc_mean,
-                    local_err=fail.local_err,
-                    hmc_err=fail.hmc_err,
-                )
+        if is_probe:
+            probe_df = case_obs.sort_values("diff_over_span_same_nbos", ascending=False).head(8)
+            lines.extend(
+                [
+                    "| Observable | |diff| / span | Abs diff | Local mean | HMC mean |",
+                    "| --- | ---: | ---: | ---: | ---: |",
+                ]
             )
+            for fail in probe_df.itertuples():
+                lines.append(
+                    "| {obs} | {span:.3f} | {diff:.6g} | {local:.6g} | {hmc:.6g} |".format(
+                        obs=fail.observable,
+                        span=fail.diff_over_span_same_nbos,
+                        diff=fail.abs_diff,
+                        local=fail.local_mean,
+                        hmc=fail.hmc_mean,
+                    )
+                )
+        else:
+            lines.extend(
+                [
+                    "| Observable | z-score | |diff| / span | Local mean | HMC mean | Local err | HMC err |",
+                    "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+                ]
+            )
+            for fail in fail_df.itertuples():
+                lines.append(
+                    "| {obs} | {z:.3f} | {span:.3f} | {local:.6g} | {hmc:.6g} | {local_err:.3g} | {hmc_err:.3g} |".format(
+                        obs=fail.observable,
+                        z=fail.z_score,
+                        span=fail.diff_over_span_same_nbos,
+                        local=fail.local_mean,
+                        hmc=fail.hmc_mean,
+                        local_err=fail.local_err,
+                        hmc_err=fail.hmc_err,
+                    )
+                )
         lines.extend([""])
     lines.extend(
         [
