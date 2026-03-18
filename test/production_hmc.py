@@ -5,7 +5,7 @@ import argparse
 import csv
 import json
 from collections import defaultdict
-from dataclasses import asdict, replace
+from dataclasses import asdict
 from pathlib import Path
 
 from hmc_tools import (
@@ -46,6 +46,10 @@ OBSERVABLES = {
     "denden_Gamma": read_complex_series_real,
 }
 
+TRACE_OBSERVABLES = ("squareOcc", "IPR", "doubleOcc", "nearestOcc")
+GATE_OBSERVABLES = ("squareOcc", "IPR")
+PLOT_OBSERVABLES = ("kinetic", "doubleOcc", "SF_Gamma", "SF_K", "PF_Gamma", "denden_Gamma")
+
 
 def parse_int_list(text: str) -> tuple[int, ...]:
     return tuple(int(item.strip()) for item in text.split(",") if item.strip())
@@ -67,11 +71,63 @@ def format_dt_tag(dt: float) -> str:
     return f"{dt:.9e}".replace("+", "").replace("-", "m").replace(".", "p")
 
 
+def write_csv(path: Path, rows: list[dict[str, object]], fieldnames: list[str]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def build_configs(args: argparse.Namespace) -> dict[str, object]:
+    return production_parameter_sets(
+        lattice_type=args.lattice_type,
+        l_values=parse_int_list(args.l_values),
+        nbos_values=parse_int_list(args.nbos_values),
+        u2_values=parse_float_list(args.u2_values),
+        rt=args.rt,
+        ru1=args.ru1,
+        beta=args.beta,
+        dtau=args.dtau,
+        nwrap=args.nwrap,
+        nbin=args.bins,
+        nsweep=args.sweeps,
+        nthermal=args.thermal_cut,
+        ini_type=args.ini_type,
+        ini_ampl=args.ini_ampl,
+        ini_ham=args.ini_ham,
+        ini_twist=args.ini_twist,
+        imbalance=args.imbalance,
+    )
+
+
+def load_hmc_map(path: str) -> dict[str, dict[str, float]]:
+    if not path:
+        return {}
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def get_hmc_params(
+    case_name: str,
+    args: argparse.Namespace,
+    tuned_map: dict[str, dict[str, float]],
+) -> tuple[int, float, int, float]:
+    if case_name in tuned_map:
+        params = tuned_map[case_name]
+        return (
+            int(params["nfrog"]),
+            float(params["hmc_dt"]),
+            int(params.get("hmc_jitter", 0)),
+            float(params.get("hmc_mass", 1.0)),
+        )
+    return args.hmc_nfrog, args.hmc_dt, args.hmc_jitter, args.hmc_mass
+
+
 def collect_run_means(run_dir: Path, thermal_cut: int) -> dict[str, float]:
     means: dict[str, float] = {}
     for obs_name, reader in OBSERVABLES.items():
         values = reader(run_dir, obs_name)
-        means[obs_name] = series_mean(values[thermal_cut:])
+        trimmed = values[thermal_cut:]
+        means[obs_name] = series_mean(trimmed) if trimmed else values[-1]
     return means
 
 
@@ -90,6 +146,41 @@ def summarize_perf(run_dir: Path, thermal_cut: int) -> dict[str, float]:
     if "HMC_DeltaH_abs_max" in info:
         summary["hmc_deltaH_abs_max"] = info["HMC_DeltaH_abs_max"]
     return summary
+
+
+def trace_window_stats(values: list[float], thermal_cut: int, window_frac: float, min_window: int) -> dict[str, float]:
+    trimmed = values[thermal_cut:] if thermal_cut < len(values) else []
+    window_pool = trimmed if trimmed else values
+    if not window_pool:
+        return {
+            "n_samples": 0,
+            "mean": 0.0,
+            "stderr": 0.0,
+            "start_mean": 0.0,
+            "end_mean": 0.0,
+            "drift": 0.0,
+            "span": 0.0,
+            "drift_over_span": 0.0,
+        }
+    window = min(len(window_pool), max(min_window, int(round(window_frac * len(window_pool)))))
+    start = window_pool[:window]
+    end = window_pool[-window:]
+    overall_mean = series_mean(window_pool)
+    start_mean = series_mean(start)
+    end_mean = series_mean(end)
+    span = max(window_pool) - min(window_pool)
+    drift = end_mean - start_mean
+    scale = max(span, 1.0e-12 * max(1.0, abs(overall_mean)))
+    return {
+        "n_samples": len(window_pool),
+        "mean": overall_mean,
+        "stderr": sample_stderr(window_pool),
+        "start_mean": start_mean,
+        "end_mean": end_mean,
+        "drift": drift,
+        "span": span,
+        "drift_over_span": abs(drift) / scale,
+    }
 
 
 def aggregate_tune_repeat_rows(repeat_rows: list[dict[str, float | int | str]]) -> dict[str, float | int | str]:
@@ -158,40 +249,190 @@ def compare_mode_stats(summary: dict[str, dict[str, list[float]]]) -> tuple[bool
     return overall_ok, rows
 
 
-def get_hmc_params(case_name: str, args: argparse.Namespace, tuned_map: dict[str, dict[str, float]]) -> tuple[int, float, int, float]:
-    if case_name in tuned_map:
-        params = tuned_map[case_name]
-        return int(params["nfrog"]), float(params["hmc_dt"]), int(params.get("hmc_jitter", 0)), float(params.get("hmc_mass", 1.0))
-    return args.hmc_nfrog, args.hmc_dt, args.hmc_jitter, args.hmc_mass
+def summarize_stage_observables(
+    case_name: str,
+    repeat_observables: dict[str, list[dict[str, float | int | str]]],
+) -> list[dict[str, float | int | str]]:
+    rows: list[dict[str, float | int | str]] = []
+    for observable, obs_rows in repeat_observables.items():
+        rows.append(
+            {
+                "name": case_name,
+                "observable": observable,
+                "repeats": len(obs_rows),
+                "mean": series_mean([float(row["mean"]) for row in obs_rows]),
+                "stderr": sample_stderr([float(row["mean"]) for row in obs_rows]),
+                "start_mean": series_mean([float(row["start_mean"]) for row in obs_rows]),
+                "start_mean_stderr": sample_stderr([float(row["start_mean"]) for row in obs_rows]),
+                "end_mean": series_mean([float(row["end_mean"]) for row in obs_rows]),
+                "end_mean_stderr": sample_stderr([float(row["end_mean"]) for row in obs_rows]),
+                "drift_mean": series_mean([float(row["drift"]) for row in obs_rows]),
+                "drift_stderr": sample_stderr([float(row["drift"]) for row in obs_rows]),
+                "span_mean": series_mean([float(row["span"]) for row in obs_rows]),
+                "span_stderr": sample_stderr([float(row["span"]) for row in obs_rows]),
+                "drift_over_span_mean": series_mean([float(row["drift_over_span"]) for row in obs_rows]),
+                "drift_over_span_max": max(float(row["drift_over_span"]) for row in obs_rows),
+                "n_samples_mean": series_mean([float(row["n_samples"]) for row in obs_rows]),
+            }
+        )
+    return rows
 
 
-def write_csv(path: Path, rows: list[dict[str, object]], fieldnames: list[str]) -> None:
-    with path.open("w", encoding="utf-8", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+def classify_stage_case(
+    observable_rows: list[dict[str, float | int | str]],
+    acceptance_mean: float,
+    min_run_accept: float,
+    stable_ratio: float,
+    warning_ratio: float,
+    stuck_repeats: int,
+) -> tuple[str, str]:
+    if stuck_repeats > 0 or acceptance_mean <= min_run_accept:
+        return "stuck_or_invalid", "At least one repeat is stuck or acceptance is too low."
+    gate_rows = [row for row in observable_rows if row["observable"] in GATE_OBSERVABLES]
+    if not gate_rows:
+        return "insufficient_gate_data", "Missing squareOcc/IPR traces."
+    worst_ratio = max(float(row["drift_over_span_mean"]) for row in gate_rows)
+    if worst_ratio <= stable_ratio:
+        return "stable_window", "squareOcc/IPR drift is small compared with the observed span."
+    if worst_ratio <= warning_ratio:
+        return "slow_drift", "squareOcc/IPR is improving but still shows a visible residual drift."
+    return "strong_drift", "squareOcc/IPR still drifts strongly over the retained stage window."
 
 
-def build_configs(args: argparse.Namespace) -> dict[str, object]:
-    return production_parameter_sets(
-        lattice_type=args.lattice_type,
-        l_values=parse_int_list(args.l_values),
-        nbos_values=parse_int_list(args.nbos_values),
-        u2_values=parse_float_list(args.u2_values),
-        rt=args.rt,
-        ru1=args.ru1,
-        beta=args.beta,
-        dtau=args.dtau,
-        nwrap=args.nwrap,
-        nbin=args.bins,
-        nsweep=args.sweeps,
-        nthermal=args.thermal_cut,
-        ini_type=args.ini_type,
-        ini_ampl=args.ini_ampl,
-        ini_ham=args.ini_ham,
-        ini_twist=args.ini_twist,
-        imbalance=args.imbalance,
+def collect_stage_case(
+    cfg,
+    args: argparse.Namespace,
+    binary: Path,
+    tuned_map: dict[str, dict[str, float]],
+    *,
+    execute: bool,
+    case_index: int,
+) -> tuple[dict[str, object], list[dict[str, object]], list[dict[str, object]], list[dict[str, object]]]:
+    if args.warm >= 0:
+        cfg = cfg.with_sampling(is_warm=args.warm > 0, nwarm=max(args.warm, 0))
+    nfrog, hmc_dt, jitter, hmc_mass = get_hmc_params(cfg.name, args, tuned_map)
+    repeat_rows: list[dict[str, object]] = []
+    sample_rows: list[dict[str, object]] = []
+    repeat_observables: dict[str, list[dict[str, float | int | str]]] = defaultdict(list)
+
+    for repeat in range(args.repeats):
+        seed = args.seed_base + case_index * args.seed_step + repeat * args.repeat_seed_step
+        run_dir = Path(args.work_root).resolve() / "runs" / cfg.name / f"hmc_rep{repeat}"
+        if execute:
+            prepare_run_dir(
+                run_dir,
+                cfg,
+                is_global=True,
+                nfrog=nfrog,
+                hmc_dt=hmc_dt,
+                hmc_jitter=jitter,
+                hmc_mass=hmc_mass,
+                seed=seed,
+                binary=binary,
+            )
+            run_case(run_dir, np_ranks=args.np)
+        elif not run_dir.exists():
+            raise FileNotFoundError(f"Missing run directory for collect mode: {run_dir}")
+
+        info = parse_info_metrics(run_dir)
+        perf_stats = summarize_perf(run_dir, cfg.nthermal)
+        repeat_row = {
+            "name": cfg.name,
+            "repeat": repeat,
+            "seed": seed,
+            "nfrog": nfrog,
+            "hmc_dt": hmc_dt,
+            "hmc_jitter": jitter,
+            "hmc_mass": hmc_mass,
+            "acceptance": info["Accept_HMC"],
+            "tau_int_doubleOcc": perf_stats["tau_int_doubleOcc"],
+            "lag1_doubleOcc": perf_stats["lag1_doubleOcc"],
+            "ess_per_sec_doubleOcc": perf_stats["ess_per_sec_doubleOcc"],
+            "cpu_time": perf_stats["cpu_time"],
+            "span_doubleOcc": perf_stats["span_doubleOcc"],
+            "hmc_deltaH_mean": perf_stats.get("hmc_deltaH_mean", 0.0),
+            "hmc_deltaH_abs_max": perf_stats.get("hmc_deltaH_abs_max", 0.0),
+            "stuck": int(info["Accept_HMC"] <= args.min_run_accept or perf_stats["ess_per_sec_doubleOcc"] <= 0.0),
+        }
+        repeat_rows.append(repeat_row)
+
+        for observable in TRACE_OBSERVABLES:
+            values = OBSERVABLES[observable](run_dir, observable)
+            obs_summary = trace_window_stats(values, cfg.nthermal, args.trace_window_frac, args.trace_min_window)
+            repeat_observables[observable].append(
+                {
+                    "name": cfg.name,
+                    "repeat": repeat,
+                    "observable": observable,
+                    **obs_summary,
+                }
+            )
+            for sample_index, value in enumerate(values):
+                sample_rows.append(
+                    {
+                        "name": cfg.name,
+                        "repeat": repeat,
+                        "observable": observable,
+                        "sample_index": sample_index,
+                        "post_thermal": int(sample_index >= cfg.nthermal),
+                        "value": value,
+                    }
+                )
+
+    observable_rows = summarize_stage_observables(cfg.name, repeat_observables)
+    acceptance_values = [float(row["acceptance"]) for row in repeat_rows]
+    tau_values = [float(row["tau_int_doubleOcc"]) for row in repeat_rows]
+    ess_values = [float(row["ess_per_sec_doubleOcc"]) for row in repeat_rows]
+    delta_h_values = [float(row["hmc_deltaH_mean"]) for row in repeat_rows]
+    stuck_repeats = sum(int(row["stuck"]) for row in repeat_rows)
+    status, status_detail = classify_stage_case(
+        observable_rows,
+        acceptance_mean=series_mean(acceptance_values),
+        min_run_accept=args.min_run_accept,
+        stable_ratio=args.stable_drift_ratio,
+        warning_ratio=args.warning_drift_ratio,
+        stuck_repeats=stuck_repeats,
     )
+
+    gate_summary = {row["observable"]: row for row in observable_rows if row["observable"] in GATE_OBSERVABLES}
+    case_row = {
+        "name": cfg.name,
+        "lattice_type": cfg.lattice_type,
+        "Lx": cfg.nlx,
+        "Ly": cfg.nly,
+        "Nbos": cfg.nbos,
+        "U2": cfg.ru2,
+        "beta": cfg.beta,
+        "dtau": cfg.beta / cfg.ltrot,
+        "nfrog": nfrog,
+        "hmc_dt": hmc_dt,
+        "hmc_jitter": jitter,
+        "hmc_mass": hmc_mass,
+        "repeats": args.repeats,
+        "acceptance_mean": series_mean(acceptance_values),
+        "acceptance_stderr": sample_stderr(acceptance_values),
+        "tau_int_doubleOcc_mean": series_mean(tau_values),
+        "tau_int_doubleOcc_stderr": sample_stderr(tau_values),
+        "ess_per_sec_doubleOcc_mean": series_mean(ess_values),
+        "ess_per_sec_doubleOcc_stderr": sample_stderr(ess_values),
+        "hmc_deltaH_mean": series_mean(delta_h_values),
+        "hmc_deltaH_abs_max": max(float(row["hmc_deltaH_abs_max"]) for row in repeat_rows),
+        "stuck_repeats": stuck_repeats,
+        "squareOcc_drift_ratio": float(gate_summary.get("squareOcc", {}).get("drift_over_span_mean", 0.0)),
+        "IPR_drift_ratio": float(gate_summary.get("IPR", {}).get("drift_over_span_mean", 0.0)),
+        "status": status,
+        "status_detail": status_detail,
+    }
+    case_summary = {
+        "name": cfg.name,
+        "config": asdict(cfg),
+        "hmc": {"nfrog": nfrog, "hmc_dt": hmc_dt, "hmc_jitter": jitter, "hmc_mass": hmc_mass},
+        "repeat_runs": repeat_rows,
+        "observables": observable_rows,
+        "status": status,
+        "status_detail": status_detail,
+    }
+    return case_summary, [case_row], observable_rows, repeat_rows + sample_rows
 
 
 def run_tune(args: argparse.Namespace) -> int:
@@ -343,16 +584,14 @@ def run_benchmark(args: argparse.Namespace) -> int:
     binary = Path(args.binary).resolve()
     work_root = Path(args.work_root).resolve()
     work_root.mkdir(parents=True, exist_ok=True)
-    tuned_map: dict[str, dict[str, float]] = {}
-    if args.hmc_json:
-        tuned_map = json.loads(Path(args.hmc_json).read_text(encoding="utf-8"))
+    tuned_map = load_hmc_map(args.hmc_json)
 
     case_rows = []
     observable_rows = []
     cases = []
     overall_ok = True
 
-    for cfg in configs.values():
+    for case_index, cfg in enumerate(configs.values()):
         if args.warm >= 0:
             cfg = cfg.with_sampling(is_warm=args.warm > 0, nwarm=max(args.warm, 0))
         nfrog, hmc_dt, jitter, hmc_mass = get_hmc_params(cfg.name, args, tuned_map)
@@ -362,7 +601,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
         hmc_stuck_repeats = 0
         local_stuck_repeats = 0
         for repeat in range(args.repeats):
-            seed = args.seed_base + 100 * repeat
+            seed = args.seed_base + case_index * args.seed_step + repeat * args.repeat_seed_step
             for mode_name, is_global in (("local", False), ("hmc", True)):
                 run_dir = work_root / "runs" / cfg.name / f"{mode_name}_rep{repeat}"
                 prepare_run_dir(
@@ -489,8 +728,166 @@ def run_benchmark(args: argparse.Namespace) -> int:
     return 0 if overall_ok else 1
 
 
+def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
+    configs = build_configs(args)
+    binary = Path(args.binary).resolve()
+    work_root = Path(args.work_root).resolve()
+    work_root.mkdir(parents=True, exist_ok=True)
+    tuned_map = load_hmc_map(args.hmc_json)
+
+    cases = []
+    case_rows: list[dict[str, object]] = []
+    observable_rows: list[dict[str, object]] = []
+    run_rows: list[dict[str, object]] = []
+    sample_rows: list[dict[str, object]] = []
+
+    for case_index, cfg in enumerate(configs.values()):
+        case_summary, case_row_list, case_obs_rows, row_bundle = collect_stage_case(
+            cfg,
+            args,
+            binary,
+            tuned_map,
+            execute=execute,
+            case_index=case_index,
+        )
+        cases.append(case_summary)
+        case_rows.extend(case_row_list)
+        observable_rows.extend(case_obs_rows)
+        split_index = args.repeats
+        run_rows.extend(row_bundle[:split_index])
+        sample_rows.extend(row_bundle[split_index:])
+
+    overall_status = "healthy" if all(case["status"] == "stable_window" for case in cases) else "needs_review"
+    summary = {
+        "mode": "stage",
+        "stage_label": args.stage_label,
+        "overall_status": overall_status,
+        "gate_observables": list(GATE_OBSERVABLES),
+        "trace_observables": list(TRACE_OBSERVABLES),
+        "config_summary": {
+            "lattice_type": args.lattice_type,
+            "l_values": args.l_values,
+            "nbos_values": args.nbos_values,
+            "u2_values": args.u2_values,
+            "beta": args.beta,
+            "dtau": args.dtau,
+            "bins": args.bins,
+            "thermal_cut": args.thermal_cut,
+            "warm": args.warm,
+        },
+        "cases": cases,
+    }
+    (work_root / "production_stage.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    write_csv(
+        work_root / "production_stage_cases.csv",
+        case_rows,
+        [
+            "name",
+            "lattice_type",
+            "Lx",
+            "Ly",
+            "Nbos",
+            "U2",
+            "beta",
+            "dtau",
+            "nfrog",
+            "hmc_dt",
+            "hmc_jitter",
+            "hmc_mass",
+            "repeats",
+            "acceptance_mean",
+            "acceptance_stderr",
+            "tau_int_doubleOcc_mean",
+            "tau_int_doubleOcc_stderr",
+            "ess_per_sec_doubleOcc_mean",
+            "ess_per_sec_doubleOcc_stderr",
+            "hmc_deltaH_mean",
+            "hmc_deltaH_abs_max",
+            "stuck_repeats",
+            "squareOcc_drift_ratio",
+            "IPR_drift_ratio",
+            "status",
+            "status_detail",
+        ],
+    )
+    write_csv(
+        work_root / "production_stage_observables.csv",
+        observable_rows,
+        [
+            "name",
+            "observable",
+            "repeats",
+            "mean",
+            "stderr",
+            "start_mean",
+            "start_mean_stderr",
+            "end_mean",
+            "end_mean_stderr",
+            "drift_mean",
+            "drift_stderr",
+            "span_mean",
+            "span_stderr",
+            "drift_over_span_mean",
+            "drift_over_span_max",
+            "n_samples_mean",
+        ],
+    )
+    write_csv(
+        work_root / "production_stage_runs.csv",
+        run_rows,
+        [
+            "name",
+            "repeat",
+            "seed",
+            "nfrog",
+            "hmc_dt",
+            "hmc_jitter",
+            "hmc_mass",
+            "acceptance",
+            "tau_int_doubleOcc",
+            "lag1_doubleOcc",
+            "ess_per_sec_doubleOcc",
+            "cpu_time",
+            "span_doubleOcc",
+            "hmc_deltaH_mean",
+            "hmc_deltaH_abs_max",
+            "stuck",
+        ],
+    )
+    write_csv(
+        work_root / "production_stage_samples.csv",
+        sample_rows,
+        ["name", "repeat", "observable", "sample_index", "post_thermal", "value"],
+    )
+    return 0
+
+
+def run_stage(args: argparse.Namespace) -> int:
+    return run_stage_or_collect(args, execute=True)
+
+
+def collect_stage(args: argparse.Namespace) -> int:
+    return run_stage_or_collect(args, execute=False)
+
+
+def render_summary(args: argparse.Namespace) -> int:
+    from render_hmc_report import render_summary_file
+
+    work_root = Path(args.work_root).resolve()
+    if args.summary_json:
+        summary_json = Path(args.summary_json).resolve()
+    else:
+        candidate = work_root / f"production_{args.summary_kind}.json"
+        if not candidate.exists():
+            raise FileNotFoundError(f"Could not find summary JSON: {candidate}")
+        summary_json = candidate
+    output_dir = Path(args.output_dir).resolve() if args.output_dir else work_root / "report"
+    render_summary_file(summary_json, output_dir)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Production tuning and benchmark driver for HMC/local PQMC runs.")
+    parser = argparse.ArgumentParser(description="Production tuning, stage runs, and reporting for HMC/local PQMC.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     def add_common(subparser: argparse.ArgumentParser) -> None:
@@ -514,6 +911,8 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--imbalance", type=float, default=0.0)
         subparser.add_argument("--np", type=int, default=1)
         subparser.add_argument("--seed-base", type=int, default=50001)
+        subparser.add_argument("--seed-step", type=int, default=1000)
+        subparser.add_argument("--repeat-seed-step", type=int, default=100)
         subparser.add_argument("--binary", default=str(DEFAULT_BINARY))
         subparser.add_argument("--work-root", default=str(Path("/tmp") / "bpqmc_production"))
 
@@ -523,8 +922,6 @@ def build_parser() -> argparse.ArgumentParser:
     tune.add_argument("--hmc-jitter", type=int, default=0)
     tune.add_argument("--hmc-mass", type=float, default=1.0)
     tune.add_argument("--repeats", type=int, default=1)
-    tune.add_argument("--seed-step", type=int, default=0, help="Increment added to the base seed for each grid point.")
-    tune.add_argument("--repeat-seed-step", type=int, default=100, help="Increment added to the seed for each repeat of the same grid point.")
     tune.add_argument("--accept-min", type=float, default=0.70)
     tune.add_argument("--accept-max", type=float, default=0.85)
     tune.add_argument("--min-run-accept", type=float, default=0.05)
@@ -540,6 +937,36 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--hmc-mass", type=float, default=1.0)
     bench.add_argument("--min-run-accept", type=float, default=0.05)
     bench.set_defaults(func=run_benchmark)
+
+    def add_stage_args(subparser: argparse.ArgumentParser) -> None:
+        add_common(subparser)
+        subparser.add_argument("--repeats", type=int, default=2)
+        subparser.add_argument("--stage-label", default="")
+        subparser.add_argument("--hmc-json", default="", help="JSON file with per-case HMC parameters, usually recommended_hmc.json.")
+        subparser.add_argument("--hmc-nfrog", type=int, default=10)
+        subparser.add_argument("--hmc-dt", type=float, default=0.012)
+        subparser.add_argument("--hmc-jitter", type=int, default=0)
+        subparser.add_argument("--hmc-mass", type=float, default=1.0)
+        subparser.add_argument("--min-run-accept", type=float, default=0.05)
+        subparser.add_argument("--trace-window-frac", type=float, default=0.25)
+        subparser.add_argument("--trace-min-window", type=int, default=16)
+        subparser.add_argument("--stable-drift-ratio", type=float, default=0.25)
+        subparser.add_argument("--warning-drift-ratio", type=float, default=0.50)
+
+    stage = subparsers.add_parser("stage", help="Run long HMC stage jobs and store production trace diagnostics.")
+    add_stage_args(stage)
+    stage.set_defaults(func=run_stage)
+
+    collect = subparsers.add_parser("collect", help="Rebuild production stage summaries from completed run directories.")
+    add_stage_args(collect)
+    collect.set_defaults(func=collect_stage)
+
+    report = subparsers.add_parser("report", help="Render figures and Markdown from a production summary JSON.")
+    report.add_argument("--work-root", default=str(Path("/tmp") / "bpqmc_production"))
+    report.add_argument("--summary-json", default="")
+    report.add_argument("--summary-kind", choices=("stage", "tune", "benchmark"), default="stage")
+    report.add_argument("--output-dir", default="")
+    report.set_defaults(func=render_summary)
     return parser
 
 

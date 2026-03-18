@@ -8,6 +8,9 @@ set -euo pipefail
 
 ROOT_DIR="${ROOT_DIR:-$SLURM_SUBMIT_DIR}"
 WORK_ROOT="${WORK_ROOT:-$ROOT_DIR/production_runs}"
+PYTHON="${PYTHON:-/home/yyk/conda/envs/notebook/bin/python}"
+PROD_COMMAND="${PROD_COMMAND:-stage}"
+SUMMARY_KIND="${SUMMARY_KIND:-stage}"
 
 LATTICE_TYPE="${LATTICE_TYPE:-triangular}"
 L_VALUES="${L_VALUES:-12}"
@@ -29,55 +32,104 @@ INI_TWIST="${INI_TWIST:-0.0001}"
 IMBALANCE="${IMBALANCE:-0.0}"
 GRID="${GRID:-8:0.002,10:0.003,12:0.004,16:0.005}"
 REPEATS="${REPEATS:-2}"
+HMC_JSON="${HMC_JSON:-$WORK_ROOT/recommended_hmc.json}"
+HMC_NFROG="${HMC_NFROG:-12}"
+HMC_DT="${HMC_DT:-0.004}"
+HMC_JITTER="${HMC_JITTER:-0}"
+HMC_MASS="${HMC_MASS:-1.0}"
+STAGE_LABEL="${STAGE_LABEL:-triangular_prod_stage}"
+TRACE_WINDOW_FRAC="${TRACE_WINDOW_FRAC:-0.25}"
+TRACE_MIN_WINDOW="${TRACE_MIN_WINDOW:-16}"
+STABLE_DRIFT_RATIO="${STABLE_DRIFT_RATIO:-0.25}"
+WARNING_DRIFT_RATIO="${WARNING_DRIFT_RATIO:-0.50}"
 RUN_REPORT="${RUN_REPORT:-0}"
 
 cd "$ROOT_DIR"
 
-python3 production_hmc.py tune \
-  --lattice-type "$LATTICE_TYPE" \
-  --l-values "$L_VALUES" \
-  --nbos-values "$NBOS_VALUES" \
-  --u2-values "$U2_VALUES" \
-  --rt "$RT" \
-  --ru1 "$RU1" \
-  --beta "$BETA" \
-  --dtau "$DTAU" \
-  --nwrap "$NWRAP" \
-  --bins "$NBIN" \
-  --sweeps "$NSWEEP" \
-  --thermal-cut "$NTHERMAL" \
-  --warm "$NWARM" \
-  --ini-type "$INI_TYPE" \
-  --ini-ampl "$INI_AMPL" \
-  --ini-ham "$INI_HAM" \
-  --ini-twist "$INI_TWIST" \
-  --imbalance "$IMBALANCE" \
-  --grid "$GRID" \
+COMMON_ARGS=(
+  --lattice-type "$LATTICE_TYPE"
+  --l-values "$L_VALUES"
+  --nbos-values "$NBOS_VALUES"
+  --u2-values "$U2_VALUES"
+  --rt "$RT"
+  --ru1 "$RU1"
+  --beta "$BETA"
+  --dtau "$DTAU"
+  --nwrap "$NWRAP"
+  --bins "$NBIN"
+  --sweeps "$NSWEEP"
+  --thermal-cut "$NTHERMAL"
+  --warm "$NWARM"
+  --ini-type "$INI_TYPE"
+  --ini-ampl "$INI_AMPL"
+  --ini-ham "$INI_HAM"
+  --ini-twist "$INI_TWIST"
+  --imbalance "$IMBALANCE"
   --work-root "$WORK_ROOT"
+)
 
-python3 production_hmc.py benchmark \
-  --lattice-type "$LATTICE_TYPE" \
-  --l-values "$L_VALUES" \
-  --nbos-values "$NBOS_VALUES" \
-  --u2-values "$U2_VALUES" \
-  --rt "$RT" \
-  --ru1 "$RU1" \
-  --beta "$BETA" \
-  --dtau "$DTAU" \
-  --nwrap "$NWRAP" \
-  --bins "$NBIN" \
-  --sweeps "$NSWEEP" \
-  --thermal-cut "$NTHERMAL" \
-  --warm "$NWARM" \
-  --ini-type "$INI_TYPE" \
-  --ini-ampl "$INI_AMPL" \
-  --ini-ham "$INI_HAM" \
-  --ini-twist "$INI_TWIST" \
-  --imbalance "$IMBALANCE" \
-  --repeats "$REPEATS" \
-  --hmc-json "$WORK_ROOT/recommended_hmc.json" \
-  --work-root "$WORK_ROOT"
+case "$PROD_COMMAND" in
+  tune)
+    "$PYTHON" production_hmc.py tune \
+      "${COMMON_ARGS[@]}" \
+      --grid "$GRID" \
+      --repeats "$REPEATS" \
+      --hmc-jitter "$HMC_JITTER" \
+      --hmc-mass "$HMC_MASS"
+    ;;
+  benchmark)
+    "$PYTHON" production_hmc.py benchmark \
+      "${COMMON_ARGS[@]}" \
+      --repeats "$REPEATS" \
+      --hmc-json "$HMC_JSON" \
+      --hmc-nfrog "$HMC_NFROG" \
+      --hmc-dt "$HMC_DT" \
+      --hmc-jitter "$HMC_JITTER" \
+      --hmc-mass "$HMC_MASS"
+    ;;
+  stage)
+    "$PYTHON" production_hmc.py stage \
+      "${COMMON_ARGS[@]}" \
+      --repeats "$REPEATS" \
+      --stage-label "$STAGE_LABEL" \
+      --hmc-json "$HMC_JSON" \
+      --hmc-nfrog "$HMC_NFROG" \
+      --hmc-dt "$HMC_DT" \
+      --hmc-jitter "$HMC_JITTER" \
+      --hmc-mass "$HMC_MASS" \
+      --trace-window-frac "$TRACE_WINDOW_FRAC" \
+      --trace-min-window "$TRACE_MIN_WINDOW" \
+      --stable-drift-ratio "$STABLE_DRIFT_RATIO" \
+      --warning-drift-ratio "$WARNING_DRIFT_RATIO"
+    ;;
+  collect)
+    "$PYTHON" production_hmc.py collect \
+      "${COMMON_ARGS[@]}" \
+      --repeats "$REPEATS" \
+      --stage-label "$STAGE_LABEL" \
+      --hmc-json "$HMC_JSON" \
+      --hmc-nfrog "$HMC_NFROG" \
+      --hmc-dt "$HMC_DT" \
+      --hmc-jitter "$HMC_JITTER" \
+      --hmc-mass "$HMC_MASS" \
+      --trace-window-frac "$TRACE_WINDOW_FRAC" \
+      --trace-min-window "$TRACE_MIN_WINDOW" \
+      --stable-drift-ratio "$STABLE_DRIFT_RATIO" \
+      --warning-drift-ratio "$WARNING_DRIFT_RATIO"
+    ;;
+  report)
+    "$PYTHON" production_hmc.py report \
+      --work-root "$WORK_ROOT" \
+      --summary-kind "$SUMMARY_KIND"
+    ;;
+  *)
+    echo "Unsupported PROD_COMMAND=$PROD_COMMAND" >&2
+    exit 2
+    ;;
+esac
 
-if [ "$RUN_REPORT" = "1" ]; then
-  python3 render_hmc_report.py "$WORK_ROOT/production_benchmark.json"
+if [ "$RUN_REPORT" = "1" ] && [ "$PROD_COMMAND" != "report" ]; then
+  "$PYTHON" production_hmc.py report \
+    --work-root "$WORK_ROOT" \
+    --summary-kind "$SUMMARY_KIND"
 fi
