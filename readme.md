@@ -281,6 +281,17 @@ The stage workflow is intended for the gradual production ladder.
 The first judgement is whether `squareOcc` and `IPR` visibly stabilize across sample index, seeds, and initial-state choices.
 Acceptance and `ESS/sec` are secondary diagnostics.
 
+Current local workstation examples under `data/triangular_hmc_production/` already include:
+
+- a healthy baseline rung:
+  - `l6_n1e3_u1_beta32_dtau1em2_stage_m4_nf12_dt0p015`
+- a slow-drift rung that still needs deeper thermalization or better proposals:
+  - `l6_n1e4_u1_beta32_dtau1em2_stage_m4_nf16_dt0p01`
+- a stronger-coupling exploratory rung that is already stage-healthy with a smaller step size:
+  - `l6_n1e4_u1e1_beta32_dtau1em2_stage_m4_nf16_dt0p006`
+
+See `HMC-REFERENCE.md` for the current interpretation of these stage results.
+
 ### Archived Development Tune Scan
 
 The old development-only tune helper is still available as an archived reference:

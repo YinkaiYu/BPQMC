@@ -27,6 +27,113 @@ The default output root for this new workflow should be under:
 
 - `data/triangular_hmc_production/`
 
+## Current Production Checkpoint
+
+As of the current workstation bring-up round, the first production-style stage data under
+`data/triangular_hmc_production/` already separates three regimes clearly.
+
+### Healthy reference rung
+
+- [l6_n1e3_u1_beta32_dtau1em2_stage_m4_nf12_dt0p015](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e3_u1_beta32_dtau1em2_stage_m4_nf12_dt0p015/report/report.md)
+- parameters:
+  - `L=6`
+  - `Nbos=1e3`
+  - `U2=1`
+  - `beta=32`
+  - `dtau=0.01`
+  - `mass=4`
+  - `nfrog=12`
+  - `dt=0.015`
+  - `jitter=2`
+- observed stage status:
+  - `stable_window`
+  - `squareOcc drift/span ~ 0.141`
+  - `IPR drift/span ~ 0.141`
+
+Interpretation:
+
+- This is the first production-style HMC rung that already looks thermalized by the new
+  `squareOcc/IPR` gate.
+- It is the current baseline checkpoint for future promotions.
+
+### Slow-drift rung
+
+- [l6_n1e4_u1_beta32_dtau1em2_stage_m4_nf16_dt0p01](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1_beta32_dtau1em2_stage_m4_nf16_dt0p01/report/report.md)
+- parameters:
+  - `L=6`
+  - `Nbos=1e4`
+  - `U2=1`
+  - `beta=32`
+  - `dtau=0.01`
+  - `mass=4`
+  - `nfrog=16`
+  - `dt=0.01`
+  - `jitter=2`
+- observed stage status:
+  - `slow_drift`
+  - `squareOcc drift/span ~ 0.331`
+  - `IPR drift/span ~ 0.331`
+
+Interpretation:
+
+- The chain is no longer stuck, but this rung has not fully stabilized.
+- This is currently the clearest example of a point that likely needs either:
+  - longer thermal cut / deeper stage runs
+  - better proposal geometry or preconditioning
+
+### Stronger-coupling exploratory rung
+
+- [l6_n1e4_u1e1_beta32_dtau1em2_stage_m4_nf16_dt0p006](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e1_beta32_dtau1em2_stage_m4_nf16_dt0p006/report/report.md)
+- parameters:
+  - `L=6`
+  - `Nbos=1e4`
+  - `U2=10`
+  - `beta=32`
+  - `dtau=0.01`
+  - `mass=4`
+  - `nfrog=16`
+  - `dt=0.006`
+  - `jitter=2`
+- observed stage status:
+  - `stable_window`
+  - `squareOcc drift/span ~ 0.218`
+  - `IPR drift/span ~ 0.218`
+  - repeat acceptance roughly `0.63` to `0.77`
+
+Interpretation:
+
+- Stronger coupling does not necessarily fail first.
+- With a sufficiently smaller step size, this point already passes the current
+  `squareOcc/IPR` stage gate even though acceptance is below the old ideal band.
+- This is direct evidence that, in the current production phase, acceptance should remain
+  secondary to thermalization.
+
+### Immediate tuning lesson from the `Nbos=1e4, U2=10` scan
+
+- [l6_n1e4_u1e1_beta32_dtau1em2_tune_m4](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e1_beta32_dtau1em2_tune_m4/report/report.md)
+
+Relevant outcomes:
+
+- `8 x 0.01` was unusable:
+  - acceptance collapsed to zero
+  - `DeltaH` blew up by many orders of magnitude
+- `12 x 0.008` was mobile but still rough:
+  - acceptance around `0.53`
+  - large `DeltaH`
+- `16 x 0.006` was the best short-scan compromise:
+  - acceptance around `0.67`
+  - much smaller `tau_int`
+  - best `ESS/sec`
+
+Interpretation:
+
+- On this stronger rung, the stability wall is controlled by the step size much more than
+  by the nominal trajectory length.
+- The practical recipe was:
+  - keep `mass=4`
+  - reduce `dt`
+  - let acceptance fall below `0.70` if the traces improve
+
 ## Scope
 
 - Lattice: `triangular`

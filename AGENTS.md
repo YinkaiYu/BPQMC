@@ -75,6 +75,10 @@
   - it may start from `L=6`
   - it first gates on `squareOcc` and `IPR`
   - then it promotes gradually in `(Nbos, U2, beta, dtau, L)`
+- Current workstation production examples already distinguish:
+  - a healthy baseline rung at `L=6, Nbos=1e3, U2=1`
+  - a slow-drift rung at `L=6, Nbos=1e4, U2=1`
+  - a stronger-coupling but stage-healthy rung at `L=6, Nbos=1e4, U2=10`
 - Do not stop after a single benchmark mismatch. First distinguish:
   - lattice-specific observable bug
   - HMC tuning/warm-up issue
@@ -160,6 +164,8 @@
   tuning heuristics, and production/HPC-oriented lessons.
 - For current production bring-up, the primary decision is not local-vs-HMC agreement.
   The first question is whether `squareOcc` and `IPR` stabilize across sample index, seeds, and initial-state choices.
+- A current tuning lesson already written into `HMC-REFERENCE.md`:
+  on stronger-coupling rungs, shrinking `dt` can matter more than chasing the old acceptance target band.
 - The renderer can also be used on unresolved benchmark directories to build progress reports with per-repeat traces.
   A current example is `data/triangular_hmc_small_benchmark/progress_report_n1000_u1e0_v2`.
   Another current example is `data/triangular_hmc_small_benchmark/progress_report_n100_u1e1_v3`.
