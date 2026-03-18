@@ -6,6 +6,27 @@ trends look robust enough to reuse when moving toward larger lattices and HPC ru
 For the current `test/` directory layout, see `test/README.md`; archived small-benchmark
 helpers referenced here now live under `test/archive_small_benchmark/`.
 
+## Current Priority
+
+The small-parameter local-vs-HMC correctness campaign is closed.
+The active task is now production-grade HMC bring-up:
+
+- move gradually from easy workstation points toward the production physics line
+- judge stages primarily by `squareOcc` and `IPR` thermalization
+- treat acceptance and `ESS/sec` as secondary diagnostics
+- keep every stage resumable and reportable for later HPC handoff
+
+The active production CLI is `test/production_hmc.py`:
+
+- `tune`: short candidate scans
+- `stage`: long HMC-only runs with `squareOcc`/`IPR` traces
+- `collect`: rebuild stage summaries from completed `runs/`
+- `report`: render Markdown + PNG summaries
+
+The default output root for this new workflow should be under:
+
+- `data/triangular_hmc_production/`
+
 ## Scope
 
 - Lattice: `triangular`
@@ -51,6 +72,27 @@ Final interpretation:
 - The final 15-point visual report is sufficient as the correctness handoff artifact for this campaign.
 - On large `Nbos` and large `U2`, workstation-length local and HMC runs can both remain unthermalized, so those points are not useful as correctness references.
 - Future work should stop centering local-vs-HMC comparison and instead focus on production-grade HMC thermalization, preconditioning, and HPC execution.
+
+## Production Ramp
+
+The recommended production ramp is intentionally conservative.
+Do not jump directly to the final target.
+
+Current preferred order:
+
+1. `L=6`, easy projector, gradual `(Nbos, U2)` increase
+2. `L=6`, same physics point, gradual `(beta, dtau)` refinement
+3. `L=8 -> 10 -> 12`, with a reset to easier projector settings at each new `L`
+4. `L=12`, push the target physics line toward `beta=256`, `dtau=0.001`
+5. `L=21` spot checks only after `L=12` is believable
+
+The current production stage gate is:
+
+- `squareOcc` trace stabilizes across sample index
+- `IPR` trace stabilizes across sample index
+- different seeds or init-state families approach the same band
+
+Do not promote a rung simply because acceptance looks good.
 
 ## What Is Already Confirmed
 

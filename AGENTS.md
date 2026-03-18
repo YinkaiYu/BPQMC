@@ -36,8 +36,8 @@
 - Run MPI jobs with `mpirun -np N ./BPQMC.out` (N processes) or via SLURM submission.
 - Generated observables and logs should remain inside `test/` unless explicitly archived.
 - `paramC_sets.txt` may now start with a lattice header: `kagome` or `triangular`.
-- `test/production_hmc.py` is the main driver for production tuning and direct local-vs-HMC benchmarks.
-- `test/render_hmc_report.py` converts benchmark JSON into PNG plots and a Markdown summary.
+- `test/production_hmc.py` is the main driver for production tuning, staged HMC thermalization runs, summary collection, and report rendering.
+- `test/render_hmc_report.py` converts production summary JSON into PNG plots and a Markdown summary.
 - `test/hmc_report_template.ipynb` is the notebook entry point for interactive post-processing.
 - `test/archive_small_benchmark/` contains the closed triangular `L=6` local-vs-HMC correctness campaign:
   `small_hmc_benchmark.py`, `render_small_hmc_stage_report.py`, `render_small_hmc_full_grid.py`, and the archived benchmark notebooks.
@@ -59,8 +59,10 @@
   - compile after each source-module change
   - run a small smoke test
   - run `test/production_hmc.py tune`
-  - run `test/production_hmc.py benchmark` when a direct production comparison is still needed
-  - render figures with `test/render_hmc_report.py`
+  - run `test/production_hmc.py stage` for long HMC-only thermalization traces
+  - run `test/production_hmc.py collect` if a finished stage needs its summaries rebuilt from `runs/`
+  - run `test/production_hmc.py report` or `test/render_hmc_report.py`
+  - run `test/production_hmc.py benchmark` only when a legacy direct production comparison is still needed
 - The triangular small-parameter correctness campaign is archived under `test/archive_small_benchmark/`.
   Use it only as a historical reference or if the final report must be regenerated.
 - Use debug builds when a new lattice path crashes:
@@ -69,6 +71,10 @@
   - `L=12` for the full benchmark grid
   - `L=21` for spot checks
   - `beta=256`, `Dtau=0.001`, `U1=0`, `iniHam=5`, `iniTwist=1e-4`
+- The active production ramp is slower and more granular than the final target:
+  - it may start from `L=6`
+  - it first gates on `squareOcc` and `IPR`
+  - then it promotes gradually in `(Nbos, U2, beta, dtau, L)`
 - Do not stop after a single benchmark mismatch. First distinguish:
   - lattice-specific observable bug
   - HMC tuning/warm-up issue
@@ -107,14 +113,26 @@
 - One full-size HMC force buffer has been removed to reduce peak memory usage.
 
 ## HMC and Triangular Workflow
-- `test/production_hmc.py tune` is the main production tuning entry point.
-- `test/production_hmc.py benchmark` runs direct local-vs-HMC comparisons over a user-specified `(L, Nbos, U2)` grid and writes JSON/CSV summaries.
-- `test/render_hmc_report.py` reads `production_benchmark.json` and writes:
-  - `acceptance.png`
-  - `ess_per_sec.png`
-  - `tau_int.png`
-  - `zscore_heatmap.png`
-  - `report.md`
+- `test/production_hmc.py tune` is the main short-scan entry point for candidate HMC parameters.
+- `test/production_hmc.py stage` runs HMC-only production stage jobs and stores sample-index traces.
+- `test/production_hmc.py collect` rebuilds `production_stage*.json/csv` from completed `runs/`.
+- `test/production_hmc.py report` renders Markdown + PNG summaries from `production_stage.json`, `production_tune.json`, or the legacy `production_benchmark.json`.
+- `test/render_hmc_report.py` now understands three summary modes:
+  - `tune`
+  - `stage`
+  - `benchmark`
+- The stage workflow writes:
+  - `production_stage.json`
+  - `production_stage_cases.csv`
+  - `production_stage_observables.csv`
+  - `production_stage_runs.csv`
+  - `production_stage_samples.csv`
+  - `report/acceptance.png`
+  - `report/ess_per_sec.png`
+  - `report/tau_int.png`
+  - `report/drift_ratios.png`
+  - `report/trace_*.png`
+  - `report/report.md`
 - `test/hmc_report_template.ipynb` can be pointed at the same JSON for interactive visualization.
 - `test/archive_small_benchmark/small_hmc_benchmark.py` writes:
   - `small_tune.csv`, `small_tune.json`, `recommended_hmc.json`
@@ -139,6 +157,8 @@
 - `test/archive_small_benchmark/small_hmc_stage_report.ipynb` exposes both `NBOS_SELECT` and `TRACE_REPEAT` for interactive slicing of the rendered staged report.
 - `HMC-REFERENCE.md` is the running handoff note for validated health points, unresolved slow modes,
   tuning heuristics, and production/HPC-oriented lessons.
+- For current production bring-up, the primary decision is not local-vs-HMC agreement.
+  The first question is whether `squareOcc` and `IPR` stabilize across sample index, seeds, and initial-state choices.
 - The renderer can also be used on unresolved benchmark directories to build progress reports with per-repeat traces.
   A current example is `data/triangular_hmc_small_benchmark/progress_report_n1000_u1e0_v2`.
   Another current example is `data/triangular_hmc_small_benchmark/progress_report_n100_u1e1_v3`.

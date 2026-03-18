@@ -27,6 +27,7 @@ mpirun -np 1 ./BPQMC.out
 The cleaned `test/` layout is documented in `test/README.md`.
 Top-level `test/` is now reserved for active production/HPC workflows; archived
 small-benchmark tools live under `test/archive_small_benchmark/`.
+The current active workflow is HMC production bring-up, not local-vs-HMC correctness benchmarking.
 
 Run a triangular-lattice HMC smoke test in a fresh temporary directory:
 
@@ -158,6 +159,117 @@ cd src && make FFLAGS='-O0 -g -traceback -check all -fpe0 -c -I/home/yyk/Lib_90_
 ```
 
 ## Sampling and Benchmarks
+
+### Active Production Workflow
+
+The active production/HPC driver is now `test/production_hmc.py`:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/production_hmc.py --help
+```
+
+Key subcommands:
+
+- `tune`: short HMC grid scans
+- `stage`: long HMC-only runs with thermalization traces
+- `collect`: rebuild stage summaries from finished `runs/`
+- `report`: render Markdown + PNG summaries
+- `benchmark`: legacy direct local-vs-HMC comparison, kept only as an archived-style helper
+
+Example: short production tune scan on a conservative triangular ladder rung:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/production_hmc.py tune \
+  --lattice-type triangular \
+  --l-values 6 \
+  --nbos-values 1000 \
+  --u2-values 1 \
+  --beta 32 \
+  --dtau 0.01 \
+  --bins 64 \
+  --thermal-cut 32 \
+  --warm 32 \
+  --grid '8:0.02,12:0.015,16:0.01' \
+  --hmc-jitter 2 \
+  --hmc-mass 4 \
+  --repeats 2 \
+  --work-root data/triangular_hmc_production/l6_n1e3_u1_tune
+```
+
+Example: long HMC-only stage run that focuses on `squareOcc` and `IPR` thermalization:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/production_hmc.py stage \
+  --lattice-type triangular \
+  --l-values 6 \
+  --nbos-values 1000 \
+  --u2-values 1 \
+  --beta 32 \
+  --dtau 0.01 \
+  --bins 256 \
+  --thermal-cut 128 \
+  --warm 128 \
+  --repeats 3 \
+  --hmc-nfrog 12 \
+  --hmc-dt 0.015 \
+  --hmc-jitter 2 \
+  --hmc-mass 4 \
+  --stage-label l6_n1e3_u1_beta32_dtau1em2 \
+  --work-root data/triangular_hmc_production/l6_n1e3_u1_stage
+```
+
+Rebuild the stage summary without rerunning QMC:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/production_hmc.py collect \
+  --lattice-type triangular \
+  --l-values 6 \
+  --nbos-values 1000 \
+  --u2-values 1 \
+  --beta 32 \
+  --dtau 0.01 \
+  --bins 256 \
+  --thermal-cut 128 \
+  --warm 128 \
+  --repeats 3 \
+  --hmc-nfrog 12 \
+  --hmc-dt 0.015 \
+  --hmc-jitter 2 \
+  --hmc-mass 4 \
+  --stage-label l6_n1e3_u1_beta32_dtau1em2 \
+  --work-root data/triangular_hmc_production/l6_n1e3_u1_stage
+```
+
+Render the stage report:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/production_hmc.py report \
+  --work-root data/triangular_hmc_production/l6_n1e3_u1_stage \
+  --summary-kind stage
+```
+
+The `stage` report writes:
+
+- `production_stage.json`
+- `production_stage_cases.csv`
+- `production_stage_observables.csv`
+- `production_stage_runs.csv`
+- `production_stage_samples.csv`
+- `report/acceptance.png`
+- `report/ess_per_sec.png`
+- `report/tau_int.png`
+- `report/drift_ratios.png`
+- `report/trace_*.png`
+- `report/report.md`
+
+The stage workflow is intended for the gradual production ladder.
+The first judgement is whether `squareOcc` and `IPR` visibly stabilize across sample index, seeds, and initial-state choices.
+Acceptance and `ESS/sec` are secondary diagnostics.
 
 ### Archived Development Tune Scan
 
