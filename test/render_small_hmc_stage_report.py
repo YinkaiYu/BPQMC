@@ -40,6 +40,48 @@ def load_tables(bench_roots: list[Path]) -> tuple[pd.DataFrame, pd.DataFrame, pd
     return case_df, obs_df, sample_df
 
 
+def enrich_tables(cases: pd.DataFrame, observables: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    observables = observables.copy()
+    span_rows = []
+    for (nbos, obs_name), group in observables.groupby(["Nbos", "observable"]):
+        mid = 0.5 * (group["local_mean"] + group["hmc_mean"])
+        span = float(mid.max() - mid.min())
+        span_rows.append(
+            {
+                "Nbos": nbos,
+                "observable": obs_name,
+                "physics_span_same_nbos": span,
+            }
+        )
+    span_df = pd.DataFrame(span_rows)
+    observables = observables.merge(span_df, on=["Nbos", "observable"], how="left")
+    observables["diff_over_span_same_nbos"] = observables.apply(
+        lambda row: 0.0
+        if abs(float(row["physics_span_same_nbos"])) <= 1.0e-14
+        else float(row["abs_diff"]) / float(row["physics_span_same_nbos"]),
+        axis=1,
+    )
+
+    case_rows = []
+    for case_id, group in observables.groupby("case_id"):
+        worst_z = group.sort_values("z_score", ascending=False).iloc[0]
+        worst_span = group.sort_values("diff_over_span_same_nbos", ascending=False).iloc[0]
+        fail_count = int((~group["passed"]).sum())
+        case_rows.append(
+            {
+                "case_id": case_id,
+                "worst_z_observable": worst_z["observable"],
+                "worst_z_score": worst_z["z_score"],
+                "worst_span_observable": worst_span["observable"],
+                "worst_diff_over_span": worst_span["diff_over_span_same_nbos"],
+                "failed_observable_count": fail_count,
+            }
+        )
+    case_df = pd.DataFrame(case_rows)
+    cases = cases.merge(case_df, on="case_id", how="left")
+    return cases, observables
+
+
 def save_overview(cases: pd.DataFrame, out_dir: Path) -> None:
     cases = cases.sort_values(["Nbos", "U2"]).reset_index(drop=True)
     labels = [f"N={int(row.Nbos)} U2={row.U2:g}" for row in cases.itertuples()]
@@ -69,6 +111,29 @@ def save_overview(cases: pd.DataFrame, out_dir: Path) -> None:
 
     fig.tight_layout()
     fig.savefig(out_dir / "overview.png", dpi=180)
+    plt.close(fig)
+
+
+def save_agreement_overview(cases: pd.DataFrame, out_dir: Path) -> None:
+    cases = cases.sort_values(["Nbos", "U2"]).reset_index(drop=True)
+    labels = [f"N={int(row.Nbos)} U2={row.U2:g}" for row in cases.itertuples()]
+    x = range(len(cases))
+    width = 0.38
+
+    fig, axes = plt.subplots(2, 1, figsize=(11, 8), sharex=True)
+    axes[0].bar(x, cases["worst_z_score"], color="#7a5195")
+    axes[0].axhline(2.0, color="#333333", linestyle="--", linewidth=1.0)
+    axes[0].set_ylabel("Max z-score")
+    axes[0].set_title("Worst local-vs-HMC mismatch per case")
+
+    axes[1].bar([idx - width / 2 for idx in x], cases["worst_diff_over_span"], width, color="#ef5675", label="Worst |diff| / span")
+    axes[1].bar([idx + width / 2 for idx in x], cases["failed_observable_count"], width, color="#ffa600", label="Failed observable count")
+    axes[1].set_ylabel("Relative mismatch / count")
+    axes[1].legend()
+    axes[1].set_xticks(list(x), labels, rotation=20, ha="right")
+
+    fig.tight_layout()
+    fig.savefig(out_dir / "agreement_overview.png", dpi=180)
     plt.close(fig)
 
 
@@ -211,7 +276,10 @@ def write_markdown(
     tune_df: pd.DataFrame | None,
     out_dir: Path,
 ) -> None:
-    passed = int(cases["passed"].sum())
+    strict_mask = cases["num_repeats"].fillna(0).astype(int) >= 2
+    strict_total = int(strict_mask.sum())
+    strict_passed = int((strict_mask & cases["passed"]).sum())
+    probe_total = int((~strict_mask).sum())
     lattice_values = sorted(cases["name"].str.split("_").str[0].unique())
     l_values = ", ".join(str(int(value)) for value in sorted(cases["L"].unique()))
     beta_values = ", ".join(f"{value:g}" for value in sorted(cases["beta"].unique()))
@@ -222,7 +290,9 @@ def write_markdown(
     lines = [
         "# Small Triangular HMC Stage Report",
         "",
-        f"Health points passed: `{passed}/{len(cases)}`",
+        f"Strict benchmark cases passed: `{strict_passed}/{strict_total}`",
+        "",
+        f"Single-repeat visual probes: `{probe_total}`",
         "",
         "## Campaign Parameters",
         "",
@@ -237,10 +307,10 @@ def write_markdown(
         "## Case Summary",
         "",
     ]
-    if passed < len(cases):
+    if strict_passed < strict_total or probe_total > 0:
         lines.extend(
             [
-                "This report includes unresolved or still-failing benchmark variants.",
+                "This report includes unresolved or still-failing benchmark variants, plus visual single-repeat probes.",
                 "Use the case table and the sample-index traces to see whether the mismatch looks like a slow drift, a thermal-cut issue, or a persistent sampler bias.",
                 "",
             ]
@@ -260,6 +330,10 @@ def write_markdown(
         ]
     )
     for row in overview_cases.itertuples():
+        if int(row.num_repeats) < 2:
+            result = "PROBE"
+        else:
+            result = "PASS" if row.passed else "FAIL"
         lines.append(
             "| {name} ({root}) | {repeats} | {acc:.3f} | {tau_l:.3f} | {tau_h:.3f} | {ess_l:.3f} | {ess_h:.3f} | {ratio:.3f} | {result} |".format(
                 name=row.name,
@@ -271,7 +345,7 @@ def write_markdown(
                 ess_l=row.local_ess_per_sec_doubleOcc,
                 ess_h=row.hmc_ess_per_sec_doubleOcc,
                 ratio=row.speed_ratio_hmc_over_local,
-                result="PASS" if row.passed else "FAIL",
+                result=result,
             )
         )
     lines.extend(
@@ -282,6 +356,8 @@ def write_markdown(
             "- `tau_int(doubleOcc)`: integrated autocorrelation time estimated from the post-cut `doubleOcc` series. Larger values mean slower mixing.",
             "- `ESS / sec`: effective sample size per wall-clock second, estimated from the same `doubleOcc` series. Larger values mean more statistically independent samples per unit time.",
             "- `Speed ratio`: `ESS/sec(HMC) / ESS/sec(Local)`.",
+            "- `z-score`: `|mean_local - mean_hmc| / sqrt(err_local^2 + err_hmc^2)`. Here `err_local` and `err_hmc` are the standard errors of the post-cut repeat means, not naive per-sample errors.",
+            "- `|diff| / span`: the observable mismatch divided by the observable span across the available `U2` values at the same `Nbos`, using the midpoint `(local + hmc)/2` at each point. This is a visual/physics-scale diagnostic, not a strict pass criterion.",
             "",
             "## Overview",
             "",
@@ -291,6 +367,15 @@ def write_markdown(
             "At this stage, the main purpose of these three panels is to separate correctness from efficiency: a point can be correct even when HMC is slower than local.",
             "",
             "![overview](overview.png)",
+            "",
+            "## Agreement Overview",
+            "",
+            "The first panel below shows the worst observable z-score for each case.",
+            "The dashed line marks the current strict `2 sigma` benchmark cut.",
+            "The second panel adds two softer diagnostics: the worst mismatch as a fraction of the same-`Nbos` observable span across `U2`, and the count of observables that fail the strict cut.",
+            "This is useful when a case looks visually healthy but still has one or two borderline `z-score` failures.",
+            "",
+            "![agreement_overview](agreement_overview.png)",
             "",
             "## Case Diagnostics",
             "",
@@ -311,20 +396,33 @@ def write_markdown(
                     "",
                 ]
             )
+        lines.extend(
+            [
+                "Case summary:",
+                "- Benchmark parameters: "
+                f"`L={int(row.L)}`, `beta={row.beta:g}`, `dtau={row.dtau:g}`, `Nbos={int(row.Nbos)}`, `U2={row.U2:g}`, "
+                f"`nfrog={int(row.nfrog)}`, `dt={row.hmc_dt:g}`, `jitter={int(row.hmc_jitter)}`, `mass={row.hmc_mass:g}`.",
+                f"- Worst z-score: `{row.worst_z_observable}` = `{row.worst_z_score:.3f}`.",
+                f"- Worst |diff| / span: `{row.worst_span_observable}` = `{row.worst_diff_over_span:.3f}`.",
+                f"- Failed observable count: `{int(row.failed_observable_count)}`.",
+                "",
+            ]
+        )
         if fail_df.empty:
             lines.extend(["All tracked observables pass the current strict benchmark criterion.", ""])
             continue
         lines.extend(
             [
-                "| Observable | z-score | Local mean | HMC mean | Local err | HMC err |",
-                "| --- | ---: | ---: | ---: | ---: | ---: |",
+                "| Observable | z-score | |diff| / span | Local mean | HMC mean | Local err | HMC err |",
+                "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
             ]
         )
         for fail in fail_df.itertuples():
             lines.append(
-                "| {obs} | {z:.3f} | {local:.6g} | {hmc:.6g} | {local_err:.3g} | {hmc_err:.3g} |".format(
+                "| {obs} | {z:.3f} | {span:.3f} | {local:.6g} | {hmc:.6g} | {local_err:.3g} | {hmc_err:.3g} |".format(
                     obs=fail.observable,
                     z=fail.z_score,
+                    span=fail.diff_over_span_same_nbos,
                     local=fail.local_mean,
                     hmc=fail.hmc_mean,
                     local_err=fail.local_err,
@@ -415,17 +513,21 @@ def main() -> int:
     cases, observables, samples = load_tables(bench_roots)
     tune_df = pd.read_csv(args.tune_csv) if args.tune_csv else None
 
+    cases, observables = enrich_tables(cases, observables)
+
     cases.to_csv(out_dir / "stage_cases.csv", index=False)
     observables.to_csv(out_dir / "stage_observables.csv", index=False)
     samples.to_csv(out_dir / "stage_samples.csv", index=False)
     summary = {
         "cases": json.loads(cases.to_json(orient="records")),
+        "observables": json.loads(observables.to_json(orient="records")),
         "bench_roots": [str(path) for path in bench_roots],
         "tune_csv": args.tune_csv,
     }
     (out_dir / "stage_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
     save_overview(cases, out_dir)
+    save_agreement_overview(cases, out_dir)
     observable_figs = save_observable_curves(cases, observables, out_dir)
     trace_figs = save_trace_plots(cases, samples, out_dir)
     tune_figs = save_tune_plots(cases, tune_df, out_dir)
