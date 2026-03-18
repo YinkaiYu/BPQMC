@@ -203,6 +203,40 @@ Empirical lesson:
 - Very high acceptance frequently means the trajectory is too conservative
 - that can still leave `tau_int` large, especially for the hard collective modes
 
+## Why Local Can Sometimes Mix Better Than the Current HMC
+
+This has now shown up clearly enough in the small-parameter campaign that it should be
+recorded explicitly.
+
+Observed pattern:
+
+- local updates are not always faster in wall-clock time
+- but on some unresolved points they do wander away from their current state more easily
+- the current HMC implementation can keep high acceptance while still exploring only a narrow
+  part of configuration space
+
+The likely reason is structural:
+
+- local Metropolis updates are stochastic and irreversible at the one-site/one-time-slice level
+- even if each accepted move is small, many such moves can slowly diffuse along directions that
+  the current HMC mass matrix does not match well
+- the present HMC uses one uniform virtual mass and one leapfrog scale for all modes
+- when the hard modes set the stability bound, the soft collective modes can end up under-driven
+- that produces the practical symptom of "high acceptance but poor global mixing"
+
+Interpretation:
+
+- if local and HMC disagree at a point, and the action/force checks are already clean,
+  do not assume the force is wrong
+- first ask whether HMC is trapped on a poorly preconditioned slow manifold
+
+This is the main motivation for the next preconditioning ideas:
+
+- mode-dependent masses
+- Fourier acceleration
+- multi-timescale integration
+- hybrid HMC + local interleaving
+
 ## Next Preconditioning Ideas Worth Trying
 
 These are now justified by actual data, not only by theory.

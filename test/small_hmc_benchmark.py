@@ -217,7 +217,8 @@ def case_confin_path(confin_root: str, cfg: RunConfig) -> Path | None:
         return path
     print(
         f"  [warm-start] skip invalid confout for {cfg.name}: {detail}; "
-        f"need {expected_confin_lines(cfg)} lines"
+        f"need {expected_confin_lines(cfg)} lines",
+        flush=True,
     )
     return None
 
@@ -230,7 +231,7 @@ def run_local_seed(args: argparse.Namespace) -> int:
 
     rows = []
     for cfg in configs.values():
-        print(f"[local-seed] case={cfg.name}")
+        print(f"[local-seed] case={cfg.name}", flush=True)
         cfg = cfg.with_sampling(nbin=args.seed_bins, nsweep=args.sweeps, is_warm=args.seed_warm > 0, nwarm=max(args.seed_warm, 0))
         run_dir = work_root / cfg.name
         prepare_run_dir(
@@ -253,7 +254,7 @@ def run_local_seed(args: argparse.Namespace) -> int:
                 "confout": str(run_dir / "confout.txt"),
             }
         )
-        print(f"  [seeded] cpu={info['Tot_CPU_time']:.3f} confout={run_dir / 'confout.txt'}")
+        print(f"  [seeded] cpu={info['Tot_CPU_time']:.3f} confout={run_dir / 'confout.txt'}", flush=True)
 
     write_csv(work_root / "local_seed_runs.csv", rows, ["name", "seed_bins", "seed_warm", "cpu_time", "confout"])
     return 0
@@ -273,7 +274,7 @@ def run_tune(args: argparse.Namespace) -> int:
     repeat_rows = []
     cases = []
     for cfg in configs.values():
-        print(f"[tune] case={cfg.name}")
+        print(f"[tune] case={cfg.name}", flush=True)
         scan_rows = []
         for block_tau in blocks:
             for block_sites in site_blocks:
@@ -281,7 +282,8 @@ def run_tune(args: argparse.Namespace) -> int:
                     for nfrog, dt in grid:
                         print(
                             f"  [candidate] nfrog={nfrog} dt={dt:.6g} jitter={args.hmc_jitter} "
-                            f"mass={mass:g} block_tau={block_tau} block_sites={block_sites}"
+                            f"mass={mass:g} block_tau={block_tau} block_sites={block_sites}",
+                            flush=True,
                         )
                         rows_for_choice = []
                         for repeat in range(args.repeats):
@@ -348,7 +350,8 @@ def run_tune(args: argparse.Namespace) -> int:
                                     tau=row["tau_int_doubleOcc"],
                                     ess=row["ess_per_sec_doubleOcc"],
                                     cpu=row["cpu_time"],
-                                )
+                                ),
+                                flush=True,
                             )
                         summary = {
                             "name": cfg.name,
@@ -373,7 +376,8 @@ def run_tune(args: argparse.Namespace) -> int:
                                 tau=summary["tau_int_doubleOcc_mean"],
                                 ess=summary["ess_per_sec_doubleOcc_mean"],
                                 stuck=summary["stuck_repeats"],
-                            )
+                            ),
+                            flush=True,
                         )
         scan_rows.sort(
             key=lambda row: (
@@ -401,7 +405,8 @@ def run_tune(args: argparse.Namespace) -> int:
                 accept=scan_rows[0]["acceptance_mean"],
                 tau=scan_rows[0]["tau_int_doubleOcc_mean"],
                 ess=scan_rows[0]["ess_per_sec_doubleOcc_mean"],
-            )
+            ),
+            flush=True,
         )
 
     summary = {
@@ -492,7 +497,7 @@ def benchmark_core(args: argparse.Namespace, run_missing: bool) -> int:
     overall_ok = True
 
     for cfg in configs.values():
-        print(f"[benchmark] case={cfg.name}")
+        print(f"[benchmark] case={cfg.name}", flush=True)
         hmc_params = tuned_map.get(
             cfg.name,
             {
@@ -553,7 +558,8 @@ def benchmark_core(args: argparse.Namespace, run_missing: bool) -> int:
                         tau=perf["tau_int_doubleOcc"],
                         ess=perf["ess_per_sec_doubleOcc"],
                         cpu=perf["cpu_time"],
-                    )
+                    ),
+                    flush=True,
                 )
 
         ok, obs_rows = compare_mode_stats(summary)
@@ -620,7 +626,8 @@ def benchmark_core(args: argparse.Namespace, run_missing: bool) -> int:
                 tau_l=perf_summary["local"]["tau_int_doubleOcc"],
                 tau_h=perf_summary["hmc"]["tau_int_doubleOcc"],
                 fail_obs=",".join(failing) if failing else "none",
-            )
+            ),
+            flush=True,
         )
 
     summary = {
