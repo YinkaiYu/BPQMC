@@ -43,6 +43,9 @@ The unified entry point for the accumulated production results is now:
   [production_convergence_scan.py](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/production_convergence_scan.py)
 - the overview report now shows `bins`, `thermal_cut`, `warm`, and `samples/post` per stage,
   so late slow-mode drift is easier to spot without opening each rung directory separately
+- the overview report now also renders per-case relative-change plots and a representative
+  one-stage-per-`(beta, dtau)` convergence table, so `beta/dtau` trends can be judged without
+  mixing together different `Nbos`/`U2` scales or old failed tuning attempts
 - in the merged trace panels, the dashed line is only the configured `thermal_cut`, and the
   overlaid lines are independent stage runs rather than one continued chain
 - the production stage gate now checks the worst retained repeat as well as the mean drift,
@@ -63,38 +66,48 @@ Current healthy ladder:
 
 Current next rung:
 
-- `L=6`, `Nbos=1e3`, `U2=1`, `beta=192`, `dtau=0.002`
-- start from scalar-mass full-field HMC with `mass=4`, jittered trajectories, and a tune scan before the long stage
+- the workstation priority has shifted from pushing `beta/dtau` deeper on the easy baseline point
+  to pushing `U2` upward at fixed `beta=32`, `dtau=0.01`
+- current active `U2` ladder:
+  - `L=6`, `Nbos=1e4`, `U2=30`
+    - preconditioned short-tune winner: residual mass `m=16`, uniform mass `mu=1`,
+      `nfrog=12`, `dt=0.006`, jitter `=2`
+    - active long stage:
+      [l6_n1e4_u3e1_beta32_dtau1em2_stage_m16_mu1_nf12_dt0p006_diag1024](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u3e1_beta32_dtau1em2_stage_m16_mu1_nf12_dt0p006_diag1024)
+  - `L=6`, `Nbos=1e4`, `U2=100`
+    - preconditioned short-tune winner: residual mass `m=16`, uniform mass `mu=1`,
+      `nfrog=16`, `dt=0.003`, jitter `=2`
+    - active long stage:
+      [l6_n1e4_u1e2_beta32_dtau1em2_stage_m16_mu1_nf16_dt0p003_diag1024](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e2_beta32_dtau1em2_stage_m16_mu1_nf16_dt0p003_diag1024)
 
 Current main blocker:
 
-- `L=6`, `Nbos=1e4`, `U2=1`, `beta=32`, `dtau=0.01`
-- deeper thermal cuts alone do not remove the residual `squareOcc/IPR` slow drift
-- longer trajectories with the same scalar mass also did not beat the `16 x 0.01` baseline
-- even the newer `warm=512`, `bins=1024`, `thermal_cut=512` rerun still falls back to
-  `strong_drift` once the stage gate checks the worst retained repeat rather than only the mean
-- this rung is the first serious candidate for stronger preconditioning rather than more blind scalar-mass scans
-- the current first explicit preconditioning probe is:
-  - residual mass `m=16`
-  - spatial-uniform mass `mu=1`
-  - `nfrog=20`, `dt=0.008`, jitter `=2`
-  - work root:
-    [l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p008_diag512](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p008_diag512)
-- current partial result from `rep0` only:
-  - `warm=512`, `bins=512`, `thermal_cut=256`
-  - `Accept_HMC ≈ 0.986`
-  - retained-window `squareOcc/IPR drift/span ≈ 0.092`
-  - this is promising but not yet decisive because the important question is whether `rep1` lands on the same plateau
-- current trace-based tuning lesson for the same blocker point:
+- the scalar-mass `L=6`, `Nbos=1e4`, `U2=1`, `beta=32`, `dtau=0.01` rung is no longer the
+  main blocker; it has now been converted into a usable preconditioned base geometry
+- current production blocker is the higher-`U2` ladder itself:
+  - how far the spatial-uniform preconditioner can be pushed before the retained
+    `squareOcc/IPR` windows split again across seeds
+  - whether the same mass split remains useful when `U2` is increased toward `1e2`, `1e3`,
+    and later `Nbos` is also raised toward `1e5`
+- trace-based tuning lesson from the original `Nbos=1e4, U2=1` blocker point:
   - a short traced run with `m=16`, `mu=1`, `20 x 0.008` gives an approximate uniform-mode period
     `T_md ~ 0.16` from `phi_mean_f2`
   - this means `Nfrog * dt ~ 0.16` is closer to a full cycle than to the earlier
     quarter-period heuristic target
   - the next short scan was therefore centered near `Nfrog * dt ~ 0.04`
-  - that quarter-period-informed scan currently favors `6 x 0.008`, jitter `=1`
-    with `ESS/sec(doubleOcc) ~ 1.57`
-  - follow-up work root:
-    [l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf6_dt0p008_diag512](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf6_dt0p008_diag512)
+  - that quarter-period-informed short scan favored `6 x 0.008`, jitter `=1`
+    on `ESS/sec(doubleOcc)` alone, but the longer stage later showed it was still `slow_drift`
+  - the decisive longer-stage winner for this physics point is instead:
+    - residual mass `m=16`
+    - spatial-uniform mass `mu=1`
+    - `nfrog=20`, `dt=0.008`, jitter `=2`
+    - work root:
+      [l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p008_diag512](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p008_diag512)
+    - completed-stage result:
+      - `Accept_HMC ≈ 0.985`
+      - `squareOcc/IPR drift/span max ≈ 0.092`
+      - retained repeat-span ratio `≈ 0.022`
+      - final stage status `stable_window`
 
 ## Current Production Checkpoint
 
@@ -138,12 +151,21 @@ Current convergence interpretation for the healthy baseline ladder:
 
 - `squareOcc` and `IPR` are already numerically close across the healthy `beta=96 -> 128 -> 160`
   rungs.
-- This is encouraging, but it is not yet a strict convergence proof because `beta` and `dtau`
-  were changed together along that ladder.
+- With the current representative overview selection, the baseline `L=6, Nbos=1e3, U2=1`
+  ladder now shows:
+  - `squareOcc` relative spread across `beta=32 -> 192`, `dtau=0.01 -> 0.002`:
+    about `7.56e-4`
+  - `IPR` relative spread across the same ladder:
+    about `7.74e-4`
+- This is still not a strict fixed-`beta` / fixed-`dtau` convergence proof because the ladder
+  changes both parameters together, but it is already strong enough to justify moving the main
+  workstation effort from deeper projector scans to higher-`U2` scans.
 - The correct next step is:
   - if observables stop changing as `beta` increases, do not push to larger `beta` just because it is possible
   - if observables stop changing as `dtau` decreases, do not push to smaller `dtau` just because it is possible
   - otherwise, continue the ladder or run explicit fixed-`beta` / fixed-`dtau` comparison scans
+  - in the current branch state, deeper projector scans are temporarily secondary to the
+    `U2=30 -> 100 -> ...` production ramp
 - For those explicit convergence scans, treat `O(10^3)` post-warm samples as normal rather than exceptional.
   The convenience wrapper now defaults to `bins=1024`, `thermal_cut=512`, `warm=512`.
 - The canonical `test/production_hmc.py stage` / `collect` workflow now uses the same
@@ -238,6 +260,35 @@ Interpretation:
   `squareOcc/IPR` stage gate even though acceptance is below the old ideal band.
 - This is direct evidence that, in the current production phase, acceptance should remain
   secondary to thermalization.
+
+### Higher-`U2` tuning updates on the `L=6, Nbos=1e4` ladder
+
+- `U2=30`
+  - scalar short-tune winner:
+    - `m=4`, `nfrog=20`, `dt=0.003`, jitter `=2`
+    - `acceptance ≈ 0.859`
+    - `tau_int(doubleOcc) ≈ 1.94`
+    - `ESS/sec(doubleOcc) ≈ 0.574`
+  - spatial-uniform preconditioned short-tune winner:
+    - `m=16`, `mu=1`, `nfrog=12`, `dt=0.006`, jitter `=2`
+    - `acceptance ≈ 0.844`
+    - `tau_int(doubleOcc) ≈ 0.757`
+    - `ESS/sec(doubleOcc) ≈ 2.34`
+  - takeaway:
+    - on this rung the preconditioner is no longer just a stability aid; it is already the
+      better efficiency geometry as well
+- `U2=100`
+  - current preconditioned short-tune winner:
+    - `m=16`, `mu=1`, `nfrog=16`, `dt=0.003`, jitter `=2`
+    - `acceptance ≈ 0.891`
+    - `tau_int(doubleOcc) ≈ 6.14`
+    - `ESS/sec(doubleOcc) ≈ 0.224`
+  - nearby candidates:
+    - `12 x 0.004` still collapses with `acceptance = 0`
+    - `24 x 0.0015` is stable but slower than `16 x 0.003`
+  - takeaway:
+    - by `U2=100`, the allowed step-size window has already narrowed again, so this is the
+      current leading indicator for what will happen on the path toward `U2=1e3`
 
 ### Immediate tuning lesson from the `Nbos=1e4, U2=10` scan
 

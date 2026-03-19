@@ -113,6 +113,12 @@ The default SLURM entry point is `dqmc_production`, which now dispatches by `PRO
 For the active workstation ramp, keep the current healthy rung, next rung, and main blocker
 documented in `../HMC-REFERENCE.md` before moving on to a harder stage.
 At the moment, the baseline `L=6, Nbos=1e3, U2=1` projector ladder has already been pushed
-through `beta=160, dtau=0.004`, and the next rung is `beta=192, dtau=0.002`.
-The current blocker experiment is a spatial-uniform preconditioned stage on
+through `beta=160, dtau=0.004`, and the representative `beta=192, dtau=0.002` stage is already
+showing `stable_window` on `2/3` completed repeats. The current workstation priority is therefore
+the higher-`U2` ramp, not still deeper projector scans on the same easy baseline point.
+The current `U2`-ramp starting geometry is the stage-healthy spatial-uniform preconditioned rung
 `L=6, Nbos=1e4, U2=1` with `mass=16`, `uniform_mass=1`, `20 x 0.008`.
+The immediate next production rungs are:
+
+- `L=6, Nbos=1e4, U2=30`, `mass=16`, `uniform_mass=1`, `12 x 0.006`
+- `L=6, Nbos=1e4, U2=100`, `mass=16`, `uniform_mass=1`, `16 x 0.003`

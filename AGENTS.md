@@ -82,14 +82,24 @@
     to split the per-time-slice spatially uniform mode away from the residual `--hmc-mass`
 - Current workstation production examples already distinguish:
   - a healthy projector ladder at `L=6, Nbos=1e3, U2=1`, currently healthy through `beta=160`, `dtau=0.004`
-  - a slow-drift rung at `L=6, Nbos=1e4, U2=1`
+  - a partially collected but representative `beta=192`, `dtau=0.002` rung on the same baseline point,
+    with `2/3` repeats currently complete and `stable_window`
+  - the representative baseline ladder only moves `squareOcc` / `IPR` by about `7.6e-4` / `7.7e-4`
+    across `beta=32 -> 192`, `dtau=0.01 -> 0.002`, so the current workstation priority has shifted
+    from deeper projector scans to higher-`U2` scans
+  - the old slow-drift rung at `L=6, Nbos=1e4, U2=1` is now mainly a historical scalar-mass reference
   - a stronger-coupling but stage-healthy rung at `L=6, Nbos=1e4, U2=10`
-  - the current next rung is `L=6, Nbos=1e3, U2=1, beta=192, dtau=0.002`
-  - the current blocker-side preconditioning probe is `L=6, Nbos=1e4, U2=1`,
-    `mass=16`, `uniform_mass=1`, `nfrog=20`, `dt=0.008`
+  - the current `U2`-ramp starting geometry is the stage-healthy preconditioned rung
+    `L=6, Nbos=1e4, U2=1`, `mass=16`, `uniform_mass=1`, `nfrog=20`, `dt=0.008`
+  - the current next rungs are:
+    - `L=6, Nbos=1e4, U2=30`, `mass=16`, `uniform_mass=1`, `nfrog=12`, `dt=0.006`
+    - `L=6, Nbos=1e4, U2=100`, `mass=16`, `uniform_mass=1`, `nfrog=16`, `dt=0.003`
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
   - the merged report now exposes per-case sections plus `bins`, `thermal_cut`, `warm`, and `samples/post`
     so short traces are easier to separate from genuinely deep thermalization runs
+  - the merged report also renders per-case relative-change plots and a representative
+    one-stage-per-`(beta, dtau)` convergence table, so `beta/dtau` trends can be inspected
+    without mixing in old failed tuning attempts
 - Do not stop after a single benchmark mismatch. First distinguish:
   - lattice-specific observable bug
   - HMC tuning/warm-up issue

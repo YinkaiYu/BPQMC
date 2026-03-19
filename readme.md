@@ -349,12 +349,24 @@ Current local workstation examples under `data/triangular_hmc_production/` alrea
   - `l6_n1e3_u1_beta96_dtau8em3_stage_m4_nf8_dt0p02`
   - `l6_n1e3_u1_beta128_dtau5em3_stage_m4_nf8_dt0p02`
   - `l6_n1e3_u1_beta160_dtau4em3_stage_m4_nf8_dt0p02`
-- a slow-drift rung that still needs deeper thermalization or better proposals:
-  - `l6_n1e4_u1_beta32_dtau1em2_stage_m4_nf16_dt0p01`
+- a stage-healthy preconditioned replacement for the old `Nbos=1e4, U2=1` blocker:
+  - `l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p008_diag512`
 - a stronger-coupling exploratory rung that is already stage-healthy with a smaller step size:
   - `l6_n1e4_u1e1_beta32_dtau1em2_stage_m4_nf16_dt0p006`
+- current higher-`U2` preconditioned tuning roots:
+  - `l6_n1e4_u3e1_beta32_dtau1em2_tune_m16_mu1`
+  - `l6_n1e4_u1e2_beta32_dtau1em2_tune_m16_mu1`
 
-The current next projector rung is `L=6, Nbos=1e3, U2=1, beta=192, dtau=0.002`.
+On the current representative baseline ladder, `squareOcc` and `IPR` only move by about
+`7.6e-4` and `7.7e-4` across `beta=32 -> 192`, `dtau=0.01 -> 0.002`.
+That is why the current workstation priority is now the higher-`U2` ramp rather than
+deeper projector scans on the easy baseline point.
+
+The current next production rungs are:
+
+- `L=6, Nbos=1e4, U2=30`, `mass=16`, `uniform_mass=1`, `nfrog=12`, `dt=0.006`
+- `L=6, Nbos=1e4, U2=100`, `mass=16`, `uniform_mass=1`, `nfrog=16`, `dt=0.003`
+
 See `HMC-REFERENCE.md` for the running interpretation of these stage results and blockers.
 For a single merged entry point across all production directories, open:
 
@@ -375,6 +387,8 @@ This merged report is the preferred place to inspect:
 - recommended tune parameters versus rung
 - sample-index traces across different parameter points
 - per-case sections that keep different `Nbos` / `U2` scales separate
+- per-case relative-change plots that make small `beta/dtau` shifts visible even when the
+  absolute observable scales differ strongly across physics points
 - `bins`, `thermal_cut`, `warm`, and `samples/post` coverage, so a short trace cannot
   be mistaken for a deep thermalization run
 - note that the dashed marker in each trace is only the configured `thermal_cut`
