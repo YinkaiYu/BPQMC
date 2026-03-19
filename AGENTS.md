@@ -78,10 +78,10 @@
   - `test/production_hmc.py` can now expand multiple initial-state families with
     `--ini-type-values` and `--ini-ampl-values`
 - Current workstation production examples already distinguish:
-  - a healthy projector ladder at `L=6, Nbos=1e3, U2=1`, currently healthy through `beta=128`, `dtau=0.005`
+  - a healthy projector ladder at `L=6, Nbos=1e3, U2=1`, currently healthy through `beta=160`, `dtau=0.004`
   - a slow-drift rung at `L=6, Nbos=1e4, U2=1`
   - a stronger-coupling but stage-healthy rung at `L=6, Nbos=1e4, U2=10`
-  - the current next rung is `L=6, Nbos=1e3, U2=1, beta=160, dtau=0.004`
+  - the current next rung is `L=6, Nbos=1e3, U2=1, beta=192, dtau=0.002`
 - Do not stop after a single benchmark mismatch. First distinguish:
   - lattice-specific observable bug
   - HMC tuning/warm-up issue

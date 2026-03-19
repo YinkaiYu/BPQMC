@@ -291,12 +291,13 @@ Current local workstation examples under `data/triangular_hmc_production/` alrea
   - `l6_n1e3_u1_beta64_dtau1em2_stage_m4_nf8_dt0p02`
   - `l6_n1e3_u1_beta96_dtau8em3_stage_m4_nf8_dt0p02`
   - `l6_n1e3_u1_beta128_dtau5em3_stage_m4_nf8_dt0p02`
+  - `l6_n1e3_u1_beta160_dtau4em3_stage_m4_nf8_dt0p02`
 - a slow-drift rung that still needs deeper thermalization or better proposals:
   - `l6_n1e4_u1_beta32_dtau1em2_stage_m4_nf16_dt0p01`
 - a stronger-coupling exploratory rung that is already stage-healthy with a smaller step size:
   - `l6_n1e4_u1e1_beta32_dtau1em2_stage_m4_nf16_dt0p006`
 
-The current next projector rung is `L=6, Nbos=1e3, U2=1, beta=160, dtau=0.004`.
+The current next projector rung is `L=6, Nbos=1e3, U2=1, beta=192, dtau=0.002`.
 See `HMC-REFERENCE.md` for the running interpretation of these stage results and blockers.
 
 ### Archived Development Tune Scan

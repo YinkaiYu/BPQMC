@@ -87,4 +87,4 @@ The default SLURM entry point is `dqmc_production`, which now dispatches by `PRO
 For the active workstation ramp, keep the current healthy rung, next rung, and main blocker
 documented in `../HMC-REFERENCE.md` before moving on to a harder stage.
 At the moment, the baseline `L=6, Nbos=1e3, U2=1` projector ladder has already been pushed
-through `beta=128, dtau=0.005`, and the next rung is `beta=160, dtau=0.004`.
+through `beta=160, dtau=0.004`, and the next rung is `beta=192, dtau=0.002`.
