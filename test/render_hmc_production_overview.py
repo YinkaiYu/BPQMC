@@ -178,6 +178,35 @@ def render_trend_plot(rows: list[dict[str, object]], observable: str, xkey: str,
     plt.close(fig)
 
 
+def render_case_trend_plot(
+    rows: list[dict[str, object]],
+    case: str,
+    observable: str,
+    xkey: str,
+    output_path: Path,
+) -> None:
+    obs_rows = [row for row in rows if row["observable"] == observable and str(row["case"]) == case]
+    if not obs_rows:
+        return
+    obs_rows.sort(key=lambda row: float(row[xkey]))
+    fig, ax = plt.subplots(figsize=(6.8, 4.2))
+    ax.errorbar(
+        [float(row[xkey]) for row in obs_rows],
+        [float(row["mean"]) for row in obs_rows],
+        yerr=[float(row["stderr"]) for row in obs_rows],
+        marker="o",
+        linewidth=1.6,
+        capsize=3,
+    )
+    ax.set_xlabel(xkey)
+    ax.set_ylabel(observable)
+    ax.set_title(f"{case}: {observable} vs {xkey}")
+    ax.grid(alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=180)
+    plt.close(fig)
+
+
 def render_trace_plot(sample_rows: list[dict[str, object]], case: str, observable: str, output_path: Path) -> None:
     rows = [row for row in sample_rows if row["case"] == case and row["observable"] == observable and int(row["repeat"]) == 0]
     grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
@@ -273,6 +302,7 @@ def write_report(
             "## Observable Trends",
             "",
             "These plots are the main place to judge whether `squareOcc` and `IPR` are already converged in `beta` or `dtau`.",
+            "The combined plots are only for a quick overview; the per-case plots below are the ones to trust when different parameter points have very different scales.",
             "",
             "### squareOcc",
             "",
@@ -297,6 +327,16 @@ def write_report(
         case_tag = safe_tag(case)
         lines.extend(
             [
+                "",
+                f"## Trends: {case}",
+                "",
+                f"![{case} squareOcc vs beta](trend_{case_tag}_squareOcc_vs_beta.png)",
+                "",
+                f"![{case} squareOcc vs dtau](trend_{case_tag}_squareOcc_vs_dtau.png)",
+                "",
+                f"![{case} IPR vs beta](trend_{case_tag}_IPR_vs_beta.png)",
+                "",
+                f"![{case} IPR vs dtau](trend_{case_tag}_IPR_vs_dtau.png)",
                 "",
                 f"## Traces: {case}",
                 "",
@@ -358,6 +398,9 @@ def main() -> int:
     render_recommended_plot(tune_recommended, "ess_per_sec_doubleOcc_mean", "beta", output_dir / "recommended_ess_per_sec_doubleOcc_mean_vs_beta.png")
     for case in sorted({str(row["case"]) for row in stage_cases}):
         case_tag = safe_tag(case)
+        for observable in TREND_OBSERVABLES:
+            render_case_trend_plot(stage_obs, case, observable, "beta", output_dir / f"trend_{case_tag}_{observable}_vs_beta.png")
+            render_case_trend_plot(stage_obs, case, observable, "dtau", output_dir / f"trend_{case_tag}_{observable}_vs_dtau.png")
         render_trace_plot(stage_samples, case, "squareOcc", output_dir / f"trace_{case_tag}_squareOcc.png")
         render_trace_plot(stage_samples, case, "IPR", output_dir / f"trace_{case_tag}_IPR.png")
     write_report(output_dir, stage_cases, stage_obs, tune_recommended)
