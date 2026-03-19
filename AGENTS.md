@@ -82,6 +82,7 @@
   - a slow-drift rung at `L=6, Nbos=1e4, U2=1`
   - a stronger-coupling but stage-healthy rung at `L=6, Nbos=1e4, U2=10`
   - the current next rung is `L=6, Nbos=1e3, U2=1, beta=192, dtau=0.002`
+  - the merged report entry is `data/triangular_hmc_production/overview/report.md`
 - Do not stop after a single benchmark mismatch. First distinguish:
   - lattice-specific observable bug
   - HMC tuning/warm-up issue
@@ -166,6 +167,9 @@
 - `HMC-REFERENCE.md` is the running handoff note for validated health points, unresolved slow modes,
   tuning heuristics, and production/HPC-oriented lessons.
 - `HMC-REFERENCE.md` should always state the current healthy rung, next rung, and main blocker so the production ramp can resume after context loss.
+- For production data review, prefer `test/render_hmc_production_overview.py` over opening many per-directory reports by hand.
+- When judging convergence, do not just check whether a deeper rung runs.
+  Explicitly inspect whether `squareOcc` and `IPR` stop changing as `beta` increases and as `dtau` decreases.
 - For current production bring-up, the primary decision is not local-vs-HMC agreement.
   The first question is whether `squareOcc` and `IPR` stabilize across sample index, seeds, and initial-state choices.
 - A current tuning lesson already written into `HMC-REFERENCE.md`:

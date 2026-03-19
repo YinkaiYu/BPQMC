@@ -14,6 +14,7 @@ These are the files intended for ongoing use:
 - `hmc_tools.py`: shared Python helpers
 - `production_hmc.py`: main production tuning / stage / collect / report driver
 - `render_hmc_report.py`: production report renderer for `tune`, `stage`, and legacy `benchmark` summaries
+- `render_hmc_production_overview.py`: merged renderer for the whole `data/triangular_hmc_production/` tree
 - `hmc_report_template.ipynb`: production report notebook template for `stage`, `tune`, and `benchmark` summaries
 - `analyze_hmc_monitor.py`, `analyze_hmc_trace.py`: HMC trajectory diagnostics that may still be useful in production debugging
 
@@ -75,6 +76,14 @@ For thermalization checks across different initial states, `production_hmc.py` a
 
 These options expand multiple initial-state families into distinct case names under the same
 `tune` or `stage` work root.
+
+For a single merged entry point over all production directories, run:
+
+- `/home/yyk/conda/envs/notebook/bin/python test/render_hmc_production_overview.py --root data/triangular_hmc_production --output-dir data/triangular_hmc_production/overview`
+
+The resulting report lives at:
+
+- `data/triangular_hmc_production/overview/report.md`
 
 The default SLURM entry point is `dqmc_production`, which now dispatches by `PROD_COMMAND`:
 

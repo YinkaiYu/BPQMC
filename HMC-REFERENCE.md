@@ -33,6 +33,10 @@ The default output root for this new workflow should be under:
 
 - `data/triangular_hmc_production/`
 
+The unified entry point for the accumulated production results is now:
+
+- [overview/report.md](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/overview/report.md)
+
 ## Current Stage / Next Stage / Blocker
 
 Current healthy ladder:
@@ -93,6 +97,17 @@ Interpretation:
   `squareOcc/IPR` window is still convincingly stable.
 - The `beta=160` rung continues to pass with the same scalar-mass setting (`m=4`, `8 x 0.02`,
   jitter `=2`). The main cost increase is wall-clock time rather than a sudden thermalization failure.
+
+Current convergence interpretation for the healthy baseline ladder:
+
+- `squareOcc` and `IPR` are already numerically close across the healthy `beta=96 -> 128 -> 160`
+  rungs.
+- This is encouraging, but it is not yet a strict convergence proof because `beta` and `dtau`
+  were changed together along that ladder.
+- The correct next step is:
+  - if observables stop changing as `beta` increases, do not push to larger `beta` just because it is possible
+  - if observables stop changing as `dtau` decreases, do not push to smaller `dtau` just because it is possible
+  - otherwise, continue the ladder or run explicit fixed-`beta` / fixed-`dtau` comparison scans
 
 ### Healthy reference rung
 
