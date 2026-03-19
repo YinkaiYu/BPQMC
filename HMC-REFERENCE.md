@@ -35,10 +35,11 @@ Current healthy ladder:
 - `beta=32`, `dtau=0.01`
 - `beta=64`, `dtau=0.01`
 - `beta=96`, `dtau=0.008`
+- `beta=128`, `dtau=0.005`
 
 Current next rung:
 
-- `L=6`, `Nbos=1e3`, `U2=1`, `beta=128`, `dtau=0.005`
+- `L=6`, `Nbos=1e3`, `U2=1`, `beta=160`, `dtau=0.004`
 - start from scalar-mass full-field HMC with `mass=4`, jittered trajectories, and a tune scan before the long stage
 
 Current main blocker:
@@ -58,6 +59,7 @@ As of the current workstation bring-up round, the first production-style stage d
 - [l6_n1e3_u1_beta32_dtau1em2_stage_m4_nf12_dt0p015](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e3_u1_beta32_dtau1em2_stage_m4_nf12_dt0p015/report/report.md)
 - [l6_n1e3_u1_beta64_dtau1em2_stage_m4_nf8_dt0p02](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e3_u1_beta64_dtau1em2_stage_m4_nf8_dt0p02/report/report.md)
 - [l6_n1e3_u1_beta96_dtau8em3_stage_m4_nf8_dt0p02](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e3_u1_beta96_dtau8em3_stage_m4_nf8_dt0p02/report/report.md)
+- [l6_n1e3_u1_beta128_dtau5em3_stage_m4_nf8_dt0p02](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e3_u1_beta128_dtau5em3_stage_m4_nf8_dt0p02/report/report.md)
 - parameters:
   - `L=6`
   - `Nbos=1e3`
@@ -68,14 +70,18 @@ As of the current workstation bring-up round, the first production-style stage d
   - `beta=32`, `dtau=0.01`: `stable_window`, `squareOcc/IPR drift/span ~ 0.141`
   - `beta=64`, `dtau=0.01`: `stable_window`, `squareOcc/IPR drift/span ~ 0.030`
   - `beta=96`, `dtau=0.008`: `stable_window`, `squareOcc/IPR drift/span ~ 0.153`
+  - `beta=128`, `dtau=0.005`: `stable_window`, `squareOcc/IPR drift/span ~ 0.068`
 
 Interpretation:
 
 - The baseline triangular rung is now healthy through three projector settings.
+- The baseline triangular rung is now healthy through four projector settings.
 - This is the first real evidence that the production ramp can proceed in projector depth
   rather than only at one easy point.
 - The `beta=96` rung is slower in wall-clock time than `beta=64`, but its traces still pass
   the current `squareOcc/IPR` gate cleanly.
+- The `beta=128` rung continues the same trend: wall-clock time rises again, but the retained
+  `squareOcc/IPR` window is still convincingly stable.
 
 ### Healthy reference rung
 
