@@ -353,9 +353,14 @@ Current local workstation examples under `data/triangular_hmc_production/` alrea
   - `l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p008_diag512`
 - a stronger-coupling exploratory rung that is already stage-healthy with a smaller step size:
   - `l6_n1e4_u1e1_beta32_dtau1em2_stage_m4_nf16_dt0p006`
-- current higher-`U2` preconditioned tuning roots:
+- a fully healthy higher-`U2` preconditioned rung:
+  - `l6_n1e4_u3e1_beta32_dtau1em2_stage_m16_mu1_nf12_dt0p006_diag1024`
+- current higher-`U2` preconditioned tuning / stage roots:
   - `l6_n1e4_u3e1_beta32_dtau1em2_tune_m16_mu1`
-  - `l6_n1e4_u1e2_beta32_dtau1em2_tune_m16_mu1`
+  - `l6_n1e4_u1e2_beta32_dtau1em2_tune_m16_mu1_conservative`
+  - `l6_n1e4_u1e2_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p001_diag1024`
+  - `l6_n1e4_u3e2_beta32_dtau1em2_tune_m16_mu1_conservative`
+  - `l6_n1e4_u3e2_beta32_dtau1em2_stage_m16_mu1_nf28_dt5em4_diag1024`
 
 On the current representative baseline ladder, `squareOcc` and `IPR` only move by about
 `7.6e-4` and `7.7e-4` across `beta=32 -> 192`, `dtau=0.01 -> 0.002`.
@@ -364,8 +369,8 @@ deeper projector scans on the easy baseline point.
 
 The current next production rungs are:
 
-- `L=6, Nbos=1e4, U2=30`, `mass=16`, `uniform_mass=1`, `nfrog=12`, `dt=0.006`
-- `L=6, Nbos=1e4, U2=100`, `mass=16`, `uniform_mass=1`, `nfrog=16`, `dt=0.003`
+- `L=6, Nbos=1e4, U2=100`, `mass=16`, `uniform_mass=1`, `nfrog=20`, `dt=0.001`
+- `L=6, Nbos=1e4, U2=300`, `mass=16`, `uniform_mass=1`, `nfrog=28`, `dt=0.0005`
 
 See `HMC-REFERENCE.md` for the running interpretation of these stage results and blockers.
 For a single merged entry point across all production directories, open:

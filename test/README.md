@@ -120,5 +120,6 @@ The current `U2`-ramp starting geometry is the stage-healthy spatial-uniform pre
 `L=6, Nbos=1e4, U2=1` with `mass=16`, `uniform_mass=1`, `20 x 0.008`.
 The immediate next production rungs are:
 
-- `L=6, Nbos=1e4, U2=30`, `mass=16`, `uniform_mass=1`, `12 x 0.006`
-- `L=6, Nbos=1e4, U2=100`, `mass=16`, `uniform_mass=1`, `16 x 0.003`
+- `L=6, Nbos=1e4, U2=30`, `mass=16`, `uniform_mass=1`, `12 x 0.006`, now stage-healthy
+- `L=6, Nbos=1e4, U2=100`, `mass=16`, `uniform_mass=1`, `20 x 0.001`, current long-stage `rep0` is healthy
+- `L=6, Nbos=1e4, U2=300`, `mass=16`, `uniform_mass=1`, `28 x 0.0005`, stage launched after the conservative retune

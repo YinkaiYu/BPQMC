@@ -70,15 +70,22 @@ Current next rung:
   to pushing `U2` upward at fixed `beta=32`, `dtau=0.01`
 - current active `U2` ladder:
   - `L=6`, `Nbos=1e4`, `U2=30`
-    - preconditioned short-tune winner: residual mass `m=16`, uniform mass `mu=1`,
-      `nfrog=12`, `dt=0.006`, jitter `=2`
-    - active long stage:
+    - long-stage winner:
+      - residual mass `m=16`, uniform mass `mu=1`
+      - `nfrog=12`, `dt=0.006`, jitter `=2`
+      - `overall_status = healthy`
+    - completed long stage:
       [l6_n1e4_u3e1_beta32_dtau1em2_stage_m16_mu1_nf12_dt0p006_diag1024](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u3e1_beta32_dtau1em2_stage_m16_mu1_nf12_dt0p006_diag1024)
   - `L=6`, `Nbos=1e4`, `U2=100`
-    - preconditioned short-tune winner: residual mass `m=16`, uniform mass `mu=1`,
-      `nfrog=16`, `dt=0.003`, jitter `=2`
+    - conservative short-tune winner: residual mass `m=16`, uniform mass `mu=1`,
+      `nfrog=20`, `dt=0.001`, jitter `=2`
     - active long stage:
-      [l6_n1e4_u1e2_beta32_dtau1em2_stage_m16_mu1_nf16_dt0p003_diag1024](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e2_beta32_dtau1em2_stage_m16_mu1_nf16_dt0p003_diag1024)
+      [l6_n1e4_u1e2_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p001_diag1024](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e2_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p001_diag1024)
+  - `L=6`, `Nbos=1e4`, `U2=300`
+    - conservative short-tune winner: residual mass `m=16`, uniform mass `mu=1`,
+      `nfrog=28`, `dt=0.0005`, jitter `=2`
+    - active long stage:
+      [l6_n1e4_u3e2_beta32_dtau1em2_stage_m16_mu1_nf28_dt5em4_diag1024](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u3e2_beta32_dtau1em2_stage_m16_mu1_nf28_dt5em4_diag1024)
 
 Current main blocker:
 
@@ -277,18 +284,48 @@ Interpretation:
   - takeaway:
     - on this rung the preconditioner is no longer just a stability aid; it is already the
       better efficiency geometry as well
+  - completed long stage:
+    - [l6_n1e4_u3e1_beta32_dtau1em2_stage_m16_mu1_nf12_dt0p006_diag1024](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u3e1_beta32_dtau1em2_stage_m16_mu1_nf12_dt0p006_diag1024/report/report.md)
+    - `2/2` repeats complete
+    - `overall_status = healthy`
+    - `acceptance ≈ 0.790`
+    - `squareOcc/IPR drift/span max ≈ 0.038`
+    - retained repeat-span ratio `≈ 0.0068`
 - `U2=100`
-  - current preconditioned short-tune winner:
-    - `m=16`, `mu=1`, `nfrog=16`, `dt=0.003`, jitter `=2`
-    - `acceptance ≈ 0.891`
-    - `tau_int(doubleOcc) ≈ 6.14`
-    - `ESS/sec(doubleOcc) ≈ 0.224`
-  - nearby candidates:
-    - `12 x 0.004` still collapses with `acceptance = 0`
-    - `24 x 0.0015` is stable but slower than `16 x 0.003`
+  - first short-tune / long-stage lesson:
+    - `16 x 0.003` looked viable on the shallow `64 / 32 / 32` tune
+    - the corresponding long stage froze immediately with `Accept_HMC = 0`
+  - current conservative short-tune winner:
+    - `m=16`, `mu=1`, `nfrog=20`, `dt=0.001`, jitter `=2`
+    - `acceptance ≈ 0.992`
+    - `tau_int(doubleOcc) ≈ 5.88`
+    - `ESS/sec(doubleOcc) ≈ 0.193`
+  - current long-stage checkpoint:
+    - [l6_n1e4_u1e2_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p001_diag1024](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e2_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p001_diag1024/report/report.md)
+    - `rep0` complete, `rep1` running
+    - partial status: `stable_window`
+    - `acceptance ≈ 0.979`
+    - retained-window `squareOcc/IPR drift/span ≈ 0.0135`
   - takeaway:
-    - by `U2=100`, the allowed step-size window has already narrowed again, so this is the
-      current leading indicator for what will happen on the path toward `U2=1e3`
+    - by `U2=100`, the allowed step-size window has narrowed enough that shallow short scans
+      are no longer trustworthy; the tuning workflow itself must become more conservative
+    - the rung is now mobile again, so the blocker has moved from “can it move at all?” to
+      “will multiple repeats land on the same retained plateau?”
+- `U2=300`
+  - first short-tune grid:
+    - [l6_n1e4_u3e2_beta32_dtau1em2_tune_m16_mu1](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u3e2_beta32_dtau1em2_tune_m16_mu1/report/report.md)
+    - no viable candidate
+  - current conservative short-tune winner:
+    - [l6_n1e4_u3e2_beta32_dtau1em2_tune_m16_mu1_conservative](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u3e2_beta32_dtau1em2_tune_m16_mu1_conservative/report/report.md)
+    - `m=16`, `mu=1`, `nfrog=28`, `dt=0.0005`, jitter `=2`
+    - `acceptance ≈ 0.992`
+    - `tau_int(doubleOcc) ≈ 1.59`
+    - `ESS/sec(doubleOcc) ≈ 0.524`
+  - active long stage:
+    - [l6_n1e4_u3e2_beta32_dtau1em2_stage_m16_mu1_nf28_dt5em4_diag1024](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u3e2_beta32_dtau1em2_stage_m16_mu1_nf28_dt5em4_diag1024)
+  - takeaway:
+    - the strong-coupling ladder still opens if `dt` is reduced aggressively enough; the
+      window has not closed yet, but it is becoming narrow quickly
 
 ### Immediate tuning lesson from the `Nbos=1e4, U2=10` scan
 

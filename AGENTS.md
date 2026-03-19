@@ -92,8 +92,9 @@
   - the current `U2`-ramp starting geometry is the stage-healthy preconditioned rung
     `L=6, Nbos=1e4, U2=1`, `mass=16`, `uniform_mass=1`, `nfrog=20`, `dt=0.008`
   - the current next rungs are:
-    - `L=6, Nbos=1e4, U2=30`, `mass=16`, `uniform_mass=1`, `nfrog=12`, `dt=0.006`
-    - `L=6, Nbos=1e4, U2=100`, `mass=16`, `uniform_mass=1`, `nfrog=16`, `dt=0.003`
+    - `L=6, Nbos=1e4, U2=30`, `mass=16`, `uniform_mass=1`, `nfrog=12`, `dt=0.006`, now `healthy`
+    - `L=6, Nbos=1e4, U2=100`, `mass=16`, `uniform_mass=1`, `nfrog=20`, `dt=0.001`, current long-stage `rep0` is `stable_window`
+    - `L=6, Nbos=1e4, U2=300`, `mass=16`, `uniform_mass=1`, `nfrog=28`, `dt=0.0005`, stage launched after a conservative retune
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
   - the merged report now exposes per-case sections plus `bins`, `thermal_cut`, `warm`, and `samples/post`
     so short traces are easier to separate from genuinely deep thermalization runs
