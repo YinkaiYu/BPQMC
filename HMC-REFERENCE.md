@@ -21,7 +21,7 @@ The active production CLI is `test/production_hmc.py`:
 - `tune`: short candidate scans
 - `collect-tune`: rebuild tune summaries from finished or partially finished tune `runs/`
 - `stage`: long HMC-only runs with `squareOcc`/`IPR` traces
-- `collect`: rebuild stage summaries from completed `runs/`
+- `collect`: rebuild stage summaries from completed or partially completed stage `runs/`
 - `report`: render Markdown + PNG summaries
 
 For seed/init-state convergence checks, the production driver can now expand multiple
@@ -45,6 +45,8 @@ The unified entry point for the accumulated production results is now:
   overlaid lines are independent stage runs rather than one continued chain
 - the production stage gate now checks the worst retained repeat as well as the mean drift,
   so one drifting chain can no longer be hidden by averaging over healthier repeats
+- the production stage gate also checks cross-repeat retained-window mismatch, reported in the
+  overview as `repeat span`, so different seeds settling on different plateaus are no longer hidden
 
 ## Current Stage / Next Stage / Blocker
 

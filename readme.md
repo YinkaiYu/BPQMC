@@ -174,7 +174,7 @@ Key subcommands:
 - `tune`: short HMC grid scans
 - `collect-tune`: rebuild tune summaries from finished or partially finished `runs/`
 - `stage`: long HMC-only runs with thermalization traces
-- `collect`: rebuild stage summaries from finished `runs/`
+- `collect`: rebuild stage summaries from finished or partially finished `runs/`
 - `report`: render Markdown + PNG summaries
 - `benchmark`: legacy direct local-vs-HMC comparison, kept only as an archived-style helper
 
@@ -344,6 +344,8 @@ This merged report is the preferred place to inspect:
 - note that the dashed marker in each trace is only the configured `thermal_cut`
   and the overlaid lines are independent stage runs, not one continued chain
 - note that the production stage gate is now judged on the worst retained repeat as well as the mean drift
+- note that the merged stage tables now also expose `repeats`, `max drift`, and `repeat span`
+  so cross-repeat plateau mismatch is visible from the overview page
 
 For explicit convergence scans at fixed `beta` or fixed `dtau`, use:
 

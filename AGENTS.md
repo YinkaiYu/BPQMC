@@ -61,7 +61,7 @@
   - run `test/production_hmc.py tune`
   - run `test/production_hmc.py collect-tune` if a long tune finishes only partially but its completed `runs/` should already be summarized
   - run `test/production_hmc.py stage` for long HMC-only thermalization traces
-  - run `test/production_hmc.py collect` if a finished stage needs its summaries rebuilt from `runs/`
+  - run `test/production_hmc.py collect` if a finished or partially finished stage needs its summaries rebuilt from `runs/`
   - run `test/production_hmc.py report` or `test/render_hmc_report.py`
   - run `test/production_hmc.py benchmark` only when a legacy direct production comparison is still needed
 - The triangular small-parameter correctness campaign is archived under `test/archive_small_benchmark/`.
@@ -174,6 +174,8 @@
 - For production data review, prefer `test/render_hmc_production_overview.py` over opening many per-directory reports by hand.
 - In the merged trace plots, the dashed line is only the configured `thermal_cut`, and the overlaid lines are independent stage runs rather than one continued chain.
 - The production stage gate should be interpreted on the worst retained repeat, not only on the mean drift across repeats.
+- The production stage gate should also be read against the cross-repeat retained-window mismatch,
+  which now appears in the overview as `repeat span`.
 - When judging convergence, do not just check whether a deeper rung runs.
   Explicitly inspect whether `squareOcc` and `IPR` stop changing as `beta` increases and as `dtau` decreases.
 - `test/production_convergence_scan.py` is the convenience wrapper for those fixed-`beta` and fixed-`dtau` scans.

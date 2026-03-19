@@ -71,7 +71,7 @@ The active production workflow is now:
 - `production_hmc.py tune`: short HMC grid scans for candidate parameters
 - `production_hmc.py collect-tune`: rebuild `production_tune*.json/csv` from finished or partially finished tune `runs/`
 - `production_hmc.py stage`: long HMC-only runs with sample-index trace capture for `squareOcc`, `IPR`, `doubleOcc`, `nearestOcc`
-- `production_hmc.py collect`: rebuild `production_stage*.json/csv` from finished `runs/` without rerunning QMC
+- `production_hmc.py collect`: rebuild `production_stage*.json/csv` from finished or partially finished `runs/` without rerunning QMC
 - `production_hmc.py report`: render a Markdown + PNG report from `production_stage.json`, `production_tune.json`, or `production_benchmark.json`
 
 For thermalization checks across different initial states, `production_hmc.py` also supports:
@@ -94,6 +94,7 @@ The resulting report lives at:
 - the dashed marker in each trace is only the configured `thermal_cut`, and the overlaid
   lines are independent stage runs rather than one continued chain
 - the production stage gate is judged on the worst retained repeat as well as the mean drift
+- the merged stage tables now also expose `repeats`, `max drift`, and `repeat span`
 
 The default SLURM entry point is `dqmc_production`, which now dispatches by `PROD_COMMAND`:
 
