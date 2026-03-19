@@ -31,6 +31,7 @@ module CalcBasic ! Global parameters
     real(kind=8),           public              :: hmc_mass
     real(kind=8),           public              :: hmc_mass_spatial_uniform
     real(kind=8),           public              :: hmc_mass_spatial_shell1
+    real(kind=8),           public              :: hmc_mass_spatial_shell2
     integer,                public              :: hmc_block_tau
     integer,                public              :: hmc_block_sites
 ! initial state parameters
@@ -76,6 +77,7 @@ contains
             hmc_mass = 1.d0
             hmc_mass_spatial_uniform = 0.d0
             hmc_mass_spatial_shell1 = 0.d0
+            hmc_mass_spatial_shell2 = 0.d0
             hmc_block_tau = 0
             hmc_block_sites = 0
             read(hmc_line, *, iostat=ios_hmc) is_global, Nfrog, hmc_dt, NfrogJitter, hmc_mass, hmc_block_tau, hmc_block_sites
@@ -120,6 +122,7 @@ contains
             close(20)
             call read_env_real("BPQMC_HMC_MASS_SPATIAL_UNIFORM", hmc_mass_spatial_uniform)
             call read_env_real("BPQMC_HMC_MASS_SPATIAL_SHELL1", hmc_mass_spatial_shell1)
+            call read_env_real("BPQMC_HMC_MASS_SPATIAL_SHELL2", hmc_mass_spatial_shell2)
         endif 
 !   MPI process: parallelization
         call MPI_BCAST(Beta, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
@@ -132,6 +135,7 @@ contains
         call MPI_BCAST(hmc_mass, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_mass_spatial_uniform, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_mass_spatial_shell1, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(hmc_mass_spatial_shell2, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_block_tau, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_block_sites, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(shiftWarm, Naux, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
@@ -197,6 +201,9 @@ contains
             endif
             if (hmc_mass_spatial_shell1 < 0.d0) then
                 write(6,*) "hmc_mass_spatial_shell1 must be non-negative in HMC mode"; stop
+            endif
+            if (hmc_mass_spatial_shell2 < 0.d0) then
+                write(6,*) "hmc_mass_spatial_shell2 must be non-negative in HMC mode"; stop
             endif
             if (hmc_block_tau < 0) then
                 write(6,*) "hmc_block_tau must be non-negative in HMC mode"; stop
@@ -362,6 +369,7 @@ contains
                 write(50,*) 'Leapfrog mass                                  :', hmc_mass
                 write(50,*) 'Spatial-uniform leapfrog mass                  :', hmc_mass_spatial_uniform
                 write(50,*) 'Lowest-shell leapfrog mass                     :', hmc_mass_spatial_shell1
+                write(50,*) 'Second-shell leapfrog mass                     :', hmc_mass_spatial_shell2
                 write(50,*) 'HMC tau block size                             :', hmc_block_tau
                 write(50,*) 'HMC site block size                            :', hmc_block_sites
             else
