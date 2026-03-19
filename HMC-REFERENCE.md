@@ -27,6 +27,9 @@ The active production CLI is `test/production_hmc.py`:
 - `report`: render Markdown + PNG summaries
 - `--hmc-mass-spatial-uniform`: optional per-time-slice spatial-uniform-mode mass split
   on top of the residual `--hmc-mass`; `0` disables it
+- `--hmc-mass-spatial-shell1`: optional triangular lowest-|k|-shell mass split
+  on top of both the residual `--hmc-mass` and the spatially uniform split;
+  `0` disables it
 
 For seed/init-state convergence checks, the production driver can now expand multiple
 initial-state families in one invocation via:
@@ -114,12 +117,19 @@ Current next rung:
       - [m16 probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_probe/report/report.md)
       - [m16 aggressive](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_aggressive/report/report.md)
       - [m32 probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m32_mu1_probe/report/report.md)
-    - current live stage:
-      [l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_nf20_dt4em4_diag1024_probe/live_progress/report.md](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_nf20_dt4em4_diag1024_probe/live_progress/report.md)
+    - completed reference stage:
+      [l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_nf20_dt4em4_diag1024_probe/report/report.md](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_nf20_dt4em4_diag1024_probe/report/report.md)
     - current reading:
-      - none of the short scans removes the slow mode yet; all remain at `tau_int(doubleOcc) ~ 25`
-      - the mildly more aggressive `m=16`, `mu=1`, `20 x 0.0004` geometry is still the best short candidate and is now being checked by a real long trace
-      - the next decision is based on that long trace, not on another shallow tune table
+      - none of the scalar/uniform-only short scans removes the slow mode yet; all remain at `tau_int(doubleOcc) ~ 25`
+      - the mildly more aggressive `m=16`, `mu=1`, `20 x 0.0004` geometry has now been ruled only a reference failure:
+        its completed long stage is `strong_drift`, with `squareOcc/IPR drift/span ≈ 0.660`
+      - the active next step is now the new lowest-shell preconditioner, not another scalar/uniform-only rerun
+    - new shell1 in-flight tune:
+      [l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_probe)
+      - residual mass `m=16`
+      - uniform mass `mu=1`
+      - shell1 mass `mk=1`
+      - grid: `12x5e-4`, `16x4e-4`, `20x4e-4`, `24x3e-4`, `28x2.5e-4`
 
 Current main blocker:
 
@@ -130,8 +140,11 @@ Current main blocker:
     `squareOcc/IPR` windows split again across seeds
   - whether the same mass split remains useful when `U2` is increased toward `1e2`, `1e3`,
     and later `Nbos` is also raised toward `1e5`
-  - the immediate blocker rung is now `L=6`, `Nbos=1e4`, `U2=300`, where the conservative
-    `28 x 0.0005` geometry is mobile but still `slow_drift`
+  - the immediate blocker rung is now `L=6`, `Nbos=1e4`, `U2=1000`
+    - the old scalar/uniform-only reference geometry `m=16`, `mu=1`, `20 x 0.0004` is formally `strong_drift`
+    - the new active idea is to split the triangular lowest nonzero momentum shell away from the residual modes
+  - `L=6`, `Nbos=1e4`, `U2=300` is still active, but its deeper `2048 / 1024 / 1024` rerun already looks much healthier;
+    the main remaining question there is cross-repeat agreement, not obvious single-trace drift
 - trace-based tuning lesson from the original `Nbos=1e4, U2=1` blocker point:
   - a short traced run with `m=16`, `mu=1`, `20 x 0.008` gives an approximate uniform-mode period
     `T_md ~ 0.16` from `phi_mean_f2`
@@ -221,6 +234,10 @@ Current convergence interpretation for the healthy baseline ladder:
   - `hmc_mass` remains the residual-mode mass recorded in `paramC_sets.txt`
   - `--hmc-mass-spatial-uniform` is forwarded by the Python tooling as
     `BPQMC_HMC_MASS_SPATIAL_UNIFORM`
+  - `--hmc-mass-spatial-shell1` is forwarded by the Python tooling as
+    `BPQMC_HMC_MASS_SPATIAL_SHELL1`
+  - on the triangular lattice it builds a real orthonormal basis of the first nonzero
+    reciprocal-shell cosine/sine modes and assigns them their own leapfrog mass
   - `info.txt` now records both masses so archived runs remain self-describing
 
 ### Healthy reference rung

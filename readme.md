@@ -194,6 +194,12 @@ Optional production preconditioning knob:
   - `hmc_mass` remains the residual-mode mass
   - `hmc-mass-spatial-uniform` sets a lighter or heavier mass for the per-time-slice spatially uniform mode
   - `0` disables the split and recovers the old scalar-mass HMC
+- `--hmc-mass-spatial-shell1`
+  - triangular-only experimental preconditioner for the lowest nonzero momentum shell
+  - `hmc_mass` remains the residual-mode mass
+  - `hmc-mass-spatial-uniform` still controls the exact spatially uniform mode
+  - `hmc-mass-spatial-shell1` assigns a separate mass to the first real cosine/sine shell
+  - `0` disables the shell split and recovers the scalar/uniform-only geometry
 
 Example: short production tune scan on a conservative triangular ladder rung:
 
@@ -390,6 +396,10 @@ The current next production rungs are:
 
 - `L=6, Nbos=1e4, U2=100`, `mass=16`, `uniform_mass=1`, `nfrog=20`, `dt=0.001`
 - `L=6, Nbos=1e4, U2=300`, `mass=16`, `uniform_mass=1`, `nfrog=28`, `dt=0.0005`
+- `L=6, Nbos=1e4, U2=1000` is the current workstation blocker:
+  - the old scalar/uniform-only reference geometry `mass=16`, `uniform_mass=1`, `shell1_mass=0`, `nfrog=20`, `dt=0.0004`
+    is now a completed `strong_drift` stage
+  - the active replacement path is the new `shell1_mass` preconditioner, surfaced in the same production CLI and overview report
 
 See `HMC-REFERENCE.md` for the running interpretation of these stage results and blockers.
 For a single merged entry point across all production directories, open:

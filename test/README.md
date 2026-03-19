@@ -79,6 +79,10 @@ The active production workflow is now:
 - `production_hmc.py` also supports `--hmc-mass-spatial-uniform`
   - `0` keeps the old scalar-mass HMC
   - positive values split the per-time-slice spatially uniform mode away from the residual `--hmc-mass`
+- `production_hmc.py` also supports `--hmc-mass-spatial-shell1`
+  - `0` keeps the scalar/uniform-only geometry
+  - positive values split the triangular lowest nonzero momentum shell away from the residual
+    and uniform modes
 
 For thermalization checks across different initial states, `production_hmc.py` also supports:
 
@@ -135,3 +139,6 @@ The immediate next production rungs are:
 - `L=6, Nbos=1e4, U2=30`, `mass=16`, `uniform_mass=1`, `12 x 0.006`, now stage-healthy
 - `L=6, Nbos=1e4, U2=100`, `mass=16`, `uniform_mass=1`, `20 x 0.001`, current long-stage `rep0` is healthy
 - `L=6, Nbos=1e4, U2=300`, `mass=16`, `uniform_mass=1`, `28 x 0.0005`, stage launched after the conservative retune
+- `L=6, Nbos=1e4, U2=1000` is the current blocker:
+  the old scalar/uniform-only `20 x 0.0004` reference stage is now `strong_drift`,
+  and the active replacement path is the new `shell1_mass` preconditioner

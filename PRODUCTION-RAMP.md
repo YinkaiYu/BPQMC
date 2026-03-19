@@ -41,6 +41,7 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
   - preconditioned stage winner:
     - `mass = 16`
     - `uniform_mass = 1`
+    - `shell1_mass = 0`
     - `nfrog = 20`
     - `dt = 0.008`
 - `L = 6`, `Nbos = 1e4`, `U2 = 10`
@@ -52,12 +53,14 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
   - preconditioned stage winner:
     - `mass = 16`
     - `uniform_mass = 1`
+    - `shell1_mass = 0`
     - `nfrog = 12`
     - `dt = 0.006`
 - `L = 6`, `Nbos = 1e4`, `U2 = 100`
   - conservative preconditioned stage winner:
     - `mass = 16`
     - `uniform_mass = 1`
+    - `shell1_mass = 0`
     - `nfrog = 20`
     - `dt = 0.001`
 
@@ -68,6 +71,7 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
   - current conservative long stage:
     - `mass = 16`
     - `uniform_mass = 1`
+    - `shell1_mass = 0`
     - `nfrog = 28`
     - `dt = 0.0005`
   - current expectation:
@@ -76,22 +80,30 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
       `stable_window` summary and is now being extended to a full `2/2` repeat set
     - promotion to `U2 = 1e3` should wait for that deeper `2/2` result
 - `L = 6`, `Nbos = 1e4`, `U2 = 1e3`
-  - exploratory short tunes exist for `m = 16, mu = 1` and `m = 32, mu = 1`
-  - the current best workstation geometry is still the mildly aggressive
-    `m = 16`, `mu = 1`, `nfrog = 20`, `dt = 0.0004`
-  - a real long trace on that geometry is now the active evidence-gathering rung
-    before any stronger preconditioning is implemented
+  - the old scalar/uniform-only reference rung
+    `m = 16`, `mu = 1`, `mk = 0`, `nfrog = 20`, `dt = 0.0004`
+    is now closed as `strong_drift`
+  - active replacement path:
+    - keep `mass = 16`
+    - keep `uniform_mass = 1`
+    - turn on `shell1_mass = 1`
+    - current in-flight short tune grid:
+      - `12 x 0.0005`
+      - `16 x 0.0004`
+      - `20 x 0.0004`
+      - `24 x 0.0003`
+      - `28 x 0.00025`
 
 ## Immediate Next Steps
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Finish the `U2 = 1e3` exploratory long trace and inspect whether the high-`U2`
-   slow mode is merely deep or fundamentally under-driven by the current geometry.
-3. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
+2. Finish the new `U2 = 1e3` shell1 short tune and launch a real long trace on the
+   best `mk = 1` candidate rather than reusing the old `mk = 0` reference geometry.
+3. If the first `mk = 1` long trace still drifts badly, vary `shell1_mass` next
+   before changing the residual or uniform masses again.
+4. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
    representative preconditioned rung and use it as the production-side reference.
-4. If the `U2 = 1e3` long trace still drifts badly, move next to stronger proposal
-   geometry or preconditioning, not just another shallow tune sweep.
 5. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp
    move to larger `Nbos` or larger `L`.
 

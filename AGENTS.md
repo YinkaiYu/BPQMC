@@ -81,6 +81,9 @@
     `--ini-type-values` and `--ini-ampl-values`
   - `test/production_hmc.py` also supports `--hmc-mass-spatial-uniform`
     to split the per-time-slice spatially uniform mode away from the residual `--hmc-mass`
+  - `test/production_hmc.py` also supports `--hmc-mass-spatial-shell1`
+    to split the triangular lowest nonzero momentum shell away from both the residual
+    `--hmc-mass` and the exact uniform mode
 - Current workstation production examples already distinguish:
   - a healthy projector ladder at `L=6, Nbos=1e3, U2=1`, currently healthy through `beta=160`, `dtau=0.004`
   - a partially collected but representative `beta=192`, `dtau=0.002` rung on the same baseline point,
@@ -96,6 +99,10 @@
     - `L=6, Nbos=1e4, U2=30`, `mass=16`, `uniform_mass=1`, `nfrog=12`, `dt=0.006`, now `healthy`
     - `L=6, Nbos=1e4, U2=100`, `mass=16`, `uniform_mass=1`, `nfrog=20`, `dt=0.001`, current long-stage `rep0` is `stable_window`
     - `L=6, Nbos=1e4, U2=300`, `mass=16`, `uniform_mass=1`, `nfrog=28`, `dt=0.0005`, stage launched after a conservative retune
+    - `L=6, Nbos=1e4, U2=1000` is the current blocker:
+      the old scalar/uniform-only `mass=16`, `uniform_mass=1`, `nfrog=20`, `dt=0.0004`
+      reference stage is now formally `strong_drift`, and the active replacement path is
+      the new `shell1_mass` preconditioner
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
   - that unified `report.md` now begins with `## Current Representative Stage Per Case`
     before the full historical stage table
