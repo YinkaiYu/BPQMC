@@ -35,6 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hmc-dt", type=float, default=0.02)
     parser.add_argument("--hmc-jitter", type=int, default=2)
     parser.add_argument("--hmc-mass", type=float, default=4.0)
+    parser.add_argument("--hmc-mass-spatial-uniform", type=float, default=0.0)
     parser.add_argument("--root", default="data/triangular_hmc_production/convergence")
     parser.add_argument("--binary", default="src/BPQMC.out")
     return parser.parse_args()
@@ -79,6 +80,7 @@ def main() -> int:
             "--hmc-dt", str(args.hmc_dt),
             "--hmc-jitter", str(args.hmc_jitter),
             "--hmc-mass", str(args.hmc_mass),
+            "--hmc-mass-spatial-uniform", str(args.hmc_mass_spatial_uniform),
             "--work-root", str(work_root),
             "--binary", str((repo_root / args.binary).resolve()),
             "--stage-label", label,
