@@ -21,10 +21,17 @@ RU1="${RU1:-0.0}"
 BETA="${BETA:-256}"
 DTAU="${DTAU:-0.001}"
 NWRAP="${NWRAP:-32}"
-NBIN="${NBIN:-64}"
-NSWEEP="${NSWEEP:-1}"
-NTHERMAL="${NTHERMAL:-32}"
-NWARM="${NWARM:-32}"
+if [ "$PROD_COMMAND" = "tune" ] || [ "$PROD_COMMAND" = "collect-tune" ]; then
+  NBIN="${NBIN:-64}"
+  NSWEEP="${NSWEEP:-1}"
+  NTHERMAL="${NTHERMAL:-32}"
+  NWARM="${NWARM:-32}"
+else
+  NBIN="${NBIN:-1024}"
+  NSWEEP="${NSWEEP:-1}"
+  NTHERMAL="${NTHERMAL:-512}"
+  NWARM="${NWARM:-512}"
+fi
 INI_TYPE="${INI_TYPE:-2}"
 INI_AMPL="${INI_AMPL:-0.1}"
 INI_HAM="${INI_HAM:-5}"
@@ -71,6 +78,14 @@ COMMON_ARGS=(
 case "$PROD_COMMAND" in
   tune)
     "$PYTHON" production_hmc.py tune \
+      "${COMMON_ARGS[@]}" \
+      --grid "$GRID" \
+      --repeats "$REPEATS" \
+      --hmc-jitter "$HMC_JITTER" \
+      --hmc-mass "$HMC_MASS"
+    ;;
+  collect-tune)
+    "$PYTHON" production_hmc.py collect-tune \
       "${COMMON_ARGS[@]}" \
       --grid "$GRID" \
       --repeats "$REPEATS" \

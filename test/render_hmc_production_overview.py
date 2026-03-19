@@ -60,12 +60,15 @@ def load_stage_rows(stage_jsons: list[Path]) -> tuple[list[dict[str, object]], l
                     post_thermal = int(row["post_thermal"])
                     sample_rows.append(
                         {
+                            "label": work_root.name,
                             "stage_label": data["stage_label"],
                             "case": row["name"],
                             "repeat": repeat,
                             "observable": row["observable"],
                             "sample_index": int(row["sample_index"]),
                             "post_thermal": post_thermal,
+                            "thermal_cut": int(config_summary.get("thermal_cut", 0)),
+                            "warm": int(config_summary.get("warm", 0)),
                             "value": float(row["value"]),
                         }
                     )
@@ -233,11 +236,13 @@ def render_trace_plot(sample_rows: list[dict[str, object]], case: str, observabl
     fig, ax = plt.subplots(figsize=(7.0, 4.5))
     for stage_label, items in sorted(grouped.items()):
         items.sort(key=lambda row: int(row["sample_index"]))
+        first = items[0]
+        legend_label = f"{stage_label} [warm={int(first['warm'])}, cut={int(first['thermal_cut'])}]"
         line = ax.plot(
             [int(row["sample_index"]) for row in items],
             [float(row["value"]) for row in items],
             linewidth=1.2,
-            label=stage_label,
+            label=legend_label,
         )[0]
         post_rows = [row for row in items if int(row["post_thermal"]) == 1]
         if post_rows:
@@ -245,7 +250,7 @@ def render_trace_plot(sample_rows: list[dict[str, object]], case: str, observabl
             ax.axvline(cut_index, color=line.get_color(), linestyle="--", linewidth=0.9, alpha=0.45)
     ax.set_xlabel("sample index")
     ax.set_ylabel(observable)
-    ax.set_title(f"{case}: {observable} trace (repeat 0, dashed = post-thermal start)")
+    ax.set_title(f"{case}: {observable} trace (repeat 0, dashed = configured post-thermal start)")
     ax.grid(alpha=0.25)
     ax.legend(fontsize=8)
     fig.tight_layout()
@@ -290,6 +295,8 @@ def write_report(
         "This is the unified entry point for the current `data/triangular_hmc_production/` campaign.",
         "It merges stage and tune summaries so the production ladder can be reviewed from one report.",
         "Short traces can look stable before a late slow-mode drift becomes visible, so always read the `samples/post` coverage before trusting a stage.",
+        "The dashed marker in each trace is only the configured `thermal_cut`; it is not an inferred optimal cut.",
+        "Each overlaid trace belongs to an independent stage run at the same physics point, not to a single continued Markov chain.",
         "",
         "## Stage Summary",
         "",
@@ -439,7 +446,7 @@ def main() -> int:
     write_csv(
         output_dir / "stage_samples.csv",
         stage_samples,
-        ["stage_label", "case", "repeat", "observable", "sample_index", "post_thermal", "value"],
+        ["label", "stage_label", "case", "repeat", "observable", "sample_index", "post_thermal", "thermal_cut", "warm", "value"],
     )
     write_csv(
         output_dir / "tune_candidates.csv",

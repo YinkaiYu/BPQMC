@@ -450,7 +450,7 @@ def collect_stage_case(
     return case_summary, [case_row], observable_rows, repeat_rows + sample_rows
 
 
-def run_tune(args: argparse.Namespace) -> int:
+def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
     configs = build_configs(args)
     grid = parse_grid(args.grid)
     binary = Path(args.binary).resolve()
@@ -463,30 +463,38 @@ def run_tune(args: argparse.Namespace) -> int:
     for cfg in configs.values():
         cfg = cfg.with_sampling(is_warm=args.warm > 0, nwarm=max(args.warm, 0))
         case_rows = []
-        print(f"[tune] case={cfg.name} mass={args.hmc_mass:g} jitter={args.hmc_jitter}", flush=True)
+        print(f"[{'tune' if execute else 'collect-tune'}] case={cfg.name} mass={args.hmc_mass:g} jitter={args.hmc_jitter}", flush=True)
         for idx, (nfrog, dt) in enumerate(grid):
             repeat_rows = []
             for repeat in range(args.repeats):
                 seed = args.seed_base + args.seed_step * idx + args.repeat_seed_step * repeat
                 run_dir = work_root / "runs" / cfg.name / f"nf{nfrog}_dt{format_dt_tag(dt)}" / f"rep{repeat}"
                 print(
-                    f"  [run] nfrog={nfrog} dt={dt:g} repeat={repeat} seed={seed}",
+                    f"  [{'run' if execute else 'reuse'}] nfrog={nfrog} dt={dt:g} repeat={repeat} seed={seed}",
                     flush=True,
                 )
-                prepare_run_dir(
-                    run_dir,
-                    cfg,
-                    is_global=True,
-                    nfrog=nfrog,
-                    hmc_dt=dt,
-                    hmc_jitter=args.hmc_jitter,
-                    hmc_mass=args.hmc_mass,
-                    seed=seed,
-                    binary=binary,
-                )
-                run_case(run_dir, np_ranks=args.np)
-                info = parse_info_metrics(run_dir)
-                values = read_scalar_series(run_dir, "doubleOcc")
+                if execute:
+                    prepare_run_dir(
+                        run_dir,
+                        cfg,
+                        is_global=True,
+                        nfrog=nfrog,
+                        hmc_dt=dt,
+                        hmc_jitter=args.hmc_jitter,
+                        hmc_mass=args.hmc_mass,
+                        seed=seed,
+                        binary=binary,
+                    )
+                    run_case(run_dir, np_ranks=args.np)
+                elif not run_dir.exists():
+                    print("    [skip] missing run directory", flush=True)
+                    continue
+                try:
+                    info = parse_info_metrics(run_dir)
+                    values = read_scalar_series(run_dir, "doubleOcc")
+                except (FileNotFoundError, KeyError, ValueError) as exc:
+                    print(f"    [skip] incomplete run: {exc}", flush=True)
+                    continue
                 row = {
                     "name": cfg.name,
                     "nfrog": nfrog,
@@ -508,15 +516,22 @@ def run_tune(args: argparse.Namespace) -> int:
                     row["hmc_deltaH_abs_max"] = info["HMC_DeltaH_abs_max"]
                 repeat_rows.append(row)
                 repeat_csv_rows.append(row)
+            if not repeat_rows:
+                continue
 
             summary_row = aggregate_tune_repeat_rows(repeat_rows)
+            summary_row["requested_repeats"] = args.repeats
+            summary_row["missing_repeats"] = max(args.repeats - len(repeat_rows), 0)
             case_rows.append(summary_row)
             csv_rows.append(summary_row)
 
+        if not case_rows:
+            raise FileNotFoundError(f"No completed tune rows found for case: {cfg.name}")
         healthy_rows = [row for row in case_rows if row["stuck_repeats"] == 0]
         candidates = healthy_rows if healthy_rows else case_rows
         candidates.sort(
             key=lambda row: (
+                int(row.get("missing_repeats", 0)),
                 row["stuck_repeats"],
                 -row["ess_per_sec_doubleOcc_mean"],
                 row["tau_int_doubleOcc_mean"],
@@ -547,6 +562,7 @@ def run_tune(args: argparse.Namespace) -> int:
 
     summary = {
         "mode": "tune",
+        "summary_source": "run" if execute else "collect",
         "grid": [{"nfrog": nfrog, "hmc_dt": dt, "hmc_mass": args.hmc_mass} for nfrog, dt in grid],
         "cases": tuned_cases,
     }
@@ -561,6 +577,8 @@ def run_tune(args: argparse.Namespace) -> int:
             "hmc_jitter",
             "hmc_mass",
             "repeats",
+            "requested_repeats",
+            "missing_repeats",
             "stuck_repeats",
             "acceptance_mean",
             "acceptance_stderr",
@@ -609,6 +627,14 @@ def run_tune(args: argparse.Namespace) -> int:
     }
     (work_root / "recommended_hmc.json").write_text(json.dumps(tuned_map, indent=2), encoding="utf-8")
     return 0
+
+
+def run_tune(args: argparse.Namespace) -> int:
+    return run_tune_or_collect(args, execute=True)
+
+
+def collect_tune(args: argparse.Namespace) -> int:
+    return run_tune_or_collect(args, execute=False)
 
 
 def run_benchmark(args: argparse.Namespace) -> int:
@@ -970,6 +996,17 @@ def build_parser() -> argparse.ArgumentParser:
     tune.add_argument("--accept-max", type=float, default=0.85)
     tune.add_argument("--min-run-accept", type=float, default=0.05)
     tune.set_defaults(func=run_tune)
+
+    collect_tune_parser = subparsers.add_parser("collect-tune", help="Rebuild tune summaries from completed tune run directories.")
+    add_common(collect_tune_parser)
+    collect_tune_parser.add_argument("--grid", required=True, help="Comma-separated Nfrog:dt pairs.")
+    collect_tune_parser.add_argument("--hmc-jitter", type=int, default=0)
+    collect_tune_parser.add_argument("--hmc-mass", type=float, default=1.0)
+    collect_tune_parser.add_argument("--repeats", type=int, default=1)
+    collect_tune_parser.add_argument("--accept-min", type=float, default=0.70)
+    collect_tune_parser.add_argument("--accept-max", type=float, default=0.85)
+    collect_tune_parser.add_argument("--min-run-accept", type=float, default=0.05)
+    collect_tune_parser.set_defaults(func=collect_tune)
 
     bench = subparsers.add_parser("benchmark", help="Run direct local-vs-HMC benchmarks on a production parameter grid.")
     add_common(bench)
