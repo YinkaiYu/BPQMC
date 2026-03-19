@@ -79,6 +79,8 @@ def write_csv(path: Path, rows: list[dict[str, object]], fieldnames: list[str]) 
 
 
 def build_configs(args: argparse.Namespace) -> dict[str, object]:
+    ini_type_values = parse_int_list(args.ini_type_values) if args.ini_type_values else ()
+    ini_ampl_values = parse_float_list(args.ini_ampl_values) if args.ini_ampl_values else ()
     return production_parameter_sets(
         lattice_type=args.lattice_type,
         l_values=parse_int_list(args.l_values),
@@ -94,6 +96,8 @@ def build_configs(args: argparse.Namespace) -> dict[str, object]:
         nthermal=args.thermal_cut,
         ini_type=args.ini_type,
         ini_ampl=args.ini_ampl,
+        ini_type_values=ini_type_values,
+        ini_ampl_values=ini_ampl_values,
         ini_ham=args.ini_ham,
         ini_twist=args.ini_twist,
         imbalance=args.imbalance,
@@ -938,6 +942,8 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--warm", type=int, default=32)
         subparser.add_argument("--ini-type", type=int, default=2)
         subparser.add_argument("--ini-ampl", type=float, default=0.1)
+        subparser.add_argument("--ini-type-values", default="", help="Optional comma-separated initial-state type list.")
+        subparser.add_argument("--ini-ampl-values", default="", help="Optional comma-separated initial-state amplitude list.")
         subparser.add_argument("--ini-ham", type=int, default=5)
         subparser.add_argument("--ini-twist", type=float, default=1.0e-4)
         subparser.add_argument("--imbalance", type=float, default=0.0)

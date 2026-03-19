@@ -216,37 +216,51 @@ def production_parameter_sets(
     nthermal: int = 32,
     ini_type: int = 2,
     ini_ampl: float = 0.1,
+    ini_type_values: tuple[int, ...] | None = None,
+    ini_ampl_values: tuple[float, ...] | None = None,
     ini_ham: int = 5,
     ini_twist: float = 1.0e-4,
     imbalance: float = 0.0,
 ) -> dict[str, RunConfig]:
     ltrot = int(round(beta / dtau))
     configs: dict[str, RunConfig] = {}
+    ini_types = ini_type_values if ini_type_values else (ini_type,)
+    ini_ampls = ini_ampl_values if ini_ampl_values else (ini_ampl,)
+    multi_init = len(ini_types) > 1 or len(ini_ampls) > 1
+
+    def format_ampl_tag(value: float) -> str:
+        return f"{value:.6g}".replace("+", "").replace("-", "m").replace(".", "p")
+
     for lval in l_values:
         for nbos in nbos_values:
             for u2 in u2_values:
-                name = f"{lattice_type}_L{lval}_N{nbos}_U2_{u2:.0f}".replace(".", "p")
-                configs[name] = RunConfig(
-                    name=name,
-                    lattice_type=lattice_type,
-                    rt=rt,
-                    ru1=ru1,
-                    ru2=u2,
-                    nbos=nbos,
-                    nlx=lval,
-                    nly=lval,
-                    ltrot=ltrot,
-                    beta=beta,
-                    nwrap=nwrap,
-                    nbin=nbin,
-                    nsweep=nsweep,
-                    nthermal=nthermal,
-                    ini_type=ini_type,
-                    ini_ampl=ini_ampl,
-                    ini_ham=ini_ham,
-                    ini_twist=ini_twist,
-                    imbalance=imbalance,
-                )
+                base_name = f"{lattice_type}_L{lval}_N{nbos}_U2_{u2:.0f}".replace(".", "p")
+                for ini_type_item in ini_types:
+                    for ini_ampl_item in ini_ampls:
+                        name = base_name
+                        if multi_init:
+                            name = f"{base_name}_iniT{ini_type_item}_A{format_ampl_tag(ini_ampl_item)}"
+                        configs[name] = RunConfig(
+                            name=name,
+                            lattice_type=lattice_type,
+                            rt=rt,
+                            ru1=ru1,
+                            ru2=u2,
+                            nbos=nbos,
+                            nlx=lval,
+                            nly=lval,
+                            ltrot=ltrot,
+                            beta=beta,
+                            nwrap=nwrap,
+                            nbin=nbin,
+                            nsweep=nsweep,
+                            nthermal=nthermal,
+                            ini_type=ini_type_item,
+                            ini_ampl=ini_ampl_item,
+                            ini_ham=ini_ham,
+                            ini_twist=ini_twist,
+                            imbalance=imbalance,
+                        )
     return configs
 
 
