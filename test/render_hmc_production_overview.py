@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 TRACE_OBSERVABLES = ("squareOcc", "IPR", "doubleOcc", "nearestOcc")
 TREND_OBSERVABLES = ("squareOcc", "IPR")
 GATE_OBSERVABLES = ("squareOcc", "IPR")
+STATUS_RANK = {"stable_window": 0, "slow_drift": 1, "strong_drift": 2}
 
 
 def scan_summaries(root: Path) -> tuple[list[Path], list[Path]]:
@@ -118,6 +119,10 @@ def load_stage_rows(stage_jsons: list[Path]) -> tuple[list[dict[str, object]], l
                     "label": work_root.name,
                     "stage_label": data["stage_label"],
                     "case": case_key,
+                    "Lx": cfg["nlx"],
+                    "Ly": cfg["nly"],
+                    "Nbos": cfg["nbos"],
+                    "U2": cfg["ru2"],
                     "beta": beta,
                     "dtau": dtau,
                     "observable": obs["observable"],
@@ -236,6 +241,42 @@ def render_case_trend_plot(
     plt.close(fig)
 
 
+def render_case_relative_trend_plot(
+    rows: list[dict[str, object]],
+    case: str,
+    observable: str,
+    xkey: str,
+    output_path: Path,
+) -> None:
+    obs_rows = [row for row in rows if row["observable"] == observable and str(row["case"]) == case]
+    if not obs_rows:
+        return
+    obs_rows.sort(key=lambda row: float(row[xkey]))
+    baseline = float(obs_rows[0]["mean"])
+    if baseline == 0.0:
+        return
+    fig, ax = plt.subplots(figsize=(6.8, 4.2))
+    xvals = [float(row[xkey]) for row in obs_rows]
+    yvals = [(float(row["mean"]) - baseline) / baseline for row in obs_rows]
+    yerrs = [float(row["stderr"]) / abs(baseline) for row in obs_rows]
+    ax.errorbar(
+        xvals,
+        yvals,
+        yerr=yerrs,
+        marker="o",
+        linewidth=1.6,
+        capsize=3,
+    )
+    ax.axhline(0.0, color="black", linewidth=0.8, alpha=0.5)
+    ax.set_xlabel(xkey)
+    ax.set_ylabel(f"relative change in {observable}")
+    ax.set_title(f"{case}: relative {observable} vs {xkey}")
+    ax.grid(alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=180)
+    plt.close(fig)
+
+
 def render_trace_plot(sample_rows: list[dict[str, object]], case: str, observable: str, output_path: Path) -> None:
     rows = [row for row in sample_rows if row["case"] == case and row["observable"] == observable and int(row["repeat"]) == 0]
     grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
@@ -293,11 +334,114 @@ def render_recommended_plot(rows: list[dict[str, object]], metric: str, xkey: st
     plt.close(fig)
 
 
+def select_representative_stage_rows(
+    stage_cases: list[dict[str, object]],
+    stage_obs: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    best_by_key: dict[tuple[str, float, float], dict[str, object]] = {}
+    for row in stage_cases:
+        key = (str(row["case"]), float(row["beta"]), float(row["dtau"]))
+        current = best_by_key.get(key)
+        candidate_score = (
+            STATUS_RANK.get(str(row["status"]), 99),
+            int(row["missing_repeats"]),
+            -int(row["completed_repeats"]),
+            float(row["gate_repeat_span_ratio"]),
+            float(row["gate_drift_ratio_max"]),
+            str(row["label"]),
+        )
+        if current is None:
+            best_by_key[key] = row
+            continue
+        current_score = (
+            STATUS_RANK.get(str(current["status"]), 99),
+            int(current["missing_repeats"]),
+            -int(current["completed_repeats"]),
+            float(current["gate_repeat_span_ratio"]),
+            float(current["gate_drift_ratio_max"]),
+            str(current["label"]),
+        )
+        if candidate_score < current_score:
+            best_by_key[key] = row
+    keep_labels = {str(row["label"]) for row in best_by_key.values()}
+    return [row for row in stage_obs if str(row["label"]) in keep_labels]
+
+
+def build_case_convergence_rows(
+    stage_cases: list[dict[str, object]],
+    stage_obs: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    representative_obs = select_representative_stage_rows(stage_cases, stage_obs)
+    case_meta: dict[str, dict[str, object]] = {}
+    for row in stage_cases:
+        case = str(row["case"])
+        current = case_meta.get(case)
+        if current is None:
+            case_meta[case] = {
+                "Lx": row["Lx"],
+                "Ly": row["Ly"],
+                "Nbos": row["Nbos"],
+                "U2": row["U2"],
+                "beta_min": float(row["beta"]),
+                "beta_max": float(row["beta"]),
+                "dtau_min": float(row["dtau"]),
+                "dtau_max": float(row["dtau"]),
+            }
+            continue
+        current["beta_min"] = min(float(current["beta_min"]), float(row["beta"]))
+        current["beta_max"] = max(float(current["beta_max"]), float(row["beta"]))
+        current["dtau_min"] = min(float(current["dtau_min"]), float(row["dtau"]))
+        current["dtau_max"] = max(float(current["dtau_max"]), float(row["dtau"]))
+    out: list[dict[str, object]] = []
+    for case in sorted({str(row["case"]) for row in representative_obs}):
+        case_rows = [row for row in representative_obs if str(row["case"]) == case and row["observable"] in TREND_OBSERVABLES]
+        for observable in TREND_OBSERVABLES:
+            obs_rows = [row for row in case_rows if row["observable"] == observable]
+            if not obs_rows:
+                continue
+            obs_rows.sort(key=lambda row: (float(row["beta"]), float(row["dtau"]), str(row["label"])))
+            first = obs_rows[0]
+            last = obs_rows[-1]
+            means = [float(row["mean"]) for row in obs_rows]
+            rel_spread = 0.0
+            if means and means[0] != 0.0:
+                rel_spread = (max(means) - min(means)) / abs(means[0])
+            rel_last = 0.0
+            if float(first["mean"]) != 0.0:
+                rel_last = (float(last["mean"]) - float(first["mean"])) / abs(float(first["mean"]))
+            meta = case_meta.get(case, {})
+            out.append(
+                {
+                    "case": case,
+                    "Lx": meta.get("Lx", ""),
+                    "Ly": meta.get("Ly", ""),
+                    "Nbos": meta.get("Nbos", ""),
+                    "U2": meta.get("U2", ""),
+                    "observable": observable,
+                    "n_points": len(obs_rows),
+                    "beta_min": meta.get("beta_min", float(first["beta"])),
+                    "beta_max": meta.get("beta_max", float(last["beta"])),
+                    "dtau_min": meta.get("dtau_min", min(float(item["dtau"]) for item in obs_rows)),
+                    "dtau_max": meta.get("dtau_max", max(float(item["dtau"]) for item in obs_rows)),
+                    "first_label": first["label"],
+                    "last_label": last["label"],
+                    "first_mean": float(first["mean"]),
+                    "last_mean": float(last["mean"]),
+                    "max_mean": max(means),
+                    "min_mean": min(means),
+                    "rel_spread": rel_spread,
+                    "rel_last_minus_first": rel_last,
+                }
+            )
+    return out
+
+
 def write_report(
     output_dir: Path,
     stage_cases: list[dict[str, object]],
     stage_obs: list[dict[str, object]],
     tune_recommended: list[dict[str, object]],
+    convergence_rows: list[dict[str, object]],
 ) -> None:
     lines = [
         "# HMC Production Overview",
@@ -340,7 +484,7 @@ def write_report(
             "## Observable Trends",
             "",
             "These plots are the main place to judge whether `squareOcc` and `IPR` are already converged in `beta` or `dtau`.",
-            "The combined plots are only for a quick overview; the per-case plots below are the ones to trust when different parameter points have very different scales.",
+            "The combined plots are only a quick map. The per-case sections below are the ones to trust when different parameter points sit on very different absolute scales.",
             "",
             "### squareOcc",
             "",
@@ -359,8 +503,22 @@ def write_report(
             "![recommended tau vs beta](recommended_tau_int_doubleOcc_mean_vs_beta.png)",
             "",
             "![recommended ess vs beta](recommended_ess_per_sec_doubleOcc_mean_vs_beta.png)",
+            "",
+            "## Per-Case Convergence Summary",
+            "",
+            "This table compresses each fixed `(L, Nbos, U2)` ladder into relative changes of `squareOcc` and `IPR` across the available `beta/dtau` points.",
+            "`rel spread` is `(max(mean) - min(mean)) / |first mean|`; `last-first` is `(last mean - first mean) / |first mean|`.",
+            "",
+            "| case | observable | n points | beta range | dtau range | rel spread | last-first |",
+            "| --- | --- | ---: | --- | --- | ---: | ---: |",
         ]
     )
+    for row in convergence_rows:
+        lines.append(
+            "| {case} | {observable} | {n_points} | {beta_min:.6g} -> {beta_max:.6g} | {dtau_max:.6g} -> {dtau_min:.6g} | {rel_spread:.6e} | {rel_last_minus_first:.6e} |".format(
+                **row
+            )
+        )
     for case in sorted({str(row["case"]) for row in stage_cases}):
         case_tag = safe_tag(case)
         lines.extend(
@@ -388,9 +546,17 @@ def write_report(
                 "",
                 f"![{case} squareOcc vs dtau](trend_{case_tag}_squareOcc_vs_dtau.png)",
                 "",
+                f"![{case} relative squareOcc vs beta](trend_{case_tag}_squareOcc_relative_vs_beta.png)",
+                "",
+                f"![{case} relative squareOcc vs dtau](trend_{case_tag}_squareOcc_relative_vs_dtau.png)",
+                "",
                 f"![{case} IPR vs beta](trend_{case_tag}_IPR_vs_beta.png)",
                 "",
                 f"![{case} IPR vs dtau](trend_{case_tag}_IPR_vs_dtau.png)",
+                "",
+                f"![{case} relative IPR vs beta](trend_{case_tag}_IPR_relative_vs_beta.png)",
+                "",
+                f"![{case} relative IPR vs dtau](trend_{case_tag}_IPR_relative_vs_dtau.png)",
                 "",
                 f"## Traces: {case}",
                 "",
@@ -417,7 +583,9 @@ def main() -> int:
 
     stage_jsons, tune_jsons = scan_summaries(root)
     stage_cases, stage_obs, stage_samples = load_stage_rows(stage_jsons)
+    representative_stage_obs = select_representative_stage_rows(stage_cases, stage_obs)
     tune_candidates, tune_recommended = load_tune_rows(tune_jsons)
+    convergence_rows = build_case_convergence_rows(stage_cases, stage_obs)
 
     write_csv(
         output_dir / "stage_cases.csv",
@@ -456,8 +624,13 @@ def main() -> int:
     )
     write_csv(
         output_dir / "stage_observables.csv",
-        stage_obs,
-        ["label", "stage_label", "case", "beta", "dtau", "observable", "mean", "stderr", "drift_over_span", "status"],
+        representative_stage_obs,
+        ["label", "stage_label", "case", "Lx", "Ly", "Nbos", "U2", "beta", "dtau", "observable", "mean", "stderr", "drift_over_span", "status"],
+    )
+    write_csv(
+        output_dir / "case_convergence.csv",
+        convergence_rows,
+        ["case", "Lx", "Ly", "Nbos", "U2", "observable", "n_points", "beta_min", "beta_max", "dtau_min", "dtau_max", "first_label", "last_label", "first_mean", "last_mean", "min_mean", "max_mean", "rel_spread", "rel_last_minus_first"],
     )
     write_csv(
         output_dir / "stage_samples.csv",
@@ -476,18 +649,20 @@ def main() -> int:
     )
 
     for observable in TREND_OBSERVABLES:
-        render_trend_plot(stage_obs, observable, "beta", output_dir / f"{observable}_vs_beta.png")
-        render_trend_plot(stage_obs, observable, "dtau", output_dir / f"{observable}_vs_dtau.png")
+        render_trend_plot(representative_stage_obs, observable, "beta", output_dir / f"{observable}_vs_beta.png")
+        render_trend_plot(representative_stage_obs, observable, "dtau", output_dir / f"{observable}_vs_dtau.png")
     render_recommended_plot(tune_recommended, "tau_int_doubleOcc_mean", "beta", output_dir / "recommended_tau_int_doubleOcc_mean_vs_beta.png")
     render_recommended_plot(tune_recommended, "ess_per_sec_doubleOcc_mean", "beta", output_dir / "recommended_ess_per_sec_doubleOcc_mean_vs_beta.png")
     for case in sorted({str(row["case"]) for row in stage_cases}):
         case_tag = safe_tag(case)
         for observable in TREND_OBSERVABLES:
-            render_case_trend_plot(stage_obs, case, observable, "beta", output_dir / f"trend_{case_tag}_{observable}_vs_beta.png")
-            render_case_trend_plot(stage_obs, case, observable, "dtau", output_dir / f"trend_{case_tag}_{observable}_vs_dtau.png")
+            render_case_trend_plot(representative_stage_obs, case, observable, "beta", output_dir / f"trend_{case_tag}_{observable}_vs_beta.png")
+            render_case_trend_plot(representative_stage_obs, case, observable, "dtau", output_dir / f"trend_{case_tag}_{observable}_vs_dtau.png")
+            render_case_relative_trend_plot(representative_stage_obs, case, observable, "beta", output_dir / f"trend_{case_tag}_{observable}_relative_vs_beta.png")
+            render_case_relative_trend_plot(representative_stage_obs, case, observable, "dtau", output_dir / f"trend_{case_tag}_{observable}_relative_vs_dtau.png")
         render_trace_plot(stage_samples, case, "squareOcc", output_dir / f"trace_{case_tag}_squareOcc.png")
         render_trace_plot(stage_samples, case, "IPR", output_dir / f"trace_{case_tag}_IPR.png")
-    write_report(output_dir, stage_cases, stage_obs, tune_recommended)
+    write_report(output_dir, stage_cases, stage_obs, tune_recommended, convergence_rows)
     return 0
 
 
