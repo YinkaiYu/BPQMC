@@ -71,21 +71,29 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
     - `nfrog = 28`
     - `dt = 0.0005`
   - current expectation:
-    - the current `2/2` stage is no longer stuck, but it is still `slow_drift`
-    - the next step is a deeper or smaller-`dt` retune, not immediate promotion
+    - the old `1024 / 512 / 512` stage is no longer stuck, but it is still `slow_drift`
+    - the deeper `2048 / 1024 / 1024` rerun has already produced a formal `1/2` retained-window
+      `stable_window` summary and is now being extended to a full `2/2` repeat set
+    - promotion to `U2 = 1e3` should wait for that deeper `2/2` result
 - `L = 6`, `Nbos = 1e4`, `U2 = 1e3`
-  - this is the next physics rung once the `U2 = 300` geometry is made reliable enough
-  - first action should be a conservative preconditioned tune, not a blind reuse of `U2 = 300`
+  - exploratory short tunes exist for `m = 16, mu = 1` and `m = 32, mu = 1`
+  - the current best workstation geometry is still the mildly aggressive
+    `m = 16`, `mu = 1`, `nfrog = 20`, `dt = 0.0004`
+  - a real long trace on that geometry is now the active evidence-gathering rung
+    before any stronger preconditioning is implemented
 
 ## Immediate Next Steps
 
-1. Re-render the merged production overview so the latest `U2 = 100` healthy stage and
-   `U2 = 300` slow-drift stage appear in the unified entry point.
-2. Launch a conservative retune for `L = 6`, `Nbos = 1e4`, `U2 = 300` around smaller `dt`
-   than `28 x 0.0005`, because the current retained window still drifts.
-3. If the retuned `U2 = 300` geometry becomes stable across repeats, promote to `U2 = 1e3`.
-4. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp move to
-   larger `Nbos` or larger `L`.
+1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
+   `squareOcc` / `IPR` retained-window agreement in the unified overview report.
+2. Finish the `U2 = 1e3` exploratory long trace and inspect whether the high-`U2`
+   slow mode is merely deep or fundamentally under-driven by the current geometry.
+3. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
+   representative preconditioned rung and use it as the production-side reference.
+4. If the `U2 = 1e3` long trace still drifts badly, move next to stronger proposal
+   geometry or preconditioning, not just another shallow tune sweep.
+5. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp
+   move to larger `Nbos` or larger `L`.
 
 ## Medium-Term Ladder
 
