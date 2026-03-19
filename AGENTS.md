@@ -76,9 +76,10 @@
   - it first gates on `squareOcc` and `IPR`
   - then it promotes gradually in `(Nbos, U2, beta, dtau, L)`
 - Current workstation production examples already distinguish:
-  - a healthy baseline rung at `L=6, Nbos=1e3, U2=1`
+  - a healthy projector ladder at `L=6, Nbos=1e3, U2=1`, currently healthy through `beta=96`, `dtau=0.008`
   - a slow-drift rung at `L=6, Nbos=1e4, U2=1`
   - a stronger-coupling but stage-healthy rung at `L=6, Nbos=1e4, U2=10`
+  - the current next rung is `L=6, Nbos=1e3, U2=1, beta=128, dtau=0.005`
 - Do not stop after a single benchmark mismatch. First distinguish:
   - lattice-specific observable bug
   - HMC tuning/warm-up issue
@@ -162,6 +163,7 @@
 - `test/archive_small_benchmark/small_hmc_stage_report.ipynb` exposes both `NBOS_SELECT` and `TRACE_REPEAT` for interactive slicing of the rendered staged report.
 - `HMC-REFERENCE.md` is the running handoff note for validated health points, unresolved slow modes,
   tuning heuristics, and production/HPC-oriented lessons.
+- `HMC-REFERENCE.md` should always state the current healthy rung, next rung, and main blocker so the production ramp can resume after context loss.
 - For current production bring-up, the primary decision is not local-vs-HMC agreement.
   The first question is whether `squareOcc` and `IPR` stabilize across sample index, seeds, and initial-state choices.
 - A current tuning lesson already written into `HMC-REFERENCE.md`:

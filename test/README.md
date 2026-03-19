@@ -75,3 +75,6 @@ The default SLURM entry point is `dqmc_production`, which now dispatches by `PRO
 - `PROD_COMMAND=collect`
 - `PROD_COMMAND=report`
 - `PROD_COMMAND=benchmark` is kept only for legacy direct local-vs-HMC comparisons
+
+For the active workstation ramp, keep the current healthy rung, next rung, and main blocker
+documented in `../HMC-REFERENCE.md` before moving on to a harder stage.

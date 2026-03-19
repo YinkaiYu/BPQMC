@@ -27,10 +27,55 @@ The default output root for this new workflow should be under:
 
 - `data/triangular_hmc_production/`
 
+## Current Stage / Next Stage / Blocker
+
+Current healthy ladder:
+
+- `L=6`, `Nbos=1e3`, `U2=1`
+- `beta=32`, `dtau=0.01`
+- `beta=64`, `dtau=0.01`
+- `beta=96`, `dtau=0.008`
+
+Current next rung:
+
+- `L=6`, `Nbos=1e3`, `U2=1`, `beta=128`, `dtau=0.005`
+- start from scalar-mass full-field HMC with `mass=4`, jittered trajectories, and a tune scan before the long stage
+
+Current main blocker:
+
+- `L=6`, `Nbos=1e4`, `U2=1`, `beta=32`, `dtau=0.01`
+- deeper thermal cuts alone do not remove the residual `squareOcc/IPR` slow drift
+- longer trajectories with the same scalar mass also did not beat the `16 x 0.01` baseline
+- this rung is the first serious candidate for stronger preconditioning rather than more blind scalar-mass scans
+
 ## Current Production Checkpoint
 
 As of the current workstation bring-up round, the first production-style stage data under
-`data/triangular_hmc_production/` already separates three regimes clearly.
+`data/triangular_hmc_production/` already separates four regimes clearly.
+
+### Healthy projector ladder on the baseline physics point
+
+- [l6_n1e3_u1_beta32_dtau1em2_stage_m4_nf12_dt0p015](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e3_u1_beta32_dtau1em2_stage_m4_nf12_dt0p015/report/report.md)
+- [l6_n1e3_u1_beta64_dtau1em2_stage_m4_nf8_dt0p02](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e3_u1_beta64_dtau1em2_stage_m4_nf8_dt0p02/report/report.md)
+- [l6_n1e3_u1_beta96_dtau8em3_stage_m4_nf8_dt0p02](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e3_u1_beta96_dtau8em3_stage_m4_nf8_dt0p02/report/report.md)
+- parameters:
+  - `L=6`
+  - `Nbos=1e3`
+  - `U2=1`
+  - scalar mass `m=4`
+  - jitter `=2`
+- observed stage status:
+  - `beta=32`, `dtau=0.01`: `stable_window`, `squareOcc/IPR drift/span ~ 0.141`
+  - `beta=64`, `dtau=0.01`: `stable_window`, `squareOcc/IPR drift/span ~ 0.030`
+  - `beta=96`, `dtau=0.008`: `stable_window`, `squareOcc/IPR drift/span ~ 0.153`
+
+Interpretation:
+
+- The baseline triangular rung is now healthy through three projector settings.
+- This is the first real evidence that the production ramp can proceed in projector depth
+  rather than only at one easy point.
+- The `beta=96` rung is slower in wall-clock time than `beta=64`, but its traces still pass
+  the current `squareOcc/IPR` gate cleanly.
 
 ### Healthy reference rung
 

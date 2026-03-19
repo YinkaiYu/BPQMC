@@ -283,14 +283,17 @@ Acceptance and `ESS/sec` are secondary diagnostics.
 
 Current local workstation examples under `data/triangular_hmc_production/` already include:
 
-- a healthy baseline rung:
+- a healthy baseline projector ladder on the same physics point:
   - `l6_n1e3_u1_beta32_dtau1em2_stage_m4_nf12_dt0p015`
+  - `l6_n1e3_u1_beta64_dtau1em2_stage_m4_nf8_dt0p02`
+  - `l6_n1e3_u1_beta96_dtau8em3_stage_m4_nf8_dt0p02`
 - a slow-drift rung that still needs deeper thermalization or better proposals:
   - `l6_n1e4_u1_beta32_dtau1em2_stage_m4_nf16_dt0p01`
 - a stronger-coupling exploratory rung that is already stage-healthy with a smaller step size:
   - `l6_n1e4_u1e1_beta32_dtau1em2_stage_m4_nf16_dt0p006`
 
-See `HMC-REFERENCE.md` for the current interpretation of these stage results.
+The current next projector rung is `L=6, Nbos=1e3, U2=1, beta=128, dtau=0.005`.
+See `HMC-REFERENCE.md` for the running interpretation of these stage results and blockers.
 
 ### Archived Development Tune Scan
 
@@ -400,7 +403,7 @@ recommended interpreter is `/home/yyk/conda/envs/notebook/bin/python`.
 The notebook reads the CSV and PNG files from a rendered report directory. Set `REPORT_DIR` inside the notebook before running its cells.
 `stage_samples.csv` now stores the key observable traces for every repeat, not only `repeat=0`, so you can do repeated thermal-cut checks directly inside the notebook or in a post-processing script.
 The notebook exposes both `NBOS_SELECT` and `TRACE_REPEAT`, which lets you inspect one particle-number slice and one benchmark repeat without regenerating the report.
-The current staged checkpoint with 9 strict-passing health points is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
+The archived staged checkpoint with 9 strict-passing health points is `data/triangular_hmc_small_benchmark/stage_report_v6a`.
 The fixed full-grid visual report is rendered with `test/archive_small_benchmark/render_small_hmc_full_grid.py`; its default output target is `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
 The current full-grid rendered report is `data/triangular_hmc_small_benchmark/full_grid_progress_v3`.
 The archived raw benchmark campaign lives under `data/triangular_hmc_small_benchmark/archive_20260319`.
@@ -411,8 +414,8 @@ Practical conclusion from this benchmark campaign:
 - the final correctness reference is the rendered full-grid report, not the individual raw run directories
 - for large `Nbos` and `U2`, local and HMC can both remain unthermalized on workstation-length runs; those points are not useful correctness references
 - future work in this branch should focus on production-grade HMC thermalization, preconditioning, and HPC workflows rather than further local-vs-HMC benchmarking
-For the running handoff note covering validated health points, unresolved modes, tuning trends,
-and production-oriented lessons, see `HMC-REFERENCE.md`.
+For the running handoff note covering validated health points, active production rungs,
+unresolved slow modes, tuning trends, and HPC-oriented lessons, see `HMC-REFERENCE.md`.
 For the cleaned `test/` directory layout and archive locations, see `test/README.md`.
 For unresolved slow-mode diagnostics, the same renderer can also be used on non-passing benchmark
 directories. A current example is `data/triangular_hmc_small_benchmark/progress_report_n1000_u1e0_v2`,
