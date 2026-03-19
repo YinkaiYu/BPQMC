@@ -117,19 +117,22 @@ Current next rung:
       - [m16 probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_probe/report/report.md)
       - [m16 aggressive](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_aggressive/report/report.md)
       - [m32 probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m32_mu1_probe/report/report.md)
+      - [mk4 conservative](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk4_conservative/report/report.md)
+      - [mk8 conservative](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk8_conservative/report/report.md)
     - completed reference stage:
       [l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_nf20_dt4em4_diag1024_probe/report/report.md](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_nf20_dt4em4_diag1024_probe/report/report.md)
     - current reading:
       - none of the scalar/uniform-only short scans removes the slow mode yet; all remain at `tau_int(doubleOcc) ~ 25`
       - the mildly more aggressive `m=16`, `mu=1`, `20 x 0.0004` geometry has now been ruled only a reference failure:
         its completed long stage is `strong_drift`, with `squareOcc/IPR drift/span ≈ 0.660`
-      - the active next step is now the new lowest-shell preconditioner, not another scalar/uniform-only rerun
-    - new shell1 in-flight tune:
-      [l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_probe)
-      - residual mass `m=16`
-      - uniform mass `mu=1`
-      - shell1 mass `mk=1`
-      - grid: `12x5e-4`, `16x4e-4`, `20x4e-4`, `24x3e-4`, `28x2.5e-4`
+      - `mk=1` has now been closed as too aggressive; the completed tune is effectively unusable
+      - the best short-tune window so far is now `mk=4`, with winner `24 x 0.0002`
+      - the conservative fallback is now `mk=8`, with winner `24 x 0.00025`
+      - both winners are now being checked by fresh long traces rather than by another
+        scalar/uniform-only rerun
+    - active shell1 long-stage probes:
+      - [mk4 nf24 dt2e-4](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk4_nf24_dt2em4_diag1024_probe)
+      - [mk8 nf24 dt2p5e-4](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk8_nf24_dt2p5em4_diag1024_probe)
 
 Current main blocker:
 
@@ -142,7 +145,9 @@ Current main blocker:
     and later `Nbos` is also raised toward `1e5`
   - the immediate blocker rung is now `L=6`, `Nbos=1e4`, `U2=1000`
     - the old scalar/uniform-only reference geometry `m=16`, `mu=1`, `20 x 0.0004` is formally `strong_drift`
-    - the new active idea is to split the triangular lowest nonzero momentum shell away from the residual modes
+    - the current active idea is to split the triangular lowest nonzero momentum shell away from the residual modes
+    - if the new `mk=4` and `mk=8` long traces still drift badly, the next implementation target
+      should be a wider soft-mode subspace rather than another blind `dt` rescan
   - `L=6`, `Nbos=1e4`, `U2=300` is still active, but its deeper `2048 / 1024 / 1024` rerun already looks much healthier;
     the main remaining question there is cross-repeat agreement, not obvious single-trace drift
 - trace-based tuning lesson from the original `Nbos=1e4, U2=1` blocker point:

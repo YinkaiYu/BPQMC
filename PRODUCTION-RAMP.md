@@ -75,9 +75,11 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
     - `nfrog = 28`
     - `dt = 0.0005`
   - current expectation:
-    - the old `1024 / 512 / 512` stage is no longer stuck, but it is still `slow_drift`
-    - the deeper `2048 / 1024 / 1024` rerun has already produced a formal `1/2` retained-window
-      `stable_window` summary and is now being extended to a full `2/2` repeat set
+    - the old `1024 / 512 / 512` stage is no longer the one to trust
+    - the deeper `2048 / 1024 / 1024` rerun has already produced a much healthier formal
+      `1/2` retained-window `stable_window` summary
+    - the missing repeat still needs to be completed before `U2 = 300` can be treated as a fully
+      settled representative rung
     - promotion to `U2 = 1e3` should wait for that deeper `2/2` result
 - `L = 6`, `Nbos = 1e4`, `U2 = 1e3`
   - the old scalar/uniform-only reference rung
@@ -86,22 +88,29 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
   - active replacement path:
     - keep `mass = 16`
     - keep `uniform_mass = 1`
-    - turn on `shell1_mass = 1`
-    - current in-flight short tune grid:
-      - `12 x 0.0005`
-      - `16 x 0.0004`
-      - `20 x 0.0004`
-      - `24 x 0.0003`
-      - `28 x 0.00025`
+    - use the new `shell1_mass` preconditioner
+    - closed short-tune conclusions:
+      - `mk = 1` is too aggressive and effectively unusable
+      - `mk = 4` opens the best short-tune window so far
+      - `mk = 8` is more conservative and slower, but is a real fallback rather than a dead end
+    - current active long-stage probes:
+      - `mk = 4`, `nfrog = 24`, `dt = 0.0002`
+      - `mk = 8`, `nfrog = 24`, `dt = 0.00025`
 
 ## Immediate Next Steps
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Finish the new `U2 = 1e3` shell1 short tune and launch a real long trace on the
-   best `mk = 1` candidate rather than reusing the old `mk = 0` reference geometry.
-3. If the first `mk = 1` long trace still drifts badly, vary `shell1_mass` next
-   before changing the residual or uniform masses again.
+2. Finish the two active `U2 = 1e3` shell1 long traces on the current best short-tune
+   candidates:
+   - `mk = 4`, `24 x 0.0002`
+   - `mk = 8`, `24 x 0.00025`
+3. Compare those two long traces against the closed bad references:
+   - `mk = 0`, `20 x 0.0004`
+   - `mk = 4`, `12 x 0.00035`
+   - `mk = 4`, `20 x 0.00025`
+   If neither new trace flattens materially faster, widen the soft-mode subspace rather than
+   continuing to rescan the same scalar/uniform/shell1 geometry family.
 4. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
    representative preconditioned rung and use it as the production-side reference.
 5. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp

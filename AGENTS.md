@@ -101,8 +101,12 @@
     - `L=6, Nbos=1e4, U2=300`, `mass=16`, `uniform_mass=1`, `nfrog=28`, `dt=0.0005`, stage launched after a conservative retune
     - `L=6, Nbos=1e4, U2=1000` is the current blocker:
       the old scalar/uniform-only `mass=16`, `uniform_mass=1`, `nfrog=20`, `dt=0.0004`
-      reference stage is now formally `strong_drift`, and the active replacement path is
-      the new `shell1_mass` preconditioner
+      reference stage is now formally `strong_drift`
+      `shell1_mass=1` has also been closed as too aggressive
+      the active replacement path is now the new `shell1_mass` preconditioner with
+      exploratory long traces centered on:
+      - `shell1_mass=4`, `nfrog=24`, `dt=0.0002`
+      - `shell1_mass=8`, `nfrog=24`, `dt=0.00025`
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
   - that unified `report.md` now begins with `## Current Representative Stage Per Case`
     before the full historical stage table

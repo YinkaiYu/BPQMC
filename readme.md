@@ -399,7 +399,11 @@ The current next production rungs are:
 - `L=6, Nbos=1e4, U2=1000` is the current workstation blocker:
   - the old scalar/uniform-only reference geometry `mass=16`, `uniform_mass=1`, `shell1_mass=0`, `nfrog=20`, `dt=0.0004`
     is now a completed `strong_drift` stage
-  - the active replacement path is the new `shell1_mass` preconditioner, surfaced in the same production CLI and overview report
+  - `shell1_mass=1` has already been ruled out as too aggressive
+  - the current live long-trace shortlist is:
+    - `shell1_mass=4`, `nfrog=24`, `dt=0.0002`
+    - `shell1_mass=8`, `nfrog=24`, `dt=0.00025`
+  - these two exploratory stages are the current replacement path, surfaced in the same production CLI and overview report
 
 See `HMC-REFERENCE.md` for the running interpretation of these stage results and blockers.
 For a single merged entry point across all production directories, open:
