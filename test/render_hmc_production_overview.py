@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 from collections import defaultdict
 from pathlib import Path
 
@@ -46,12 +47,16 @@ def case_sort_key(row: dict[str, object]) -> tuple[int, float, float, float, str
     )
 
 
-def linked_label(work_root: str, label: str) -> str:
+def rel_link(target: Path, base_dir: Path) -> str:
+    return os.path.relpath(target.resolve(), base_dir.resolve())
+
+
+def linked_label(work_root: str, label: str, base_dir: Path) -> str:
     root = Path(work_root)
     for rel in ("report/report.md", "live_progress/report.md"):
         candidate = root / rel
         if candidate.exists():
-            return f"[{label}]({candidate.resolve()})"
+            return f"[{label}]({rel_link(candidate, base_dir)})"
     return label
 
 
@@ -493,17 +498,83 @@ def build_case_convergence_rows(
 
 
 def scan_live_reports(root: Path) -> list[dict[str, str]]:
+    def read_trace(path: Path) -> list[float]:
+        if not path.exists():
+            return []
+        values: list[float] = []
+        with path.open("r", encoding="utf-8", errors="ignore") as stream:
+            for line in stream:
+                stripped = line.strip()
+                if stripped:
+                    values.append(float(stripped.split()[0]))
+        return values
+
+    def partial_trace_stats(values: list[float], thermal_cut: int) -> tuple[int, str, float]:
+        if not values:
+            return 0, "empty", 0.0
+        if thermal_cut > 0 and len(values) > thermal_cut:
+            tail = values[thermal_cut:]
+            mode = "post-cut"
+        else:
+            tail = values
+            mode = "pre-cut"
+        window = max(16, len(tail) // 4)
+        start = tail[:window]
+        end = tail[-window:]
+        span = max(tail) - min(tail) if len(tail) > 1 else 0.0
+        drift = (sum(end) / len(end)) - (sum(start) / len(start))
+        ratio = abs(drift) / span if span > 0.0 else 0.0
+        return len(values), mode, ratio
+
+    def parse_info_value(info_path: Path, key: str) -> int:
+        if not info_path.exists():
+            return 0
+        for line in info_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if ":" not in line:
+                continue
+            lhs, rhs = line.split(":", 1)
+            if lhs.strip() != key:
+                continue
+            try:
+                return int(float(rhs.strip()))
+            except ValueError:
+                return 0
+        return 0
+
     rows: list[dict[str, str]] = []
     for report_path in sorted(root.glob("*/live_progress/report.md")):
         stage_root = report_path.parent.parent
         case_name = stage_root.name
         pngs = sorted(report_path.parent.glob("live_trace_*.png"))
+        stage_json = stage_root / "production_stage.json"
+        thermal_cut = 0
+        if stage_json.exists():
+            data = json.loads(stage_json.read_text(encoding="utf-8"))
+            thermal_cut = int(data.get("config_summary", {}).get("thermal_cut", 0))
+        run_dirs = sorted((stage_root / "runs").glob("*/*"))
+        if thermal_cut == 0 and run_dirs:
+            thermal_cut = parse_info_value(run_dirs[0] / "info.txt", "# Warm")
+        best_square: list[float] = []
+        best_ipr: list[float] = []
+        longest_trace = -1
+        for run_dir in run_dirs:
+            square_vals = read_trace(run_dir / "squareOcc")
+            if len(square_vals) > longest_trace:
+                longest_trace = len(square_vals)
+                best_square = square_vals
+                best_ipr = read_trace(run_dir / "IPR")
+        longest_trace, window_mode, square_ratio = partial_trace_stats(best_square, thermal_cut)
+        _, _, ipr_ratio = partial_trace_stats(best_ipr, thermal_cut)
         rows.append(
             {
                 "stage_root": str(stage_root.resolve()),
                 "label": case_name,
                 "report_path": str(report_path.resolve()),
                 "trace_path": str(pngs[0].resolve()) if pngs else "",
+                "longest_trace": str(longest_trace),
+                "window_mode": window_mode,
+                "square_ratio": f"{square_ratio:.3f}",
+                "ipr_ratio": f"{ipr_ratio:.3f}",
             }
         )
     return rows
@@ -536,7 +607,7 @@ def write_report(
     ]
     for row in select_representative_stage_cases(stage_cases):
         row = dict(row)
-        row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]))
+        row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]), output_dir)
         lines.append(
             "| {case} | {label_link} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
                 **row
@@ -553,7 +624,7 @@ def write_report(
     )
     for row in sorted(stage_cases, key=case_sort_key):
         row = dict(row)
-        row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]))
+        row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]), output_dir)
         lines.append(
             "| {label_link} | {case} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
                 **row
@@ -572,7 +643,7 @@ def write_report(
     )
     for row in sorted(tune_recommended, key=lambda item: (str(item["case"]), float(item["Nbos"]) if "Nbos" in item else 0.0, float(item["U2"]) if "U2" in item else 0.0, float(item["beta"]), str(item["label"]))):
         row = dict(row)
-        row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]))
+        row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]), output_dir)
         lines.append(
             "| {label_link} | {case} | {beta:.6g} | {dtau:.6g} | {recommended_viable} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {hmc_deltaH_abs_max:.3f} |".format(
                 **row
@@ -585,15 +656,18 @@ def write_report(
                 "## Live Progress",
                 "",
                 "These links are for in-flight stage runs whose current repeat has not yet finished, so they do not appear in the normal stage summary tables yet.",
+                "If `window` is `pre-cut`, the drift ratios are computed on the currently available trace because the configured `thermal_cut` has not been crossed yet.",
                 "",
-                "| label | live report | live trace |",
-                "| --- | --- | --- |",
+                "| label | live report | live trace | longest trace | window | squareOcc drift/span | IPR drift/span |",
+                "| --- | --- | --- | ---: | --- | ---: | ---: |",
             ]
         )
         for row in live_reports:
-            report_link = f"[report]({row['report_path']})"
-            trace_link = f"[trace]({row['trace_path']})" if row["trace_path"] else ""
-            lines.append(f"| {row['label']} | {report_link} | {trace_link} |")
+            report_link = f"[report]({rel_link(Path(row['report_path']), output_dir)})"
+            trace_link = f"[trace]({rel_link(Path(row['trace_path']), output_dir)})" if row["trace_path"] else ""
+            lines.append(
+                f"| {row['label']} | {report_link} | {trace_link} | {row['longest_trace']} | {row['window_mode']} | {row['square_ratio']} | {row['ipr_ratio']} |"
+            )
     lines.extend(
         [
             "",
@@ -649,7 +723,7 @@ def write_report(
         case_rows = [row for row in stage_cases if str(row["case"]) == case]
         for row in sorted(case_rows, key=lambda item: (float(item["beta"]), float(item["dtau"]), str(item["label"]))):
             row = dict(row)
-            row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]))
+            row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]), output_dir)
             lines.append(
                 "| {label_link} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
                     **row
