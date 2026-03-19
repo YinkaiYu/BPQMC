@@ -38,6 +38,8 @@ The unified entry point for the accumulated production results is now:
 - [overview/report.md](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/overview/report.md)
 - explicit fixed-`beta` or fixed-`dtau` scans can be launched with
   [production_convergence_scan.py](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/production_convergence_scan.py)
+- the overview report now shows `bins`, `thermal_cut`, `warm`, and `samples/post` per stage,
+  so late slow-mode drift is easier to spot without opening each rung directory separately
 
 ## Current Stage / Next Stage / Blocker
 
@@ -112,6 +114,8 @@ Current convergence interpretation for the healthy baseline ladder:
   - otherwise, continue the ladder or run explicit fixed-`beta` / fixed-`dtau` comparison scans
 - For those explicit convergence scans, treat `O(10^3)` post-warm samples as normal rather than exceptional.
   The convenience wrapper now defaults to `bins=1024`, `thermal_cut=512`, `warm=512`.
+- The canonical `test/production_hmc.py stage` / `collect` workflow now uses the same
+  `1024 / 512 / 512` defaults unless overridden explicitly.
 
 ### Healthy reference rung
 

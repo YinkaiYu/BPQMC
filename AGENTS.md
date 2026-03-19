@@ -83,6 +83,8 @@
   - a stronger-coupling but stage-healthy rung at `L=6, Nbos=1e4, U2=10`
   - the current next rung is `L=6, Nbos=1e3, U2=1, beta=192, dtau=0.002`
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
+  - the merged report now exposes per-case sections plus `bins`, `thermal_cut`, `warm`, and `samples/post`
+    so short traces are easier to separate from genuinely deep thermalization runs
 - Do not stop after a single benchmark mismatch. First distinguish:
   - lattice-specific observable bug
   - HMC tuning/warm-up issue
@@ -173,6 +175,8 @@
 - `test/production_convergence_scan.py` is the convenience wrapper for those fixed-`beta` and fixed-`dtau` scans.
   Its defaults are intentionally less conservative than the quick bring-up stages:
   `bins=1024`, `thermal_cut=512`, `warm=512`.
+- `test/production_hmc.py stage` / `collect` now use the same `1024 / 512 / 512` defaults unless
+  overridden explicitly.
 - For current production bring-up, the primary decision is not local-vs-HMC agreement.
   The first question is whether `squareOcc` and `IPR` stabilize across sample index, seeds, and initial-state choices.
 - A current tuning lesson already written into `HMC-REFERENCE.md`:

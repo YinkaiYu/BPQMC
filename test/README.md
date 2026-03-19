@@ -17,6 +17,8 @@ These are the files intended for ongoing use:
 - `render_hmc_production_overview.py`: merged renderer for the whole `data/triangular_hmc_production/` tree
 - `production_convergence_scan.py`: convenience wrapper for fixed-`beta` and fixed-`dtau` stage scans
   - defaults to `bins=1024`, `thermal_cut=512`, `warm=512` for less conservative convergence checks
+- `production_hmc.py stage` and `production_hmc.py collect` now use the same `1024 / 512 / 512`
+  defaults unless the command line overrides them
 - `hmc_report_template.ipynb`: production report notebook template for `stage`, `tune`, and `benchmark` summaries
 - `analyze_hmc_monitor.py`, `analyze_hmc_trace.py`: HMC trajectory diagnostics that may still be useful in production debugging
 
@@ -86,6 +88,8 @@ For a single merged entry point over all production directories, run:
 The resulting report lives at:
 
 - `data/triangular_hmc_production/overview/report.md`
+- the report now includes per-case sections and `samples/post` coverage, so late slow-mode
+  drift is easier to diagnose from one entry point
 
 The default SLURM entry point is `dqmc_production`, which now dispatches by `PROD_COMMAND`:
 

@@ -317,6 +317,9 @@ This merged report is the preferred place to inspect:
 - `squareOcc` / `IPR` trends versus `beta` and `dtau`
 - recommended tune parameters versus rung
 - sample-index traces across different parameter points
+- per-case sections that keep different `Nbos` / `U2` scales separate
+- `bins`, `thermal_cut`, `warm`, and `samples/post` coverage, so a short trace cannot
+  be mistaken for a deep thermalization run
 
 For explicit convergence scans at fixed `beta` or fixed `dtau`, use:
 
@@ -351,6 +354,9 @@ The convergence wrapper now defaults to a less conservative sample count:
 - `bins=1024`
 - `thermal_cut=512`
 - `warm=512`
+
+The canonical `test/production_hmc.py stage` / `collect` workflow now uses the same
+`1024 / 512 / 512` defaults unless overridden explicitly.
 
 ### Archived Development Tune Scan
 
