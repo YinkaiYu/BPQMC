@@ -233,15 +233,19 @@ def render_trace_plot(sample_rows: list[dict[str, object]], case: str, observabl
     fig, ax = plt.subplots(figsize=(7.0, 4.5))
     for stage_label, items in sorted(grouped.items()):
         items.sort(key=lambda row: int(row["sample_index"]))
-        ax.plot(
+        line = ax.plot(
             [int(row["sample_index"]) for row in items],
             [float(row["value"]) for row in items],
             linewidth=1.2,
             label=stage_label,
-        )
+        )[0]
+        post_rows = [row for row in items if int(row["post_thermal"]) == 1]
+        if post_rows:
+            cut_index = min(int(row["sample_index"]) for row in post_rows)
+            ax.axvline(cut_index, color=line.get_color(), linestyle="--", linewidth=0.9, alpha=0.45)
     ax.set_xlabel("sample index")
     ax.set_ylabel(observable)
-    ax.set_title(f"{case}: {observable} trace (repeat 0)")
+    ax.set_title(f"{case}: {observable} trace (repeat 0, dashed = post-thermal start)")
     ax.grid(alpha=0.25)
     ax.legend(fontsize=8)
     fig.tight_layout()
