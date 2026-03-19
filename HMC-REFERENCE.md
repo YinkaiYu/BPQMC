@@ -30,6 +30,8 @@ The active production CLI is `test/production_hmc.py`:
 - `--hmc-mass-spatial-shell1`: optional triangular lowest-|k|-shell mass split
   on top of both the residual `--hmc-mass` and the spatially uniform split;
   `0` disables it
+- `--hmc-mass-spatial-shell2`: optional triangular second nonzero momentum-shell mass split
+  on top of the residual, uniform, and shell1 masses; `0` disables it
 
 For seed/init-state convergence checks, the production driver can now expand multiple
 initial-state families in one invocation via:
@@ -126,10 +128,10 @@ Current next rung:
       - the mildly more aggressive `m=16`, `mu=1`, `20 x 0.0004` geometry has now been ruled only a reference failure:
         its completed long stage is `strong_drift`, with `squareOcc/IPR drift/span ≈ 0.660`
       - `mk=1` has now been closed as too aggressive; the completed tune is effectively unusable
-      - the best short-tune window so far is now `mk=4`, with winner `24 x 0.0002`
-      - the conservative fallback is now `mk=8`, with winner `24 x 0.00025`
-      - both winners are now being checked by fresh long traces rather than by another
-        scalar/uniform-only rerun
+      - shell1-only `mk=4` and `mk=8` are now also closed on completed `1024 / 512 / 512`
+        stages: both still end as `strong_drift`, with `squareOcc/IPR drift/span ≈ 0.71 - 0.75`
+      - the active path is therefore no longer another shell1-only rescan; it is the new
+        wider low-|k| split with `shell2_mass`
     - active shell1 long-stage probes:
       - [mk4 nf24 dt2e-4](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk4_nf24_dt2em4_diag1024_probe)
       - [mk8 nf24 dt2p5e-4](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk8_nf24_dt2p5em4_diag1024_probe)
@@ -139,12 +141,16 @@ Current next rung:
     - current early-trace reading:
       - the old closed bad reference `mk=0`, `20 x 0.0004` has completed-stage
         `squareOcc` head-to-tail drift/span around `0.60`
-      - the new `warm=0` `mk=4`, `24 x 0.0002` trace is still drifting downward,
-        but only at about `0.10` drift/span in the current live window
-      - the new `warm=0` `mk=8`, `24 x 0.00025` trace is even more conservative so far,
-        with early live drift/span around `0.02 - 0.07`
-      - this is the first direct visual evidence that shell1 preconditioning is helping
-        on the `U2=1000` blocker, even though the deeper retained-window verdict is still pending
+      - the shell1-only `warm=0` traces initially looked healthier than the old bad reference,
+        but their completed stages later showed that early flattening alone was not enough
+      - active shell2 probe:
+        - `m=16`, `mu=1`, `mk1=8`, `mk2=4`
+        - grid: `12 x 3e-4`, `16 x 2.5e-4`, `20 x 2e-4`, `24 x 1.5e-4`
+        - current short-tune winner: `12 x 3e-4`, jitter `=2`
+        - work root:
+          [l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_8_mk2_4_probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_8_mk2_4_probe)
+        - matching warm=`0` long trace:
+          [l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk1_8_mk2_4_nf12_dt3em4_diag512_warm0](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk1_8_mk2_4_nf12_dt3em4_diag512_warm0)
 
 Current main blocker:
 
@@ -157,9 +163,11 @@ Current main blocker:
     and later `Nbos` is also raised toward `1e5`
   - the immediate blocker rung is now `L=6`, `Nbos=1e4`, `U2=1000`
     - the old scalar/uniform-only reference geometry `m=16`, `mu=1`, `20 x 0.0004` is formally `strong_drift`
-    - the current active idea is to split the triangular lowest nonzero momentum shell away from the residual modes
-    - if the new `mk=4` and `mk=8` long traces still drift badly, the next implementation target
-      should be a wider soft-mode subspace rather than another blind `dt` rescan
+    - the shell1-only replacement path is now also formally insufficient on completed stages
+    - the active implementation path is a wider soft-mode split:
+      `shell2_mass`, which covers the second triangular nonzero momentum shell
+    - if the new shell2 sweep still leaves every candidate in the same slow geometry family,
+      the next target should be a broader low-|k| basis or a more explicitly Fourier-accelerated mass map
   - `L=6`, `Nbos=1e4`, `U2=300` is still active, but its deeper `2048 / 1024 / 1024` rerun already looks much healthier;
     the main remaining question there is cross-repeat agreement, not obvious single-trace drift
 - trace-based tuning lesson from the original `Nbos=1e4, U2=1` blocker point:
@@ -253,9 +261,12 @@ Current convergence interpretation for the healthy baseline ladder:
     `BPQMC_HMC_MASS_SPATIAL_UNIFORM`
   - `--hmc-mass-spatial-shell1` is forwarded by the Python tooling as
     `BPQMC_HMC_MASS_SPATIAL_SHELL1`
+  - `--hmc-mass-spatial-shell2` is forwarded by the Python tooling as
+    `BPQMC_HMC_MASS_SPATIAL_SHELL2`
   - on the triangular lattice it builds a real orthonormal basis of the first nonzero
     reciprocal-shell cosine/sine modes and assigns them their own leapfrog mass
-  - `info.txt` now records both masses so archived runs remain self-describing
+  - it can now also split the second nonzero shell away from both the shell1 and residual modes
+  - `info.txt` now records all these masses so archived runs remain self-describing
 
 ### Healthy reference rung
 

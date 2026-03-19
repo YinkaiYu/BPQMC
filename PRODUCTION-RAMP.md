@@ -85,35 +85,41 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
   - the old scalar/uniform-only reference rung
     `m = 16`, `mu = 1`, `mk = 0`, `nfrog = 20`, `dt = 0.0004`
     is now closed as `strong_drift`
-  - active replacement path:
+  - shell1-only replacement path:
+    - `mk = 1` is closed as too aggressive
+    - completed `mk = 4` and `mk = 8` `1024 / 512 / 512` stages are both still `strong_drift`
+  - current active replacement path:
     - keep `mass = 16`
     - keep `uniform_mass = 1`
-    - use the new `shell1_mass` preconditioner
-    - closed short-tune conclusions:
-      - `mk = 1` is too aggressive and effectively unusable
-      - `mk = 4` opens the best short-tune window so far
-      - `mk = 8` is more conservative and slower, but is a real fallback rather than a dead end
-    - current active long-stage probes:
-      - `mk = 4`, `nfrog = 24`, `dt = 0.0002`
-      - `mk = 8`, `nfrog = 24`, `dt = 0.00025`
+    - keep `shell1_mass = 8`
+    - add the new `shell2_mass` split
+    - current active short-tune probe:
+      - `shell2_mass = 4`
+      - grid:
+        - `12 x 0.0003`
+        - `16 x 0.00025`
+        - `20 x 0.0002`
+        - `24 x 0.00015`
+      - current winner:
+        - `12 x 0.0003`, jitter `=2`
+      - matching warm=`0` long trace is now running
 
 ## Immediate Next Steps
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Finish the two active `U2 = 1e3` shell1 long traces on the current best short-tune
-   candidates:
-   - `mk = 4`, `24 x 0.0002`
-   - `mk = 8`, `24 x 0.00025`
-   Also keep the matching `warm = 0`, `512 / 256 / 0` diagnostic traces alive so the
-   early sample-index shape can be compared before the deeper `1024 / 512 / 512`
-   stages finish.
-3. Compare those two long traces against the closed bad references:
+2. Finish reading the active `U2 = 1e3` shell2 warm=`0` long trace:
+   - `mk1 = 8`, `mk2 = 4`
+   - winner from the first short shell2 probe:
+     - `12 x 0.0003`
+   If the early trace is materially flatter than the old shell1-only lines,
+   promote it immediately to a deeper `1024 / 512 / 512` stage.
+3. Compare the shell2 probe against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
-   - `mk = 4`, `12 x 0.00035`
-   - `mk = 4`, `20 x 0.00025`
-   If neither new trace flattens materially faster, widen the soft-mode subspace rather than
-   continuing to rescan the same scalar/uniform/shell1 geometry family.
+   - shell1-only `mk = 4`, `24 x 0.0002`
+   - shell1-only `mk = 8`, `24 x 0.00025`
+   If shell2 still does not flatten materially faster, widen the low-|k| basis again rather than
+   continuing to rescan the same scalar/uniform/shell1-only family.
 4. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
    representative preconditioned rung and use it as the production-side reference.
 5. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp
@@ -124,17 +130,21 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
 - `U2 = 1e3`, old closed bad reference:
   - `mk = 0`, `20 x 0.0004`
   - completed long-stage `squareOcc` head-to-tail drift/span is about `0.60`
-- `U2 = 1e3`, current `warm = 0` diagnostics:
+- `U2 = 1e3`, shell1-only completed stages:
   - `mk = 4`, `24 x 0.0002`
-    - early `squareOcc/IPR` live drift/span is about `0.10`
-    - still drifting downward, but much less than the closed bad reference
   - `mk = 8`, `24 x 0.00025`
-    - early `squareOcc/IPR` live drift/span is about `0.02` to `0.07`
-    - also still downward so far, but clearly healthier than the old `mk = 0` line
+  - both still end as `strong_drift`
+- `U2 = 1e3`, current shell2 probe:
+  - `mk1 = 8`, `mk2 = 4`
+  - grid:
+    - `12 x 0.0003`
+    - `16 x 0.00025`
+    - `20 x 0.0002`
+    - `24 x 0.00015`
 - Working interpretation:
-  - shell1 preconditioning is helping
-  - heavier shell1 mass looks more conservative in the early trace
-  - neither new line should be promoted until the deeper retained-window stages confirm it
+  - shell1-only preconditioning helped the very early trace shape but did not solve the retained-window drift
+  - the next meaningful question is whether widening the low-|k| split to shell2 can convert that
+    early improvement into a genuinely stable retained window
 
 ## Medium-Term Ladder
 

@@ -400,10 +400,16 @@ The current next production rungs are:
   - the old scalar/uniform-only reference geometry `mass=16`, `uniform_mass=1`, `shell1_mass=0`, `nfrog=20`, `dt=0.0004`
     is now a completed `strong_drift` stage
   - `shell1_mass=1` has already been ruled out as too aggressive
-  - the current live long-trace shortlist is:
-    - `shell1_mass=4`, `nfrog=24`, `dt=0.0002`
-    - `shell1_mass=8`, `nfrog=24`, `dt=0.00025`
-  - these two exploratory stages are the current replacement path, surfaced in the same production CLI and overview report
+  - shell1-only `shell1_mass=4` and `shell1_mass=8` exploratory stages have now both finished as `strong_drift`
+  - the active replacement path is now the wider low-|k| split with `shell2_mass`
+  - current active short probe:
+    - `mass=16`, `uniform_mass=1`, `shell1_mass=8`, `shell2_mass=4`
+    - grid:
+      - `12 x 0.0003`
+      - `16 x 0.00025`
+      - `20 x 0.0002`
+      - `24 x 0.00015`
+    - current short-tune winner: `12 x 0.0003`, jitter `=2`
 
 See `HMC-REFERENCE.md` for the running interpretation of these stage results and blockers.
 For a single merged entry point across all production directories, open:

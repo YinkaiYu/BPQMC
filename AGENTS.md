@@ -103,10 +103,14 @@
       the old scalar/uniform-only `mass=16`, `uniform_mass=1`, `nfrog=20`, `dt=0.0004`
       reference stage is now formally `strong_drift`
       `shell1_mass=1` has also been closed as too aggressive
-      the active replacement path is now the new `shell1_mass` preconditioner with
-      exploratory long traces centered on:
-      - `shell1_mass=4`, `nfrog=24`, `dt=0.0002`
-      - `shell1_mass=8`, `nfrog=24`, `dt=0.00025`
+      shell1-only `shell1_mass=4` and `shell1_mass=8` completed stages are now also closed as `strong_drift`
+      the active replacement path is now the wider `shell2_mass` split
+      with the current short probe centered on:
+      - `shell1_mass=8`, `shell2_mass=4`, `nfrog=12`, `dt=0.0003`
+      - `shell1_mass=8`, `shell2_mass=4`, `nfrog=16`, `dt=0.00025`
+      - `shell1_mass=8`, `shell2_mass=4`, `nfrog=20`, `dt=0.0002`
+      - `shell1_mass=8`, `shell2_mass=4`, `nfrog=24`, `dt=0.00015`
+      the first short-tune winner is currently `shell1_mass=8`, `shell2_mass=4`, `nfrog=12`, `dt=0.0003`
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
   - that unified `report.md` now begins with `## Current Representative Stage Per Case`
     before the full historical stage table

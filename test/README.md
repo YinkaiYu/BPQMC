@@ -141,4 +141,6 @@ The immediate next production rungs are:
 - `L=6, Nbos=1e4, U2=300`, `mass=16`, `uniform_mass=1`, `28 x 0.0005`, stage launched after the conservative retune
 - `L=6, Nbos=1e4, U2=1000` is the current blocker:
   the old scalar/uniform-only `20 x 0.0004` reference stage is now `strong_drift`,
-  and the active replacement path is the new `shell1_mass` preconditioner
+  shell1-only `mk=4` and `mk=8` completed stages are also now `strong_drift`,
+  and the active replacement path is the wider `shell2_mass` split;
+  the first short-tune winner there is `mk1=8`, `mk2=4`, `12 x 0.0003`
