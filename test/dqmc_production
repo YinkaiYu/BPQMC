@@ -44,6 +44,8 @@ HMC_NFROG="${HMC_NFROG:-12}"
 HMC_DT="${HMC_DT:-0.004}"
 HMC_JITTER="${HMC_JITTER:-0}"
 HMC_MASS="${HMC_MASS:-1.0}"
+HMC_MASS_SPATIAL_UNIFORM="${HMC_MASS_SPATIAL_UNIFORM:-0.0}"
+HMC_MASS_SPATIAL_SHELL1="${HMC_MASS_SPATIAL_SHELL1:-0.0}"
 STAGE_LABEL="${STAGE_LABEL:-triangular_prod_stage}"
 TRACE_WINDOW_FRAC="${TRACE_WINDOW_FRAC:-0.25}"
 TRACE_MIN_WINDOW="${TRACE_MIN_WINDOW:-16}"
@@ -82,7 +84,9 @@ case "$PROD_COMMAND" in
       --grid "$GRID" \
       --repeats "$REPEATS" \
       --hmc-jitter "$HMC_JITTER" \
-      --hmc-mass "$HMC_MASS"
+      --hmc-mass "$HMC_MASS" \
+      --hmc-mass-spatial-uniform "$HMC_MASS_SPATIAL_UNIFORM" \
+      --hmc-mass-spatial-shell1 "$HMC_MASS_SPATIAL_SHELL1"
     ;;
   collect-tune)
     "$PYTHON" production_hmc.py collect-tune \
@@ -90,7 +94,9 @@ case "$PROD_COMMAND" in
       --grid "$GRID" \
       --repeats "$REPEATS" \
       --hmc-jitter "$HMC_JITTER" \
-      --hmc-mass "$HMC_MASS"
+      --hmc-mass "$HMC_MASS" \
+      --hmc-mass-spatial-uniform "$HMC_MASS_SPATIAL_UNIFORM" \
+      --hmc-mass-spatial-shell1 "$HMC_MASS_SPATIAL_SHELL1"
     ;;
   benchmark)
     "$PYTHON" production_hmc.py benchmark \
@@ -100,7 +106,9 @@ case "$PROD_COMMAND" in
       --hmc-nfrog "$HMC_NFROG" \
       --hmc-dt "$HMC_DT" \
       --hmc-jitter "$HMC_JITTER" \
-      --hmc-mass "$HMC_MASS"
+      --hmc-mass "$HMC_MASS" \
+      --hmc-mass-spatial-uniform "$HMC_MASS_SPATIAL_UNIFORM" \
+      --hmc-mass-spatial-shell1 "$HMC_MASS_SPATIAL_SHELL1"
     ;;
   stage)
     "$PYTHON" production_hmc.py stage \
@@ -112,6 +120,8 @@ case "$PROD_COMMAND" in
       --hmc-dt "$HMC_DT" \
       --hmc-jitter "$HMC_JITTER" \
       --hmc-mass "$HMC_MASS" \
+      --hmc-mass-spatial-uniform "$HMC_MASS_SPATIAL_UNIFORM" \
+      --hmc-mass-spatial-shell1 "$HMC_MASS_SPATIAL_SHELL1" \
       --trace-window-frac "$TRACE_WINDOW_FRAC" \
       --trace-min-window "$TRACE_MIN_WINDOW" \
       --stable-drift-ratio "$STABLE_DRIFT_RATIO" \
@@ -127,6 +137,8 @@ case "$PROD_COMMAND" in
       --hmc-dt "$HMC_DT" \
       --hmc-jitter "$HMC_JITTER" \
       --hmc-mass "$HMC_MASS" \
+      --hmc-mass-spatial-uniform "$HMC_MASS_SPATIAL_UNIFORM" \
+      --hmc-mass-spatial-shell1 "$HMC_MASS_SPATIAL_SHELL1" \
       --trace-window-frac "$TRACE_WINDOW_FRAC" \
       --trace-min-window "$TRACE_MIN_WINDOW" \
       --stable-drift-ratio "$STABLE_DRIFT_RATIO" \

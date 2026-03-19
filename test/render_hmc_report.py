@@ -169,13 +169,26 @@ def save_tune_summary(summary: dict, out_dir: Path) -> None:
     lines = ["# HMC Tune Report", ""]
     for case in summary["cases"]:
         rows = case["rows"]
-        rows = sorted(rows, key=lambda row: (row["hmc_mass"], row.get("hmc_mass_spatial_uniform", 0.0), row["nfrog"] * row["hmc_dt"]))
+        rows = sorted(
+            rows,
+            key=lambda row: (
+                row["hmc_mass"],
+                row.get("hmc_mass_spatial_uniform", 0.0),
+                row.get("hmc_mass_spatial_shell1", 0.0),
+                row["nfrog"] * row["hmc_dt"],
+            ),
+        )
         traj = [row["nfrog"] * row["hmc_dt"] for row in rows]
         acc = [row["acceptance_mean"] for row in rows]
         tau = [row["tau_int_doubleOcc_mean"] for row in rows]
         ess = [row["ess_per_sec_doubleOcc_mean"] for row in rows]
         labels = [
-            f"{int(row['nfrog'])}x{row['hmc_dt']:g}\nm={row['hmc_mass']:g}\nmu={row.get('hmc_mass_spatial_uniform', 0.0):g}"
+            (
+                f"{int(row['nfrog'])}x{row['hmc_dt']:g}\n"
+                f"m={row['hmc_mass']:g}\n"
+                f"mu={row.get('hmc_mass_spatial_uniform', 0.0):g}\n"
+                f"mk={row.get('hmc_mass_spatial_shell1', 0.0):g}"
+            )
             for row in rows
         ]
 
@@ -215,6 +228,7 @@ def save_tune_summary(summary: dict, out_dir: Path) -> None:
                 "- `jitter={}`".format(int(rec["hmc_jitter"])),
                 "- `mass={}`".format(rec["hmc_mass"]),
                 "- `uniform_mass={}`".format(rec.get("hmc_mass_spatial_uniform", 0.0)),
+                "- `shell1_mass={}`".format(rec.get("hmc_mass_spatial_shell1", 0.0)),
                 "- `acceptance={:.3f} ± {:.3f}`".format(rec["acceptance_mean"], rec["acceptance_stderr"]),
                 "- `tau_int(doubleOcc)={:.3f} ± {:.3f}`".format(rec["tau_int_doubleOcc_mean"], rec["tau_int_doubleOcc_stderr"]),
                 "- `ESS/sec={:.3f} ± {:.3f}`".format(rec["ess_per_sec_doubleOcc_mean"], rec["ess_per_sec_doubleOcc_stderr"]),
@@ -346,15 +360,16 @@ def write_stage_markdown(summary: dict, case_rows: list[dict[str, str]], trace_f
         "- `strong_drift`: gate observables still drift strongly or different repeats settle onto clearly different retained windows",
         "- `stuck_or_invalid`: acceptance or ESS indicates that at least one repeat is effectively unusable",
         "",
-        "| Case | mass | m_uniform | Acceptance | tau_int(doubleOcc) | ESS/sec | squareOcc drift/span | IPR drift/span | Status |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        "| Case | mass | m_uniform | m_shell1 | Acceptance | tau_int(doubleOcc) | ESS/sec | squareOcc drift/span | IPR drift/span | Status |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in case_rows:
         lines.append(
-            "| {name} | {mass:.6g} | {uniform:.6g} | {accept:.3f} | {tau:.3f} | {ess:.3f} | {sq:.3f} | {ipr:.3f} | {status} |".format(
+            "| {name} | {mass:.6g} | {uniform:.6g} | {shell1:.6g} | {accept:.3f} | {tau:.3f} | {ess:.3f} | {sq:.3f} | {ipr:.3f} | {status} |".format(
                 name=row["name"],
                 mass=float(row["hmc_mass"]),
                 uniform=float(row.get("hmc_mass_spatial_uniform", 0.0)),
+                shell1=float(row.get("hmc_mass_spatial_shell1", 0.0)),
                 accept=float(row["acceptance_mean"]),
                 tau=float(row["tau_int_doubleOcc_mean"]),
                 ess=float(row["ess_per_sec_doubleOcc_mean"]),
