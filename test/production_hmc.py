@@ -259,13 +259,16 @@ def summarize_stage_observables(
 ) -> list[dict[str, float | int | str]]:
     rows: list[dict[str, float | int | str]] = []
     for observable, obs_rows in repeat_observables.items():
+        mean_values = [float(row["mean"]) for row in obs_rows]
+        span_values = [float(row["span"]) for row in obs_rows]
+        span_scale = max(series_mean(span_values), 1.0e-12 * max(1.0, abs(series_mean(mean_values))))
         rows.append(
             {
                 "name": case_name,
                 "observable": observable,
                 "repeats": len(obs_rows),
-                "mean": series_mean([float(row["mean"]) for row in obs_rows]),
-                "stderr": sample_stderr([float(row["mean"]) for row in obs_rows]),
+                "mean": series_mean(mean_values),
+                "stderr": sample_stderr(mean_values),
                 "start_mean": series_mean([float(row["start_mean"]) for row in obs_rows]),
                 "start_mean_stderr": sample_stderr([float(row["start_mean"]) for row in obs_rows]),
                 "end_mean": series_mean([float(row["end_mean"]) for row in obs_rows]),
@@ -276,6 +279,8 @@ def summarize_stage_observables(
                 "span_stderr": sample_stderr([float(row["span"]) for row in obs_rows]),
                 "drift_over_span_mean": series_mean([float(row["drift_over_span"]) for row in obs_rows]),
                 "drift_over_span_max": max(float(row["drift_over_span"]) for row in obs_rows),
+                "repeat_mean_span": max(mean_values) - min(mean_values),
+                "repeat_mean_span_over_span": (max(mean_values) - min(mean_values)) / span_scale,
                 "n_samples_mean": series_mean([float(row["n_samples"]) for row in obs_rows]),
             }
         )
@@ -297,11 +302,20 @@ def classify_stage_case(
         return "insufficient_gate_data", "Missing squareOcc/IPR traces."
     worst_mean_ratio = max(float(row["drift_over_span_mean"]) for row in gate_rows)
     worst_repeat_ratio = max(float(row["drift_over_span_max"]) for row in gate_rows)
-    if worst_mean_ratio <= stable_ratio and worst_repeat_ratio <= stable_ratio:
-        return "stable_window", "squareOcc/IPR drift is small both on average and in the worst repeat."
-    if worst_mean_ratio <= warning_ratio and worst_repeat_ratio <= warning_ratio:
-        return "slow_drift", "squareOcc/IPR is improving but at least one repeat still shows a visible residual drift."
-    return "strong_drift", "squareOcc/IPR still drifts strongly in at least one retained repeat window."
+    cross_repeat_ratio = max(float(row["repeat_mean_span_over_span"]) for row in gate_rows)
+    if (
+        worst_mean_ratio <= stable_ratio
+        and worst_repeat_ratio <= stable_ratio
+        and cross_repeat_ratio <= stable_ratio
+    ):
+        return "stable_window", "squareOcc/IPR drift is small and the retained repeat means agree."
+    if (
+        worst_mean_ratio <= warning_ratio
+        and worst_repeat_ratio <= warning_ratio
+        and cross_repeat_ratio <= warning_ratio
+    ):
+        return "slow_drift", "squareOcc/IPR is improving but at least one repeat still shows residual drift or plateau mismatch."
+    return "strong_drift", "squareOcc/IPR still drifts strongly or different repeats settle onto clearly different retained windows."
 
 
 def collect_stage_case(
@@ -348,10 +362,15 @@ def collect_stage_case(
             )
             run_case(run_dir, np_ranks=args.np)
         elif not run_dir.exists():
-            raise FileNotFoundError(f"Missing run directory for collect mode: {run_dir}")
+            print("    [skip] missing run directory", flush=True)
+            continue
 
-        info = parse_info_metrics(run_dir)
-        perf_stats = summarize_perf(run_dir, cfg.nthermal)
+        try:
+            info = parse_info_metrics(run_dir)
+            perf_stats = summarize_perf(run_dir, cfg.nthermal)
+        except (FileNotFoundError, KeyError, ValueError) as exc:
+            print(f"    [skip] incomplete run: {exc}", flush=True)
+            continue
         repeat_row = {
             "name": cfg.name,
             "repeat": repeat,
@@ -395,6 +414,9 @@ def collect_stage_case(
                     }
                 )
 
+    if not repeat_rows:
+        raise FileNotFoundError(f"No completed stage repeats found for case: {cfg.name}")
+
     observable_rows = summarize_stage_observables(cfg.name, repeat_observables)
     acceptance_values = [float(row["acceptance"]) for row in repeat_rows]
     tau_values = [float(row["tau_int_doubleOcc"]) for row in repeat_rows]
@@ -424,7 +446,9 @@ def collect_stage_case(
         "hmc_dt": hmc_dt,
         "hmc_jitter": jitter,
         "hmc_mass": hmc_mass,
-        "repeats": args.repeats,
+        "repeats": len(repeat_rows),
+        "requested_repeats": args.repeats,
+        "missing_repeats": max(args.repeats - len(repeat_rows), 0),
         "acceptance_mean": series_mean(acceptance_values),
         "acceptance_stderr": sample_stderr(acceptance_values),
         "tau_int_doubleOcc_mean": series_mean(tau_values),
@@ -436,8 +460,10 @@ def collect_stage_case(
         "stuck_repeats": stuck_repeats,
         "squareOcc_drift_ratio": float(gate_summary.get("squareOcc", {}).get("drift_over_span_mean", 0.0)),
         "squareOcc_drift_ratio_max": float(gate_summary.get("squareOcc", {}).get("drift_over_span_max", 0.0)),
+        "squareOcc_repeat_span_ratio": float(gate_summary.get("squareOcc", {}).get("repeat_mean_span_over_span", 0.0)),
         "IPR_drift_ratio": float(gate_summary.get("IPR", {}).get("drift_over_span_mean", 0.0)),
         "IPR_drift_ratio_max": float(gate_summary.get("IPR", {}).get("drift_over_span_max", 0.0)),
+        "IPR_repeat_span_ratio": float(gate_summary.get("IPR", {}).get("repeat_mean_span_over_span", 0.0)),
         "status": status,
         "status_detail": status_detail,
     }
@@ -445,6 +471,8 @@ def collect_stage_case(
         "name": cfg.name,
         "config": asdict(cfg),
         "hmc": {"nfrog": nfrog, "hmc_dt": hmc_dt, "hmc_jitter": jitter, "hmc_mass": hmc_mass},
+        "requested_repeats": args.repeats,
+        "missing_repeats": max(args.repeats - len(repeat_rows), 0),
         "repeat_runs": repeat_rows,
         "observables": observable_rows,
         "status": status,
@@ -818,11 +846,11 @@ def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
         cases.append(case_summary)
         case_rows.extend(case_row_list)
         observable_rows.extend(case_obs_rows)
-        split_index = args.repeats
+        split_index = len(case_summary["repeat_runs"])
         run_rows.extend(row_bundle[:split_index])
         sample_rows.extend(row_bundle[split_index:])
 
-    overall_status = "healthy" if all(case["status"] == "stable_window" for case in cases) else "needs_review"
+    overall_status = "healthy" if all(case["status"] == "stable_window" and int(case.get("missing_repeats", 0)) == 0 for case in cases) else "needs_review"
     summary = {
         "mode": "stage",
         "stage_label": args.stage_label,
@@ -860,6 +888,8 @@ def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "hmc_jitter",
             "hmc_mass",
             "repeats",
+            "requested_repeats",
+            "missing_repeats",
             "acceptance_mean",
             "acceptance_stderr",
             "tau_int_doubleOcc_mean",
@@ -871,8 +901,10 @@ def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "stuck_repeats",
             "squareOcc_drift_ratio",
             "squareOcc_drift_ratio_max",
+            "squareOcc_repeat_span_ratio",
             "IPR_drift_ratio",
             "IPR_drift_ratio_max",
+            "IPR_repeat_span_ratio",
             "status",
             "status_detail",
         ],
@@ -896,6 +928,8 @@ def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "span_stderr",
             "drift_over_span_mean",
             "drift_over_span_max",
+            "repeat_mean_span",
+            "repeat_mean_span_over_span",
             "n_samples_mean",
         ],
     )

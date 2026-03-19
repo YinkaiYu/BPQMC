@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 
 TRACE_OBSERVABLES = ("squareOcc", "IPR", "doubleOcc", "nearestOcc")
 TREND_OBSERVABLES = ("squareOcc", "IPR")
+GATE_OBSERVABLES = ("squareOcc", "IPR")
 
 
 def scan_summaries(root: Path) -> tuple[list[Path], list[Path]]:
@@ -48,6 +49,7 @@ def load_stage_rows(stage_jsons: list[Path]) -> tuple[list[dict[str, object]], l
         case_key = case["name"]
         beta = float(cfg["beta"])
         dtau = float(cfg["beta"]) / float(cfg["ltrot"])
+        gate_rows = [obs for obs in case["observables"] if obs["observable"] in GATE_OBSERVABLES]
         trace_counts: dict[int, int] = defaultdict(int)
         post_counts: dict[int, int] = defaultdict(int)
         if samples_path.exists():
@@ -95,9 +97,14 @@ def load_stage_rows(stage_jsons: list[Path]) -> tuple[list[dict[str, object]], l
                 "nfrog": case["hmc"]["nfrog"],
                 "hmc_dt": case["hmc"]["hmc_dt"],
                 "hmc_mass": case["hmc"]["hmc_mass"],
+                "completed_repeats": len(case["repeat_runs"]),
+                "requested_repeats": int(case.get("requested_repeats", len(case["repeat_runs"]))),
+                "missing_repeats": int(case.get("missing_repeats", 0)),
                 "trace_samples_mean": (sum(trace_count_values) / len(trace_count_values)) if trace_count_values else 0.0,
                 "post_thermal_samples_mean": (sum(post_count_values) / len(post_count_values)) if post_count_values else 0.0,
                 "trace_samples_max": max(trace_count_values) if trace_count_values else 0,
+                "gate_drift_ratio_max": max(float(obs.get("drift_over_span_max", 0.0)) for obs in gate_rows) if gate_rows else 0.0,
+                "gate_repeat_span_ratio": max(float(obs.get("repeat_mean_span_over_span", 0.0)) for obs in gate_rows) if gate_rows else 0.0,
                 "acceptance_mean": sum(float(item["acceptance"]) for item in case["repeat_runs"]) / len(case["repeat_runs"]),
                 "tau_int_doubleOcc_mean": sum(float(item["tau_int_doubleOcc"]) for item in case["repeat_runs"]) / len(case["repeat_runs"]),
                 "ess_per_sec_doubleOcc_mean": sum(float(item["ess_per_sec_doubleOcc"]) for item in case["repeat_runs"]) / len(case["repeat_runs"]),
@@ -300,12 +307,12 @@ def write_report(
         "",
         "## Stage Summary",
         "",
-        "| label | case | beta | dtau | bins | cut | warm | samples/post | nfrog | dt | mass | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        "| label | case | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
+        "| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in sorted(stage_cases, key=lambda item: (str(item["case"]), float(item["beta"]), str(item["label"]))):
         lines.append(
-            "| {label} | {case} | {beta:.6g} | {dtau:.6g} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
+            "| {label} | {case} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
                 **row
             )
         )
@@ -358,14 +365,14 @@ def write_report(
                 "",
                 f"## Case Summary: {case}",
                 "",
-                "| label | beta | dtau | bins | cut | warm | samples/post | nfrog | dt | mass | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
-                "| --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+                "| label | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
+                "| --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
             ]
         )
         case_rows = [row for row in stage_cases if str(row["case"]) == case]
         for row in sorted(case_rows, key=lambda item: (float(item["beta"]), str(item["label"]))):
             lines.append(
-                "| {label} | {beta:.6g} | {dtau:.6g} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
+                "| {label} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
                     **row
                 )
             )
@@ -429,9 +436,14 @@ def main() -> int:
             "nfrog",
             "hmc_dt",
             "hmc_mass",
+            "completed_repeats",
+            "requested_repeats",
+            "missing_repeats",
             "trace_samples_mean",
             "post_thermal_samples_mean",
             "trace_samples_max",
+            "gate_drift_ratio_max",
+            "gate_repeat_span_ratio",
             "acceptance_mean",
             "tau_int_doubleOcc_mean",
             "ess_per_sec_doubleOcc_mean",
