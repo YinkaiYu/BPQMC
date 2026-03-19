@@ -11,7 +11,15 @@ def load_monitor(path: Path, stage: int) -> list[dict[str, float | int]]:
     for line in path.read_text(encoding="ascii").splitlines():
         if not line or line.startswith("#"):
             continue
-        step, row_stage, accepted, nsteps, delta_h, action, phi_f1, phi_f2, phi_rms_f1, phi_rms_f2 = line.split()
+        parts = line.split()
+        if len(parts) == 10:
+            step, row_stage, accepted, nsteps, delta_h, action, phi_f1, phi_f2, phi_rms_f1, phi_rms_f2 = parts
+            phi_mean_f1 = 0.0
+            phi_mean_f2 = 0.0
+        elif len(parts) == 12:
+            step, row_stage, accepted, nsteps, delta_h, action, phi_f1, phi_f2, phi_mean_f1, phi_mean_f2, phi_rms_f1, phi_rms_f2 = parts
+        else:
+            raise SystemExit(f"Unexpected column count in {path}: {line}")
         if int(row_stage) != stage:
             continue
         rows.append(
@@ -23,6 +31,8 @@ def load_monitor(path: Path, stage: int) -> list[dict[str, float | int]]:
                 "action": float(action),
                 "phi_f1": float(phi_f1),
                 "phi_f2": float(phi_f2),
+                "phi_mean_f1": float(phi_mean_f1),
+                "phi_mean_f2": float(phi_mean_f2),
                 "phi_rms_f1": float(phi_rms_f1),
                 "phi_rms_f2": float(phi_rms_f2),
             }
@@ -63,7 +73,11 @@ def main() -> int:
     parser.add_argument("monitor", type=Path, help="Path to hmc_monitor.dat")
     parser.add_argument("--dt", type=float, required=True, help="Leapfrog step size used in the run.")
     parser.add_argument("--stage", type=int, default=1, help="Stage to analyze: 0=warm, 1=measurement.")
-    parser.add_argument("--series", choices=("phi_f1", "phi_f2", "phi_rms_f1", "phi_rms_f2", "action"), default="phi_f2")
+    parser.add_argument(
+        "--series",
+        choices=("phi_f1", "phi_f2", "phi_mean_f1", "phi_mean_f2", "phi_rms_f1", "phi_rms_f2", "action"),
+        default="phi_f2",
+    )
     parser.add_argument("--top-k", type=int, default=5, help="Number of FFT peaks to print.")
     args = parser.parse_args()
 

@@ -6,7 +6,7 @@ import math
 from pathlib import Path
 
 
-TRACE_KEYS = (
+TRACE_KEYS_OLD = (
     "proposal",
     "stage",
     "lf_step",
@@ -23,6 +23,25 @@ TRACE_KEYS = (
     "phi_rms_f2",
 )
 
+TRACE_KEYS_NEW = (
+    "proposal",
+    "stage",
+    "lf_step",
+    "nsteps",
+    "md_time",
+    "action",
+    "phi_f1",
+    "phi_f2",
+    "phi_mean_f1",
+    "phi_mean_f2",
+    "mom_f1",
+    "mom_f2",
+    "force_f1",
+    "force_f2",
+    "phi_rms_f1",
+    "phi_rms_f2",
+)
+
 
 def load_trace(path: Path) -> list[dict[str, float | int]]:
     rows: list[dict[str, float | int]] = []
@@ -30,14 +49,21 @@ def load_trace(path: Path) -> list[dict[str, float | int]]:
         if not line or line.startswith("#"):
             continue
         parts = line.split()
-        if len(parts) != len(TRACE_KEYS):
+        if len(parts) == len(TRACE_KEYS_OLD):
+            trace_keys = TRACE_KEYS_OLD
+        elif len(parts) == len(TRACE_KEYS_NEW):
+            trace_keys = TRACE_KEYS_NEW
+        else:
             raise SystemExit(f"Unexpected column count in {path}: {line}")
         row: dict[str, float | int] = {}
-        for key, value in zip(TRACE_KEYS, parts):
+        for key, value in zip(trace_keys, parts):
             if key in {"proposal", "stage", "lf_step", "nsteps"}:
                 row[key] = int(value)
             else:
                 row[key] = float(value)
+        if "phi_mean_f1" not in row:
+            row["phi_mean_f1"] = 0.0
+            row["phi_mean_f2"] = 0.0
         rows.append(row)
     return rows
 
@@ -117,7 +143,11 @@ def linear_fit(xs: list[float], ys: list[float]) -> tuple[float, float] | None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Analyze a trajectory-level HMC trace.")
     parser.add_argument("trace", type=Path, help="Path to hmc_trace.dat")
-    parser.add_argument("--series", choices=("phi_f1", "phi_f2", "mom_f1", "mom_f2", "force_f1", "force_f2"), default="phi_f2")
+    parser.add_argument(
+        "--series",
+        choices=("phi_f1", "phi_f2", "phi_mean_f1", "phi_mean_f2", "mom_f1", "mom_f2", "force_f1", "force_f2"),
+        default="phi_f2",
+    )
     parser.add_argument("--stage", type=int, default=None, help="Optional stage filter: 0=warm, 1=measurement.")
     parser.add_argument("--proposal", type=int, default=None, help="Proposal index to analyze. Defaults to the first matching proposal.")
     parser.add_argument("--top-k", type=int, default=5, help="Number of FFT peaks to print.")
