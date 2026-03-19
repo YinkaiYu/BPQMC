@@ -172,6 +172,7 @@ cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
 Key subcommands:
 
 - `tune`: short HMC grid scans
+- `collect-tune`: rebuild tune summaries from finished or partially finished `runs/`
 - `stage`: long HMC-only runs with thermalization traces
 - `collect`: rebuild stage summaries from finished `runs/`
 - `report`: render Markdown + PNG summaries
@@ -209,9 +210,9 @@ cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
   --u2-values 1 \
   --beta 32 \
   --dtau 0.01 \
-  --bins 256 \
-  --thermal-cut 128 \
-  --warm 128 \
+  --bins 1024 \
+  --thermal-cut 512 \
+  --warm 512 \
   --repeats 3 \
   --hmc-nfrog 12 \
   --hmc-dt 0.015 \
@@ -232,9 +233,9 @@ cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
   --u2-values 1 \
   --beta 32 \
   --dtau 0.01 \
-  --bins 256 \
-  --thermal-cut 128 \
-  --warm 128 \
+  --bins 1024 \
+  --thermal-cut 512 \
+  --warm 512 \
   --repeats 3 \
   --hmc-nfrog 12 \
   --hmc-dt 0.015 \
@@ -242,6 +243,26 @@ cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
   --hmc-mass 4 \
   --stage-label l6_n1e3_u1_beta32_dtau1em2 \
   --work-root data/triangular_hmc_production/l6_n1e3_u1_stage
+```
+
+Rebuild a tune summary from partially completed tune runs:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/production_hmc.py collect-tune \
+  --lattice-type triangular \
+  --l-values 6 \
+  --nbos-values 1000 \
+  --u2-values 1 \
+  --beta 192 \
+  --dtau 0.002 \
+  --bins 64 \
+  --warm 0 \
+  --repeats 2 \
+  --grid '8:0.02,12:0.015,16:0.01' \
+  --hmc-jitter 2 \
+  --hmc-mass 4 \
+  --work-root data/triangular_hmc_production/l6_n1e3_u1_beta192_dtau2em3_tune_m4
 ```
 
 Render the stage report:
@@ -320,6 +341,8 @@ This merged report is the preferred place to inspect:
 - per-case sections that keep different `Nbos` / `U2` scales separate
 - `bins`, `thermal_cut`, `warm`, and `samples/post` coverage, so a short trace cannot
   be mistaken for a deep thermalization run
+- note that the dashed marker in each trace is only the configured `thermal_cut`
+  and the overlaid lines are independent stage runs, not one continued chain
 
 For explicit convergence scans at fixed `beta` or fixed `dtau`, use:
 
@@ -357,6 +380,10 @@ The convergence wrapper now defaults to a less conservative sample count:
 
 The canonical `test/production_hmc.py stage` / `collect` workflow now uses the same
 `1024 / 512 / 512` defaults unless overridden explicitly.
+The SLURM helper `test/dqmc_production` mirrors this split:
+
+- `PROD_COMMAND=tune` / `collect-tune` default to `64 / 32 / 32`
+- `PROD_COMMAND=stage` / `collect` default to `1024 / 512 / 512`
 
 ### Archived Development Tune Scan
 

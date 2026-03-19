@@ -19,6 +19,7 @@ The active task is now production-grade HMC bring-up:
 The active production CLI is `test/production_hmc.py`:
 
 - `tune`: short candidate scans
+- `collect-tune`: rebuild tune summaries from finished or partially finished tune `runs/`
 - `stage`: long HMC-only runs with `squareOcc`/`IPR` traces
 - `collect`: rebuild stage summaries from completed `runs/`
 - `report`: render Markdown + PNG summaries
@@ -40,6 +41,8 @@ The unified entry point for the accumulated production results is now:
   [production_convergence_scan.py](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/production_convergence_scan.py)
 - the overview report now shows `bins`, `thermal_cut`, `warm`, and `samples/post` per stage,
   so late slow-mode drift is easier to spot without opening each rung directory separately
+- in the merged trace panels, the dashed line is only the configured `thermal_cut`, and the
+  overlaid lines are independent stage runs rather than one continued chain
 
 ## Current Stage / Next Stage / Blocker
 
@@ -116,6 +119,9 @@ Current convergence interpretation for the healthy baseline ladder:
   The convenience wrapper now defaults to `bins=1024`, `thermal_cut=512`, `warm=512`.
 - The canonical `test/production_hmc.py stage` / `collect` workflow now uses the same
   `1024 / 512 / 512` defaults unless overridden explicitly.
+- The SLURM helper `test/dqmc_production` mirrors that split:
+  - `PROD_COMMAND=tune` / `collect-tune` default to `64 / 32 / 32`
+  - `PROD_COMMAND=stage` / `collect` default to `1024 / 512 / 512`
 
 ### Healthy reference rung
 
@@ -162,6 +168,11 @@ Interpretation:
 Interpretation:
 
 - The chain is no longer stuck, but this rung has not fully stabilized.
+- The older `thermal_cut=192` setting is visibly too shallow on the `rep0` trace.
+  In the `384`-sample stage, the clear upward drift continues until roughly `sample index 320~350`
+  before the trace approaches the later plateau.
+- This is exactly why the newer long rerun was promoted to `bins=1024`, `thermal_cut=512`, `warm=512`:
+  the short/deeper stages were still underestimating how late the slow mode settles.
 - This is currently the clearest example of a point that likely needs either:
   - longer thermal cut / deeper stage runs
   - better proposal geometry or preconditioning

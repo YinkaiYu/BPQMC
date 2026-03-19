@@ -59,6 +59,7 @@
   - compile after each source-module change
   - run a small smoke test
   - run `test/production_hmc.py tune`
+  - run `test/production_hmc.py collect-tune` if a long tune finishes only partially but its completed `runs/` should already be summarized
   - run `test/production_hmc.py stage` for long HMC-only thermalization traces
   - run `test/production_hmc.py collect` if a finished stage needs its summaries rebuilt from `runs/`
   - run `test/production_hmc.py report` or `test/render_hmc_report.py`
@@ -124,6 +125,7 @@
 
 ## HMC and Triangular Workflow
 - `test/production_hmc.py tune` is the main short-scan entry point for candidate HMC parameters.
+- `test/production_hmc.py collect-tune` rebuilds `production_tune*.json/csv` from completed or partially completed tune `runs/`.
 - `test/production_hmc.py stage` runs HMC-only production stage jobs and stores sample-index traces.
 - `test/production_hmc.py collect` rebuilds `production_stage*.json/csv` from completed `runs/`.
 - `test/production_hmc.py report` renders Markdown + PNG summaries from `production_stage.json`, `production_tune.json`, or the legacy `production_benchmark.json`.
@@ -170,6 +172,7 @@
   tuning heuristics, and production/HPC-oriented lessons.
 - `HMC-REFERENCE.md` should always state the current healthy rung, next rung, and main blocker so the production ramp can resume after context loss.
 - For production data review, prefer `test/render_hmc_production_overview.py` over opening many per-directory reports by hand.
+- In the merged trace plots, the dashed line is only the configured `thermal_cut`, and the overlaid lines are independent stage runs rather than one continued chain.
 - When judging convergence, do not just check whether a deeper rung runs.
   Explicitly inspect whether `squareOcc` and `IPR` stop changing as `beta` increases and as `dtau` decreases.
 - `test/production_convergence_scan.py` is the convenience wrapper for those fixed-`beta` and fixed-`dtau` scans.
@@ -177,6 +180,9 @@
   `bins=1024`, `thermal_cut=512`, `warm=512`.
 - `test/production_hmc.py stage` / `collect` now use the same `1024 / 512 / 512` defaults unless
   overridden explicitly.
+- `test/dqmc_production` mirrors that split:
+  - `PROD_COMMAND=tune` / `collect-tune` default to `64 / 32 / 32`
+  - `PROD_COMMAND=stage` / `collect` default to `1024 / 512 / 512`
 - For current production bring-up, the primary decision is not local-vs-HMC agreement.
   The first question is whether `squareOcc` and `IPR` stabilize across sample index, seeds, and initial-state choices.
 - A current tuning lesson already written into `HMC-REFERENCE.md`:
