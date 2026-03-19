@@ -38,6 +38,7 @@
 - `paramC_sets.txt` may now start with a lattice header: `kagome` or `triangular`.
 - `test/production_hmc.py` is the main driver for production tuning, staged HMC thermalization runs, summary collection, and report rendering.
 - `test/render_hmc_report.py` converts production summary JSON into PNG plots and a Markdown summary.
+- `test/render_hmc_live_progress.py` converts raw in-flight stage traces into PNG plots and a Markdown summary before a repeat has fully finished.
 - `test/hmc_report_template.ipynb` is the notebook entry point for interactive post-processing.
 - `test/archive_small_benchmark/` contains the closed triangular `L=6` local-vs-HMC correctness campaign:
   `small_hmc_benchmark.py`, `render_small_hmc_stage_report.py`, `render_small_hmc_full_grid.py`, and the archived benchmark notebooks.
@@ -164,6 +165,9 @@
   - `report/report.md`
 - `test/hmc_report_template.ipynb` can be pointed at the same JSON for interactive visualization.
   It now supports `stage`, `tune`, and `benchmark` summaries and rewrites `report.md` image paths for notebook display.
+- `test/render_hmc_live_progress.py` writes:
+  - `live_progress/live_trace_*.png`
+  - `live_progress/report.md`
 - `test/archive_small_benchmark/small_hmc_benchmark.py` writes:
   - `small_tune.csv`, `small_tune.json`, `recommended_hmc.json`
   - `small_benchmark_cases.csv`, `small_benchmark_observables.csv`, `small_benchmark_samples.csv`
@@ -191,6 +195,7 @@
 - `HMC-REFERENCE.md` should always state the current healthy rung, next rung, and main blocker so the production ramp can resume after context loss.
 - `PRODUCTION-RAMP.md` should be kept in sync whenever the active next rung or blocker changes.
 - For production data review, prefer `test/render_hmc_production_overview.py` over opening many per-directory reports by hand.
+- The unified `overview/report.md` now also contains a `## Live Progress` section for in-flight large-`U2` stages.
 - In the merged trace plots, the dashed line is only the configured `thermal_cut`, and the overlaid lines are independent stage runs rather than one continued chain.
 - The production stage gate should be interpreted on the worst retained repeat, not only on the mean drift across repeats.
 - The production stage gate should also be read against the cross-repeat retained-window mismatch,

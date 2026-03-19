@@ -17,6 +17,7 @@ These are the files intended for ongoing use:
 - `production_hmc.py`: main production tuning / stage / collect / report driver
 - `render_hmc_report.py`: production report renderer for `tune`, `stage`, and legacy `benchmark` summaries
 - `render_hmc_production_overview.py`: merged renderer for the whole `data/triangular_hmc_production/` tree
+- `render_hmc_live_progress.py`: live renderer for in-flight stage runs whose current repeat has not yet completed
 - `production_convergence_scan.py`: convenience wrapper for fixed-`beta` and fixed-`dtau` stage scans
   - defaults to `bins=1024`, `thermal_cut=512`, `warm=512` for less conservative convergence checks
 - `production_hmc.py stage` and `production_hmc.py collect` now use the same `1024 / 512 / 512`
@@ -94,6 +95,8 @@ For a single merged entry point over all production directories, run:
 The resulting report lives at:
 
 - `data/triangular_hmc_production/overview/report.md`
+- the in-flight large-`U2` live links are now also folded into that same `report.md` under `## Live Progress`
+- the standalone helper page is `data/triangular_hmc_production/overview/high_u2_live_progress.md`
 - the report now includes per-case sections and `samples/post` coverage, so late slow-mode
   drift is easier to diagnose from one entry point
 - the dashed marker in each trace is only the configured `thermal_cut`, and the overlaid
@@ -111,6 +114,10 @@ The default SLURM entry point is `dqmc_production`, which now dispatches by `PRO
 - `PROD_COMMAND=benchmark` is kept only for legacy direct local-vs-HMC comparisons
 - by default it uses `64 / 32 / 32` for `tune` / `collect-tune`
 - by default it uses `1024 / 512 / 512` for `stage` / `collect`
+
+When a stage repeat is still running and `collect` cannot yet summarize it, render a live report with:
+
+- `MPLBACKEND=Agg /home/yyk/conda/envs/notebook/bin/python test/render_hmc_live_progress.py --work-root <stage-root> --thermal-cut <cut>`
 
 For the active workstation ramp, keep the current healthy rung, next rung, and main blocker
 documented in `../HMC-REFERENCE.md`, and keep the actionable ladder in `../PRODUCTION-RAMP.md`,

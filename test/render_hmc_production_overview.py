@@ -440,12 +440,30 @@ def build_case_convergence_rows(
     return out
 
 
+def scan_live_reports(root: Path) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for report_path in sorted(root.glob("*/live_progress/report.md")):
+        stage_root = report_path.parent.parent
+        case_name = stage_root.name
+        pngs = sorted(report_path.parent.glob("live_trace_*.png"))
+        rows.append(
+            {
+                "stage_root": str(stage_root.resolve()),
+                "label": case_name,
+                "report_path": str(report_path.resolve()),
+                "trace_path": str(pngs[0].resolve()) if pngs else "",
+            }
+        )
+    return rows
+
+
 def write_report(
     output_dir: Path,
     stage_cases: list[dict[str, object]],
     stage_obs: list[dict[str, object]],
     tune_recommended: list[dict[str, object]],
     convergence_rows: list[dict[str, object]],
+    live_reports: list[dict[str, str]],
 ) -> None:
     lines = [
         "# HMC Production Overview",
@@ -484,6 +502,22 @@ def write_report(
                 **row
             )
         )
+    if live_reports:
+        lines.extend(
+            [
+                "",
+                "## Live Progress",
+                "",
+                "These links are for in-flight stage runs whose current repeat has not yet finished, so they do not appear in the normal stage summary tables yet.",
+                "",
+                "| label | live report | live trace |",
+                "| --- | --- | --- |",
+            ]
+        )
+        for row in live_reports:
+            report_link = f"[report]({row['report_path']})"
+            trace_link = f"[trace]({row['trace_path']})" if row["trace_path"] else ""
+            lines.append(f"| {row['label']} | {report_link} | {trace_link} |")
     lines.extend(
         [
             "",
@@ -588,6 +622,7 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     stage_jsons, tune_jsons = scan_summaries(root)
+    live_reports = scan_live_reports(root)
     stage_cases, stage_obs, stage_samples = load_stage_rows(stage_jsons)
     representative_stage_obs = select_representative_stage_rows(stage_cases, stage_obs)
     tune_candidates, tune_recommended = load_tune_rows(tune_jsons)
@@ -668,7 +703,7 @@ def main() -> int:
             render_case_relative_trend_plot(representative_stage_obs, case, observable, "dtau", output_dir / f"trend_{case_tag}_{observable}_relative_vs_dtau.png")
         render_trace_plot(stage_samples, case, "squareOcc", output_dir / f"trace_{case_tag}_squareOcc.png")
         render_trace_plot(stage_samples, case, "IPR", output_dir / f"trace_{case_tag}_IPR.png")
-    write_report(output_dir, stage_cases, stage_obs, tune_recommended, convergence_rows)
+    write_report(output_dir, stage_cases, stage_obs, tune_recommended, convergence_rows, live_reports)
     return 0
 
 

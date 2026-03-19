@@ -41,6 +41,7 @@ The default output root for this new workflow should be under:
 The unified entry point for the accumulated production results is now:
 
 - [overview/report.md](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/overview/report.md)
+- the same `report.md` now also contains a `## Live Progress` section for in-flight large-`U2` stages
 - explicit fixed-`beta` or fixed-`dtau` scans can be launched with
   [production_convergence_scan.py](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/production_convergence_scan.py)
 - the overview report now shows `bins`, `thermal_cut`, `warm`, and `samples/post` per stage,
@@ -99,6 +100,21 @@ Current next rung:
       - `Accept_HMC ≈ 0.986 / 0.979`
       - `squareOcc/IPR drift/span max ≈ 0.401`
       - retained repeat-span ratio `≈ 0.055`
+    - deeper live stage:
+      [l6_n1e4_u3e2_beta32_dtau1em2_stage_m16_mu1_nf28_dt5em4_diag2048/live_progress/report.md](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u3e2_beta32_dtau1em2_stage_m16_mu1_nf28_dt5em4_diag2048/live_progress/report.md)
+    - current live reading:
+      - after crossing the retained-window start at sample `1024`, the `squareOcc` blocks are much flatter than in the older `1024/512/512` stage
+      - the active hypothesis is now that this rung may mainly need a deeper warm-up / thermal cut, rather than a completely different geometry
+  - `L=6`, `Nbos=1e4`, `U2=1000`
+    - exploratory tune reports:
+      - [m16 probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_probe/report/report.md)
+      - [m16 aggressive](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_aggressive/report/report.md)
+      - [m32 probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m32_mu1_probe/report/report.md)
+    - current live stage:
+      [l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_nf20_dt4em4_diag1024_probe/live_progress/report.md](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_nf20_dt4em4_diag1024_probe/live_progress/report.md)
+    - current reading:
+      - none of the short scans removes the slow mode yet; all remain at `tau_int(doubleOcc) ~ 25`
+      - the mildly more aggressive `m=16`, `mu=1`, `20 x 0.0004` geometry is still the best short candidate and is now being checked by a real long trace
 
 Current main blocker:
 

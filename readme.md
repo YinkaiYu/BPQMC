@@ -32,6 +32,7 @@ The persistent production checklist now lives in `PRODUCTION-RAMP.md`, while
 `HMC-REFERENCE.md` remains the more detailed running handoff note.
 The single merged entry point for accumulated production results is
 `data/triangular_hmc_production/overview/report.md`.
+That same `report.md` now also carries a `## Live Progress` section for in-flight large-`U2` stages.
 
 Run a triangular-lattice HMC smoke test in a fresh temporary directory:
 
@@ -181,6 +182,8 @@ Key subcommands:
 - `collect`: rebuild stage summaries from finished or partially finished `runs/`
 - `report`: render Markdown + PNG summaries
 - `benchmark`: legacy direct local-vs-HMC comparison, kept only as an archived-style helper
+- `render_hmc_live_progress.py`: render Markdown + PNG traces directly from an in-flight
+  stage `runs/` tree before a repeat has finished
 
 Optional production preconditioning knob:
 
@@ -299,6 +302,16 @@ jupyter notebook hmc_report_template.ipynb
 
 The notebook now understands `stage`, `tune`, and `benchmark` summaries and rewrites
 the image paths from `report.md` so PNG figures display correctly inside the notebook.
+
+If a long stage is still in progress and `collect` cannot yet summarize it, render a live trace report with:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+MPLBACKEND=Agg /home/yyk/conda/envs/notebook/bin/python test/render_hmc_live_progress.py \
+  --work-root data/triangular_hmc_production/l6_n1e4_u3e2_beta32_dtau1em2_stage_m16_mu1_nf28_dt5em4_diag2048 \
+  --thermal-cut 1024 \
+  --output-dir data/triangular_hmc_production/l6_n1e4_u3e2_beta32_dtau1em2_stage_m16_mu1_nf28_dt5em4_diag2048/live_progress
+```
 
 Example: blocker-focused preconditioned probe on `L=6, Nbos=1e4, U2=1`:
 
