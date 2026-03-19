@@ -834,7 +834,7 @@ contains
         HMC_monitor_tau = min(max(HMC_monitor_tau, 1), max(Ltrot, 1))
         HMC_monitor_enabled = .true.
         open(unit=HMC_monitor_unit, file='hmc_monitor.dat', status='replace', action='write')
-        write(HMC_monitor_unit, '(A)') '# step stage accepted nsteps delta_h action phi_f1 phi_f2 phi_rms_f1 phi_rms_f2'
+        write(HMC_monitor_unit, '(A)') '# step stage accepted nsteps delta_h action phi_f1 phi_f2 phi_mean_f1 phi_mean_f2 phi_rms_f1 phi_rms_f2'
         return
     end subroutine HMC_monitor_init
 
@@ -850,16 +850,16 @@ contains
         logical, intent(in) :: accepted
         real(kind=8), intent(in) :: delta_h, action_cur
         integer :: accepted_flag
-        real(kind=8) :: phi_f1, phi_f2, phi_rms_f1, phi_rms_f2
+        real(kind=8) :: phi_f1, phi_f2, phi_mean_f1, phi_mean_f2, phi_rms_f1, phi_rms_f2
 
         if (.not. HMC_monitor_enabled) return
         if (Ltrot <= 0) return
 
         HMC_monitor_count = HMC_monitor_count + 1
         accepted_flag = merge(1, 0, accepted)
-        call HMC_trace_values(Conf%phi_list, phi_f1, phi_f2, phi_rms_f1, phi_rms_f2)
-        write(HMC_monitor_unit, '(I0,1X,I0,1X,I0,1X,I0,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16)') &
-            HMC_monitor_count, stage_id, accepted_flag, nsteps, delta_h, action_cur, phi_f1, phi_f2, phi_rms_f1, phi_rms_f2
+        call HMC_trace_values(Conf%phi_list, phi_f1, phi_f2, phi_mean_f1, phi_mean_f2, phi_rms_f1, phi_rms_f2)
+        write(HMC_monitor_unit, '(I0,1X,I0,1X,I0,1X,I0,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16)') &
+            HMC_monitor_count, stage_id, accepted_flag, nsteps, delta_h, action_cur, phi_f1, phi_f2, phi_mean_f1, phi_mean_f2, phi_rms_f1, phi_rms_f2
         return
     end subroutine HMC_monitor_step
 
@@ -884,7 +884,7 @@ contains
         HMC_monitor_tau = min(max(HMC_monitor_tau, 1), max(Ltrot, 1))
         HMC_trace_enabled = .true.
         open(unit=HMC_trace_unit, file='hmc_trace.dat', status='replace', action='write')
-        write(HMC_trace_unit, '(A)') '# proposal stage lf_step nsteps md_time action phi_f1 phi_f2 mom_f1 mom_f2 force_f1 force_f2 phi_rms_f1 phi_rms_f2'
+        write(HMC_trace_unit, '(A)') '# proposal stage lf_step nsteps md_time action phi_f1 phi_f2 phi_mean_f1 phi_mean_f2 mom_f1 mom_f2 force_f1 force_f2 phi_rms_f1 phi_rms_f2'
         return
     end subroutine HMC_trace_init
 
@@ -916,7 +916,7 @@ contains
         real(kind=8), dimension(Naux, Ndim, Ltrot), intent(in) :: momentum, force
         integer :: ntau_idx
         real(kind=8) :: md_time
-        real(kind=8) :: phi_f1, phi_f2, phi_rms_f1, phi_rms_f2
+        real(kind=8) :: phi_f1, phi_f2, phi_mean_f1, phi_mean_f2, phi_rms_f1, phi_rms_f2
         real(kind=8) :: mom_f1, mom_f2, force_f1, force_f2
 
         if (.not. HMC_trace_enabled) return
@@ -924,7 +924,7 @@ contains
 
         ntau_idx = min(max(HMC_monitor_tau, 1), Ltrot)
         md_time = dble(lf_step) * hmc_dt
-        call HMC_trace_values(Conf%phi_list, phi_f1, phi_f2, phi_rms_f1, phi_rms_f2)
+        call HMC_trace_values(Conf%phi_list, phi_f1, phi_f2, phi_mean_f1, phi_mean_f2, phi_rms_f1, phi_rms_f2)
         mom_f1 = momentum(1, HMC_monitor_site, ntau_idx)
         force_f1 = force(1, HMC_monitor_site, ntau_idx)
         if (Naux >= 2) then
@@ -935,24 +935,27 @@ contains
             force_f2 = 0.d0
         endif
         HMC_trace_count = HMC_trace_count + 1
-        write(HMC_trace_unit, '(I0,1X,I0,1X,I0,1X,I0,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16)') &
-            HMC_trace_proposal, HMC_trace_stage, lf_step, HMC_trace_nsteps, md_time, action_cur, phi_f1, phi_f2, mom_f1, mom_f2, force_f1, force_f2, phi_rms_f1, phi_rms_f2
+        write(HMC_trace_unit, '(I0,1X,I0,1X,I0,1X,I0,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16,1X,ES24.16)') &
+            HMC_trace_proposal, HMC_trace_stage, lf_step, HMC_trace_nsteps, md_time, action_cur, phi_f1, phi_f2, phi_mean_f1, phi_mean_f2, mom_f1, mom_f2, force_f1, force_f2, phi_rms_f1, phi_rms_f2
         return
     end subroutine HMC_trace_step
 
-    subroutine HMC_trace_values(phi_list, phi_f1, phi_f2, phi_rms_f1, phi_rms_f2)
+    subroutine HMC_trace_values(phi_list, phi_f1, phi_f2, phi_mean_f1, phi_mean_f2, phi_rms_f1, phi_rms_f2)
         real(kind=8), dimension(Naux, Ndim, Ltrot), intent(in) :: phi_list
-        real(kind=8), intent(out) :: phi_f1, phi_f2, phi_rms_f1, phi_rms_f2
+        real(kind=8), intent(out) :: phi_f1, phi_f2, phi_mean_f1, phi_mean_f2, phi_rms_f1, phi_rms_f2
         integer :: ntau_idx
 
         ntau_idx = min(max(HMC_monitor_tau, 1), Ltrot)
         phi_f1 = phi_list(1, HMC_monitor_site, ntau_idx)
+        phi_mean_f1 = sum(phi_list(1,:,ntau_idx)) / dble(Ndim)
         phi_rms_f1 = sqrt(sum(phi_list(1,:,:) * phi_list(1,:,:)) / dble(Ndim * Ltrot))
         if (Naux >= 2) then
             phi_f2 = phi_list(2, HMC_monitor_site, ntau_idx)
+            phi_mean_f2 = sum(phi_list(2,:,ntau_idx)) / dble(Ndim)
             phi_rms_f2 = sqrt(sum(phi_list(2,:,:) * phi_list(2,:,:)) / dble(Ndim * Ltrot))
         else
             phi_f2 = 0.d0
+            phi_mean_f2 = 0.d0
             phi_rms_f2 = 0.d0
         endif
         return
