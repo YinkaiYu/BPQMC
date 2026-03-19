@@ -36,6 +36,8 @@ The default output root for this new workflow should be under:
 The unified entry point for the accumulated production results is now:
 
 - [overview/report.md](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/overview/report.md)
+- explicit fixed-`beta` or fixed-`dtau` scans can be launched with
+  [production_convergence_scan.py](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/production_convergence_scan.py)
 
 ## Current Stage / Next Stage / Blocker
 
@@ -108,6 +110,8 @@ Current convergence interpretation for the healthy baseline ladder:
   - if observables stop changing as `beta` increases, do not push to larger `beta` just because it is possible
   - if observables stop changing as `dtau` decreases, do not push to smaller `dtau` just because it is possible
   - otherwise, continue the ladder or run explicit fixed-`beta` / fixed-`dtau` comparison scans
+- For those explicit convergence scans, treat `O(10^3)` post-warm samples as normal rather than exceptional.
+  The convenience wrapper now defaults to `bins=1024`, `thermal_cut=512`, `warm=512`.
 
 ### Healthy reference rung
 

@@ -318,6 +318,40 @@ This merged report is the preferred place to inspect:
 - recommended tune parameters versus rung
 - sample-index traces across different parameter points
 
+For explicit convergence scans at fixed `beta` or fixed `dtau`, use:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/production_convergence_scan.py \
+  --mode beta \
+  --lattice-type triangular \
+  --l-values 6 \
+  --nbos-values 1000 \
+  --u2-values 1 \
+  --dtau 0.01 \
+  --beta-values 32,64,96,128
+```
+
+or
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/production_convergence_scan.py \
+  --mode dtau \
+  --lattice-type triangular \
+  --l-values 6 \
+  --nbos-values 1000 \
+  --u2-values 1 \
+  --beta 128 \
+  --dtau-values 0.01,0.008,0.005,0.004
+```
+
+The convergence wrapper now defaults to a less conservative sample count:
+
+- `bins=1024`
+- `thermal_cut=512`
+- `warm=512`
+
 ### Archived Development Tune Scan
 
 The old development-only tune helper is still available as an archived reference:

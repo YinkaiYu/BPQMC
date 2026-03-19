@@ -170,6 +170,9 @@
 - For production data review, prefer `test/render_hmc_production_overview.py` over opening many per-directory reports by hand.
 - When judging convergence, do not just check whether a deeper rung runs.
   Explicitly inspect whether `squareOcc` and `IPR` stop changing as `beta` increases and as `dtau` decreases.
+- `test/production_convergence_scan.py` is the convenience wrapper for those fixed-`beta` and fixed-`dtau` scans.
+  Its defaults are intentionally less conservative than the quick bring-up stages:
+  `bins=1024`, `thermal_cut=512`, `warm=512`.
 - For current production bring-up, the primary decision is not local-vs-HMC agreement.
   The first question is whether `squareOcc` and `IPR` stabilize across sample index, seeds, and initial-state choices.
 - A current tuning lesson already written into `HMC-REFERENCE.md`:

@@ -15,6 +15,8 @@ These are the files intended for ongoing use:
 - `production_hmc.py`: main production tuning / stage / collect / report driver
 - `render_hmc_report.py`: production report renderer for `tune`, `stage`, and legacy `benchmark` summaries
 - `render_hmc_production_overview.py`: merged renderer for the whole `data/triangular_hmc_production/` tree
+- `production_convergence_scan.py`: convenience wrapper for fixed-`beta` and fixed-`dtau` stage scans
+  - defaults to `bins=1024`, `thermal_cut=512`, `warm=512` for less conservative convergence checks
 - `hmc_report_template.ipynb`: production report notebook template for `stage`, `tune`, and `benchmark` summaries
 - `analyze_hmc_monitor.py`, `analyze_hmc_trace.py`: HMC trajectory diagnostics that may still be useful in production debugging
 
