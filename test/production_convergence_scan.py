@@ -37,6 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hmc-mass", type=float, default=4.0)
     parser.add_argument("--hmc-mass-spatial-uniform", type=float, default=0.0)
     parser.add_argument("--hmc-mass-spatial-shell1", type=float, default=0.0)
+    parser.add_argument("--hmc-mass-spatial-shell2", type=float, default=0.0)
     parser.add_argument("--root", default="data/triangular_hmc_production/convergence")
     parser.add_argument("--binary", default="src/BPQMC.out")
     return parser.parse_args()
@@ -83,6 +84,7 @@ def main() -> int:
             "--hmc-mass", str(args.hmc_mass),
             "--hmc-mass-spatial-uniform", str(args.hmc_mass_spatial_uniform),
             "--hmc-mass-spatial-shell1", str(args.hmc_mass_spatial_shell1),
+            "--hmc-mass-spatial-shell2", str(args.hmc_mass_spatial_shell2),
             "--work-root", str(work_root),
             "--binary", str((repo_root / args.binary).resolve()),
             "--stage-label", label,

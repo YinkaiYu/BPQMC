@@ -124,6 +124,7 @@ def load_stage_rows(stage_jsons: list[Path]) -> tuple[list[dict[str, object]], l
                 "hmc_mass": case["hmc"]["hmc_mass"],
                 "hmc_mass_spatial_uniform": case["hmc"].get("hmc_mass_spatial_uniform", 0.0),
                 "hmc_mass_spatial_shell1": case["hmc"].get("hmc_mass_spatial_shell1", 0.0),
+                "hmc_mass_spatial_shell2": case["hmc"].get("hmc_mass_spatial_shell2", 0.0),
                 "completed_repeats": len(case["repeat_runs"]),
                 "requested_repeats": int(case.get("requested_repeats", len(case["repeat_runs"]))),
                 "missing_repeats": int(case.get("missing_repeats", 0)),
@@ -183,6 +184,7 @@ def load_tune_rows(tune_jsons: list[Path]) -> tuple[list[dict[str, object]], lis
                     "hmc_mass": row["hmc_mass"],
                     "hmc_mass_spatial_uniform": row.get("hmc_mass_spatial_uniform", 0.0),
                     "hmc_mass_spatial_shell1": row.get("hmc_mass_spatial_shell1", 0.0),
+                    "hmc_mass_spatial_shell2": row.get("hmc_mass_spatial_shell2", 0.0),
                     "acceptance_mean": row["acceptance_mean"],
                     "tau_int_doubleOcc_mean": row["tau_int_doubleOcc_mean"],
                     "ess_per_sec_doubleOcc_mean": row["ess_per_sec_doubleOcc_mean"],
@@ -203,6 +205,7 @@ def load_tune_rows(tune_jsons: list[Path]) -> tuple[list[dict[str, object]], lis
                 "hmc_mass": rec["hmc_mass"],
                 "hmc_mass_spatial_uniform": rec.get("hmc_mass_spatial_uniform", 0.0),
                 "hmc_mass_spatial_shell1": rec.get("hmc_mass_spatial_shell1", 0.0),
+                "hmc_mass_spatial_shell2": rec.get("hmc_mass_spatial_shell2", 0.0),
                 "acceptance_mean": rec["acceptance_mean"],
                 "tau_int_doubleOcc_mean": rec["tau_int_doubleOcc_mean"],
                 "ess_per_sec_doubleOcc_mean": rec["ess_per_sec_doubleOcc_mean"],
@@ -605,14 +608,14 @@ def write_report(
         "This table picks one current best/most representative stage for each fixed `(L, Nbos, U2)` case.",
         "The selection prefers healthier retained-window behavior first, then lower cross-repeat mismatch, then deeper retained windows.",
         "",
-        "| case | representative stage | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | m_uniform | m_shell1 | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
-        "| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        "| case | representative stage | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | m_uniform | m_shell1 | m_shell2 | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
+        "| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in select_representative_stage_cases(stage_cases):
         row = dict(row)
         row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]), output_dir)
         lines.append(
-            "| {case} | {label_link} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {hmc_mass_spatial_shell1:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
+            "| {case} | {label_link} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {hmc_mass_spatial_shell1:.6g} | {hmc_mass_spatial_shell2:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
                 **row
             )
         )
@@ -621,15 +624,15 @@ def write_report(
             "",
         "## Stage Summary",
         "",
-        "| label | case | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | m_uniform | m_shell1 | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
-        "| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        "| label | case | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | m_uniform | m_shell1 | m_shell2 | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
+        "| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
         ]
     )
     for row in sorted(stage_cases, key=case_sort_key):
         row = dict(row)
         row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]), output_dir)
         lines.append(
-            "| {label_link} | {case} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {hmc_mass_spatial_shell1:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
+            "| {label_link} | {case} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {hmc_mass_spatial_shell1:.6g} | {hmc_mass_spatial_shell2:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
                 **row
             )
         )
@@ -640,15 +643,15 @@ def write_report(
             "",
             "`viable=0` means every candidate in that tune sweep was flagged as stuck or below the minimum run acceptance.",
             "",
-            "| label | case | beta | dtau | viable | nfrog | dt | mass | m_uniform | m_shell1 | acceptance | tau_int(doubleOcc) | ESS/sec | DeltaH_abs_max |",
-            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+            "| label | case | beta | dtau | viable | nfrog | dt | mass | m_uniform | m_shell1 | m_shell2 | acceptance | tau_int(doubleOcc) | ESS/sec | DeltaH_abs_max |",
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
     for row in sorted(tune_recommended, key=lambda item: (str(item["case"]), float(item["Nbos"]) if "Nbos" in item else 0.0, float(item["U2"]) if "U2" in item else 0.0, float(item["beta"]), str(item["label"]))):
         row = dict(row)
         row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]), output_dir)
         lines.append(
-            "| {label_link} | {case} | {beta:.6g} | {dtau:.6g} | {recommended_viable} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {hmc_mass_spatial_shell1:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {hmc_deltaH_abs_max:.3f} |".format(
+            "| {label_link} | {case} | {beta:.6g} | {dtau:.6g} | {recommended_viable} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {hmc_mass_spatial_shell1:.6g} | {hmc_mass_spatial_shell2:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {hmc_deltaH_abs_max:.3f} |".format(
                 **row
             )
         )
@@ -719,8 +722,8 @@ def write_report(
                 "",
                 f"## Case Summary: {case}",
                 "",
-                "| label | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | m_uniform | m_shell1 | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
-                "| --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+                "| label | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | m_uniform | m_shell1 | m_shell2 | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
+                "| --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
             ]
         )
         case_rows = [row for row in stage_cases if str(row["case"]) == case]
@@ -728,7 +731,7 @@ def write_report(
             row = dict(row)
             row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]), output_dir)
             lines.append(
-                "| {label_link} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {hmc_mass_spatial_shell1:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
+                "| {label_link} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {hmc_mass_spatial_shell1:.6g} | {hmc_mass_spatial_shell2:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
                     **row
                 )
             )
@@ -805,6 +808,7 @@ def main() -> int:
             "hmc_mass",
             "hmc_mass_spatial_uniform",
             "hmc_mass_spatial_shell1",
+            "hmc_mass_spatial_shell2",
             "completed_repeats",
             "requested_repeats",
             "missing_repeats",
@@ -837,12 +841,12 @@ def main() -> int:
     write_csv(
         output_dir / "tune_candidates.csv",
         tune_candidates,
-        ["label", "work_root", "case", "beta", "dtau", "nfrog", "hmc_dt", "hmc_mass", "hmc_mass_spatial_uniform", "hmc_mass_spatial_shell1", "acceptance_mean", "tau_int_doubleOcc_mean", "ess_per_sec_doubleOcc_mean", "hmc_deltaH_abs_max"],
+        ["label", "work_root", "case", "beta", "dtau", "nfrog", "hmc_dt", "hmc_mass", "hmc_mass_spatial_uniform", "hmc_mass_spatial_shell1", "hmc_mass_spatial_shell2", "acceptance_mean", "tau_int_doubleOcc_mean", "ess_per_sec_doubleOcc_mean", "hmc_deltaH_abs_max"],
     )
     write_csv(
         output_dir / "tune_recommended.csv",
         tune_recommended,
-        ["label", "work_root", "case", "beta", "dtau", "recommended_viable", "nfrog", "hmc_dt", "hmc_mass", "hmc_mass_spatial_uniform", "hmc_mass_spatial_shell1", "acceptance_mean", "tau_int_doubleOcc_mean", "ess_per_sec_doubleOcc_mean", "hmc_deltaH_abs_max"],
+        ["label", "work_root", "case", "beta", "dtau", "recommended_viable", "nfrog", "hmc_dt", "hmc_mass", "hmc_mass_spatial_uniform", "hmc_mass_spatial_shell1", "hmc_mass_spatial_shell2", "acceptance_mean", "tau_int_doubleOcc_mean", "ess_per_sec_doubleOcc_mean", "hmc_deltaH_abs_max"],
     )
 
     for observable in TREND_OBSERVABLES:
