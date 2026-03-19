@@ -97,6 +97,8 @@
     - `L=6, Nbos=1e4, U2=100`, `mass=16`, `uniform_mass=1`, `nfrog=20`, `dt=0.001`, current long-stage `rep0` is `stable_window`
     - `L=6, Nbos=1e4, U2=300`, `mass=16`, `uniform_mass=1`, `nfrog=28`, `dt=0.0005`, stage launched after a conservative retune
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
+  - that unified `report.md` now begins with `## Current Representative Stage Per Case`
+    before the full historical stage table
   - the merged report now exposes per-case sections plus `bins`, `thermal_cut`, `warm`, and `samples/post`
     so short traces are easier to separate from genuinely deep thermalization runs
   - the merged report also renders per-case relative-change plots and a representative

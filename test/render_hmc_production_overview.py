@@ -36,6 +36,25 @@ def safe_tag(value: str) -> str:
     return "".join(ch if ch.isalnum() or ch in ("_", "-") else "_" for ch in value)
 
 
+def case_sort_key(row: dict[str, object]) -> tuple[int, float, float, float, str]:
+    return (
+        int(row.get("Lx", 0)),
+        float(row.get("Nbos", 0)),
+        float(row.get("U2", 0)),
+        float(row.get("beta", 0)),
+        str(row.get("label", "")),
+    )
+
+
+def linked_label(work_root: str, label: str) -> str:
+    root = Path(work_root)
+    for rel in ("report/report.md", "live_progress/report.md"):
+        candidate = root / rel
+        if candidate.exists():
+            return f"[{label}]({candidate.resolve()})"
+    return label
+
+
 def load_stage_rows(stage_jsons: list[Path]) -> tuple[list[dict[str, object]], list[dict[str, object]], list[dict[str, object]]]:
     case_rows: list[dict[str, object]] = []
     obs_rows: list[dict[str, object]] = []
@@ -371,6 +390,39 @@ def select_representative_stage_rows(
     return [row for row in stage_obs if str(row["label"]) in keep_labels]
 
 
+def select_representative_stage_cases(stage_cases: list[dict[str, object]]) -> list[dict[str, object]]:
+    best_by_case: dict[str, dict[str, object]] = {}
+    for row in stage_cases:
+        key = str(row["case"])
+        current = best_by_case.get(key)
+        candidate_score = (
+            STATUS_RANK.get(str(row["status"]), 99),
+            int(row["missing_repeats"]),
+            float(row["gate_repeat_span_ratio"]),
+            float(row["gate_drift_ratio_max"]),
+            -float(row["post_thermal_samples_mean"]),
+            -float(row["beta"]),
+            float(row["dtau"]),
+            str(row["label"]),
+        )
+        if current is None:
+            best_by_case[key] = row
+            continue
+        current_score = (
+            STATUS_RANK.get(str(current["status"]), 99),
+            int(current["missing_repeats"]),
+            float(current["gate_repeat_span_ratio"]),
+            float(current["gate_drift_ratio_max"]),
+            -float(current["post_thermal_samples_mean"]),
+            -float(current["beta"]),
+            float(current["dtau"]),
+            str(current["label"]),
+        )
+        if candidate_score < current_score:
+            best_by_case[key] = row
+    return sorted(best_by_case.values(), key=case_sort_key)
+
+
 def build_case_convergence_rows(
     stage_cases: list[dict[str, object]],
     stage_obs: list[dict[str, object]],
@@ -474,14 +526,36 @@ def write_report(
         "The dashed marker in each trace is only the configured `thermal_cut`; it is not an inferred optimal cut.",
         "Each overlaid trace belongs to an independent stage run at the same physics point, not to a single continued Markov chain.",
         "",
+        "## Current Representative Stage Per Case",
+        "",
+        "This table picks one current best/most representative stage for each fixed `(L, Nbos, U2)` case.",
+        "The selection prefers healthier retained-window behavior first, then lower cross-repeat mismatch, then deeper retained windows.",
+        "",
+        "| case | representative stage | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | m_uniform | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
+        "| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+    ]
+    for row in select_representative_stage_cases(stage_cases):
+        row = dict(row)
+        row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]))
+        lines.append(
+            "| {case} | {label_link} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
+                **row
+            )
+        )
+    lines.extend(
+        [
+            "",
         "## Stage Summary",
         "",
         "| label | case | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | m_uniform | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
         "| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
-    ]
-    for row in sorted(stage_cases, key=lambda item: (str(item["case"]), float(item["beta"]), str(item["label"]))):
+        ]
+    )
+    for row in sorted(stage_cases, key=case_sort_key):
+        row = dict(row)
+        row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]))
         lines.append(
-            "| {label} | {case} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
+            "| {label_link} | {case} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
                 **row
             )
         )
@@ -496,9 +570,11 @@ def write_report(
             "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
-    for row in sorted(tune_recommended, key=lambda item: (str(item["case"]), float(item["beta"]), str(item["label"]))):
+    for row in sorted(tune_recommended, key=lambda item: (str(item["case"]), float(item["Nbos"]) if "Nbos" in item else 0.0, float(item["U2"]) if "U2" in item else 0.0, float(item["beta"]), str(item["label"]))):
+        row = dict(row)
+        row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]))
         lines.append(
-            "| {label} | {case} | {beta:.6g} | {dtau:.6g} | {recommended_viable} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {hmc_deltaH_abs_max:.3f} |".format(
+            "| {label_link} | {case} | {beta:.6g} | {dtau:.6g} | {recommended_viable} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {hmc_deltaH_abs_max:.3f} |".format(
                 **row
             )
         )
@@ -571,9 +647,11 @@ def write_report(
             ]
         )
         case_rows = [row for row in stage_cases if str(row["case"]) == case]
-        for row in sorted(case_rows, key=lambda item: (float(item["beta"]), str(item["label"]))):
+        for row in sorted(case_rows, key=lambda item: (float(item["beta"]), float(item["dtau"]), str(item["label"]))):
+            row = dict(row)
+            row["label_link"] = linked_label(str(row["work_root"]), str(row["label"]))
             lines.append(
-                "| {label} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
+                "| {label_link} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
                     **row
                 )
             )

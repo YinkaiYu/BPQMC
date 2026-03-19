@@ -41,6 +41,8 @@ The default output root for this new workflow should be under:
 The unified entry point for the accumulated production results is now:
 
 - [overview/report.md](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/overview/report.md)
+- the same `report.md` now starts with `## Current Representative Stage Per Case`,
+  so one current retained-window result per fixed `(L, Nbos, U2)` can be reviewed first
 - the same `report.md` now also contains a `## Live Progress` section for in-flight large-`U2` stages
 - explicit fixed-`beta` or fixed-`dtau` scans can be launched with
   [production_convergence_scan.py](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/production_convergence_scan.py)

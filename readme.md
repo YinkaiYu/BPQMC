@@ -32,7 +32,9 @@ The persistent production checklist now lives in `PRODUCTION-RAMP.md`, while
 `HMC-REFERENCE.md` remains the more detailed running handoff note.
 The single merged entry point for accumulated production results is
 `data/triangular_hmc_production/overview/report.md`.
-That same `report.md` now also carries a `## Live Progress` section for in-flight large-`U2` stages.
+That same `report.md` now also carries a `## Current Representative Stage Per Case`
+section for the current best retained-window stage at each fixed `(L, Nbos, U2)`,
+plus a `## Live Progress` section for in-flight large-`U2` stages.
 
 Run a triangular-lattice HMC smoke test in a fresh temporary directory:
 
