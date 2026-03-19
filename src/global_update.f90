@@ -14,7 +14,8 @@ module GlobalUpdate_mod
     private :: HMC_force_prop_L, HMC_set_overlap, HMC_log_overlap_abs2
     private :: HMC_draw_nfrog
     private :: HMC_flavor_active
-    private :: HMC_use_spatial_uniform_mass, HMC_kinetic_energy
+    private :: HMC_use_spatial_uniform_mass, HMC_use_spatial_shell1_mass, HMC_kinetic_energy
+    private :: HMC_shell1_init, HMC_shell1_clear, HMC_project_shell1_modes
     private :: HMC_rng_gaussian, HMC_measure_sweep_L, HMC_measure_sweep_R
     private :: HMC_monitor_init, HMC_monitor_close, HMC_monitor_step
     private :: HMC_trace_init, HMC_trace_close, HMC_trace_begin, HMC_trace_step
@@ -67,6 +68,9 @@ module GlobalUpdate_mod
     integer, save :: HMC_monitor_count = 0
     integer, save :: HMC_monitor_site = 1
     integer, save :: HMC_monitor_tau = 1
+    integer, parameter :: HMC_shell1_max_modes = 6
+    integer, save :: HMC_shell1_nmode = 0
+    real(kind=8), allocatable, save :: HMC_shell1_basis(:,:)
     logical, save :: HMC_trace_enabled = .false.
     integer, parameter :: HMC_trace_unit = 87
     integer, save :: HMC_trace_count = 0
@@ -110,6 +114,7 @@ contains
         call Acc_HMC_warm%init()
         call this%reset_diag()
         call HMC_read_env_int("BPQMC_HMC_DEBUG_MEASURE", HMC_debug_measure)
+        call HMC_shell1_init()
         call HMC_monitor_init()
         call HMC_trace_init()
         return
@@ -123,6 +128,7 @@ contains
             if (allocated(Obs_tau_hmc)) deallocate(Obs_tau_hmc)
             call Dyn%clear()
         endif
+        call HMC_shell1_clear()
         call HMC_trace_close()
         call HMC_monitor_close()
         deallocate(this%prop_work)
@@ -319,11 +325,13 @@ contains
     subroutine Global_sample_momentum(this, iseed)
         class(GlobalUpdate), intent(inout) :: this
         integer, intent(inout) :: iseed
-        integer :: nt, ii, nf, nsite_active
-        real(kind=8) :: sigma_p, sigma_uniform, mean_p
+        integer :: nt, ii, nf, nsite_active, imode
+        real(kind=8) :: sigma_p, sigma_uniform, sigma_shell1, sigma_uniform_eff, mean_p, shell_part
+        real(kind=8) :: shell_coeff(HMC_shell1_max_modes)
 
         sigma_p = sqrt(hmc_mass)
         sigma_uniform = sqrt(hmc_mass_spatial_uniform)
+        sigma_shell1 = sqrt(hmc_mass_spatial_shell1)
         this%momentum = 0.d0
 
         do nt = this%tau_begin, this%tau_end
@@ -333,7 +341,24 @@ contains
                 do ii = this%ii_begin, this%ii_end
                     this%momentum(nf, ii, nt) = HMC_rng_gaussian(iseed)
                 enddo
-                if (HMC_use_spatial_uniform_mass(this, nsite_active)) then
+                if (HMC_use_spatial_shell1_mass(this, nsite_active)) then
+                    mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
+                    call HMC_project_shell1_modes(this%momentum(nf, this%ii_begin:this%ii_end, nt), shell_coeff)
+                    if (HMC_use_spatial_uniform_mass(this, nsite_active)) then
+                        sigma_uniform_eff = sigma_uniform
+                    else
+                        sigma_uniform_eff = sigma_p
+                    endif
+                    do ii = this%ii_begin, this%ii_end
+                        shell_part = 0.d0
+                        do imode = 1, HMC_shell1_nmode
+                            shell_part = shell_part + shell_coeff(imode) * HMC_shell1_basis(ii, imode)
+                        enddo
+                        this%momentum(nf, ii, nt) = sigma_p * this%momentum(nf, ii, nt) + &
+                            (sigma_uniform_eff - sigma_p) * mean_p + &
+                            (sigma_shell1 - sigma_p) * shell_part
+                    enddo
+                elseif (HMC_use_spatial_uniform_mass(this, nsite_active)) then
                     mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
                     do ii = this%ii_begin, this%ii_end
                         this%momentum(nf, ii, nt) = sigma_uniform * mean_p + &
@@ -362,10 +387,118 @@ contains
         return
     end function HMC_use_spatial_uniform_mass
 
+    subroutine HMC_shell1_init()
+        integer :: iq, ii, ix, iy, imode, nmode
+        integer, dimension(3) :: qx_list, qy_list
+        real(kind=8) :: phase, norm_mode, proj_mode, mean_mode
+        real(kind=8), allocatable :: basis_work(:,:), vec(:)
+
+        call HMC_shell1_clear()
+        if (.not. is_triangular_lattice()) return
+        if (hmc_mass_spatial_shell1 <= 0.d0) return
+        if (.not. allocated(Latt)) return
+        if (Norb /= 1) return
+        if (Ndim <= 1) return
+        if (Nlx <= 1 .or. Nly <= 1) return
+
+        allocate(basis_work(Ndim, HMC_shell1_max_modes))
+        allocate(vec(Ndim))
+        basis_work = 0.d0
+        nmode = 0
+        qx_list = (/ 1, 0, -1 /)
+        qy_list = (/ 0, 1,  1 /)
+
+        do iq = 1, 3
+            vec = 0.d0
+            do ii = 1, Ndim
+                ix = Latt%cell_list(ii, 1) - 1
+                iy = Latt%cell_list(ii, 2) - 1
+                phase = 2.d0 * PI * (dble(qx_list(iq)) * dble(ix) / dble(Nlx) + &
+                                     dble(qy_list(iq)) * dble(iy) / dble(Nly))
+                vec(ii) = cos(phase)
+            enddo
+            mean_mode = sum(vec) / dble(Ndim)
+            vec = vec - mean_mode
+            do imode = 1, nmode
+                proj_mode = sum(vec * basis_work(:, imode))
+                vec = vec - proj_mode * basis_work(:, imode)
+            enddo
+            norm_mode = sqrt(sum(vec * vec))
+            if (norm_mode > Zero .and. nmode < HMC_shell1_max_modes) then
+                nmode = nmode + 1
+                basis_work(:, nmode) = vec / norm_mode
+            endif
+
+            vec = 0.d0
+            do ii = 1, Ndim
+                ix = Latt%cell_list(ii, 1) - 1
+                iy = Latt%cell_list(ii, 2) - 1
+                phase = 2.d0 * PI * (dble(qx_list(iq)) * dble(ix) / dble(Nlx) + &
+                                     dble(qy_list(iq)) * dble(iy) / dble(Nly))
+                vec(ii) = sin(phase)
+            enddo
+            mean_mode = sum(vec) / dble(Ndim)
+            vec = vec - mean_mode
+            do imode = 1, nmode
+                proj_mode = sum(vec * basis_work(:, imode))
+                vec = vec - proj_mode * basis_work(:, imode)
+            enddo
+            norm_mode = sqrt(sum(vec * vec))
+            if (norm_mode > Zero .and. nmode < HMC_shell1_max_modes) then
+                nmode = nmode + 1
+                basis_work(:, nmode) = vec / norm_mode
+            endif
+        enddo
+
+        if (nmode > 0) then
+            allocate(HMC_shell1_basis(Ndim, nmode))
+            HMC_shell1_basis = basis_work(:, 1:nmode)
+            HMC_shell1_nmode = nmode
+        endif
+        deallocate(vec)
+        deallocate(basis_work)
+        return
+    end subroutine HMC_shell1_init
+
+    subroutine HMC_shell1_clear()
+        HMC_shell1_nmode = 0
+        if (allocated(HMC_shell1_basis)) deallocate(HMC_shell1_basis)
+        return
+    end subroutine HMC_shell1_clear
+
+    logical function HMC_use_spatial_shell1_mass(this, nsite_active)
+        class(GlobalUpdate), intent(in) :: this
+        integer, intent(in) :: nsite_active
+
+        HMC_use_spatial_shell1_mass = .false.
+        if (hmc_mass_spatial_shell1 <= 0.d0) return
+        if (abs(hmc_mass_spatial_shell1 - hmc_mass) <= Zero) return
+        if (HMC_shell1_nmode <= 0) return
+        if (this%ii_begin /= 1) return
+        if (this%ii_end /= Ndim) return
+        if (nsite_active /= Ndim) return
+        HMC_use_spatial_shell1_mass = .true.
+        return
+    end function HMC_use_spatial_shell1_mass
+
+    subroutine HMC_project_shell1_modes(vec, coeff)
+        real(kind=8), dimension(:), intent(in) :: vec
+        real(kind=8), dimension(HMC_shell1_max_modes), intent(out) :: coeff
+        integer :: imode
+
+        coeff = 0.d0
+        if (HMC_shell1_nmode <= 0) return
+        do imode = 1, HMC_shell1_nmode
+            coeff(imode) = sum(vec * HMC_shell1_basis(:, imode))
+        enddo
+        return
+    end subroutine HMC_project_shell1_modes
+
     real(kind=8) function HMC_kinetic_energy(this) result(kinetic)
         class(GlobalUpdate), intent(in) :: this
         integer :: nt, nf, nsite_active
-        real(kind=8) :: mean_p, residual_sq
+        real(kind=8) :: mean_p, residual_sq, total_sq, uniform_sq, shell_sq
+        real(kind=8) :: shell_coeff(HMC_shell1_max_modes)
 
         kinetic = 0.d0
         if (this%ii_begin > this%ii_end .or. this%tau_begin > this%tau_end) return
@@ -374,7 +507,21 @@ contains
         do nt = this%tau_begin, this%tau_end
             do nf = 1, Naux
                 if (.not. HMC_flavor_active(nf)) cycle
-                if (HMC_use_spatial_uniform_mass(this, nsite_active)) then
+                if (HMC_use_spatial_shell1_mass(this, nsite_active)) then
+                    mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
+                    call HMC_project_shell1_modes(this%momentum(nf, this%ii_begin:this%ii_end, nt), shell_coeff)
+                    total_sq = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt) ** 2)
+                    uniform_sq = dble(nsite_active) * mean_p * mean_p
+                    shell_sq = sum(shell_coeff(1:HMC_shell1_nmode) ** 2)
+                    residual_sq = max(0.d0, total_sq - uniform_sq - shell_sq)
+                    if (HMC_use_spatial_uniform_mass(this, nsite_active)) then
+                        kinetic = kinetic + 0.5d0 * uniform_sq / hmc_mass_spatial_uniform
+                    else
+                        kinetic = kinetic + 0.5d0 * uniform_sq / hmc_mass
+                    endif
+                    kinetic = kinetic + 0.5d0 * shell_sq / hmc_mass_spatial_shell1
+                    kinetic = kinetic + 0.5d0 * residual_sq / hmc_mass
+                elseif (HMC_use_spatial_uniform_mass(this, nsite_active)) then
                     mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
                     residual_sq = sum((this%momentum(nf, this%ii_begin:this%ii_end, nt) - mean_p) ** 2)
                     kinetic = kinetic + 0.5d0 * dble(nsite_active) * mean_p * mean_p / hmc_mass_spatial_uniform
@@ -391,8 +538,9 @@ contains
         class(GlobalUpdate), intent(inout) :: this
         real(kind=8), intent(out) :: action_new
         integer, intent(in) :: nsteps, stage_id
-        integer :: nlf, nt, ii, nf, nsite_active
-        real(kind=8) :: mean_p
+        integer :: nlf, nt, ii, nf, nsite_active, imode
+        real(kind=8) :: mean_p, shell_part, inv_mass_residual, inv_mass_uniform, inv_mass_shell1
+        real(kind=8) :: shell_coeff(HMC_shell1_max_modes)
 
         if (this%ii_begin <= this%ii_end .and. this%tau_begin <= this%tau_end) then
             do nt = this%tau_begin, this%tau_end
@@ -411,7 +559,27 @@ contains
                 do nt = this%tau_begin, this%tau_end
                     do nf = 1, Naux
                         if (.not. HMC_flavor_active(nf)) cycle
-                        if (HMC_use_spatial_uniform_mass(this, nsite_active)) then
+                        if (HMC_use_spatial_shell1_mass(this, nsite_active)) then
+                            mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
+                            call HMC_project_shell1_modes(this%momentum(nf, this%ii_begin:this%ii_end, nt), shell_coeff)
+                            inv_mass_residual = 1.d0 / hmc_mass
+                            if (HMC_use_spatial_uniform_mass(this, nsite_active)) then
+                                inv_mass_uniform = 1.d0 / hmc_mass_spatial_uniform
+                            else
+                                inv_mass_uniform = inv_mass_residual
+                            endif
+                            inv_mass_shell1 = 1.d0 / hmc_mass_spatial_shell1
+                            do ii = this%ii_begin, this%ii_end
+                                shell_part = 0.d0
+                                do imode = 1, HMC_shell1_nmode
+                                    shell_part = shell_part + shell_coeff(imode) * HMC_shell1_basis(ii, imode)
+                                enddo
+                                Conf%phi_list(nf, ii, nt) = Conf%phi_list(nf, ii, nt) + hmc_dt * &
+                                    (inv_mass_residual * this%momentum(nf, ii, nt) + &
+                                     (inv_mass_uniform - inv_mass_residual) * mean_p + &
+                                     (inv_mass_shell1 - inv_mass_residual) * shell_part)
+                            enddo
+                        elseif (HMC_use_spatial_uniform_mass(this, nsite_active)) then
                             mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
                             do ii = this%ii_begin, this%ii_end
                                 Conf%phi_list(nf, ii, nt) = Conf%phi_list(nf, ii, nt) + hmc_dt * &
