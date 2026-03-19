@@ -105,6 +105,9 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
    candidates:
    - `mk = 4`, `24 x 0.0002`
    - `mk = 8`, `24 x 0.00025`
+   Also keep the matching `warm = 0`, `512 / 256 / 0` diagnostic traces alive so the
+   early sample-index shape can be compared before the deeper `1024 / 512 / 512`
+   stages finish.
 3. Compare those two long traces against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
    - `mk = 4`, `12 x 0.00035`
@@ -115,6 +118,23 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
    representative preconditioned rung and use it as the production-side reference.
 5. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp
    move to larger `Nbos` or larger `L`.
+
+## Current Early-Trace Reading
+
+- `U2 = 1e3`, old closed bad reference:
+  - `mk = 0`, `20 x 0.0004`
+  - completed long-stage `squareOcc` head-to-tail drift/span is about `0.60`
+- `U2 = 1e3`, current `warm = 0` diagnostics:
+  - `mk = 4`, `24 x 0.0002`
+    - early `squareOcc/IPR` live drift/span is about `0.10`
+    - still drifting downward, but much less than the closed bad reference
+  - `mk = 8`, `24 x 0.00025`
+    - early `squareOcc/IPR` live drift/span is about `0.02` to `0.07`
+    - also still downward so far, but clearly healthier than the old `mk = 0` line
+- Working interpretation:
+  - shell1 preconditioning is helping
+  - heavier shell1 mass looks more conservative in the early trace
+  - neither new line should be promoted until the deeper retained-window stages confirm it
 
 ## Medium-Term Ladder
 

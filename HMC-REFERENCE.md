@@ -133,6 +133,18 @@ Current next rung:
     - active shell1 long-stage probes:
       - [mk4 nf24 dt2e-4](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk4_nf24_dt2em4_diag1024_probe)
       - [mk8 nf24 dt2p5e-4](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk8_nf24_dt2p5em4_diag1024_probe)
+    - matching early `warm=0` diagnostics:
+      - [mk4 nf24 dt2e-4 warm0](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk4_nf24_dt2em4_diag512_warm0/live_progress/report.md)
+      - [mk8 nf24 dt2p5e-4 warm0](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk8_nf24_dt2p5em4_diag512_warm0/live_progress/report.md)
+    - current early-trace reading:
+      - the old closed bad reference `mk=0`, `20 x 0.0004` has completed-stage
+        `squareOcc` head-to-tail drift/span around `0.60`
+      - the new `warm=0` `mk=4`, `24 x 0.0002` trace is still drifting downward,
+        but only at about `0.10` drift/span in the current live window
+      - the new `warm=0` `mk=8`, `24 x 0.00025` trace is even more conservative so far,
+        with early live drift/span around `0.02 - 0.07`
+      - this is the first direct visual evidence that shell1 preconditioning is helping
+        on the `U2=1000` blocker, even though the deeper retained-window verdict is still pending
 
 Current main blocker:
 
