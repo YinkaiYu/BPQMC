@@ -97,6 +97,7 @@ def load_stage_rows(stage_jsons: list[Path]) -> tuple[list[dict[str, object]], l
                 "nfrog": case["hmc"]["nfrog"],
                 "hmc_dt": case["hmc"]["hmc_dt"],
                 "hmc_mass": case["hmc"]["hmc_mass"],
+                "hmc_mass_spatial_uniform": case["hmc"].get("hmc_mass_spatial_uniform", 0.0),
                 "completed_repeats": len(case["repeat_runs"]),
                 "requested_repeats": int(case.get("requested_repeats", len(case["repeat_runs"]))),
                 "missing_repeats": int(case.get("missing_repeats", 0)),
@@ -150,6 +151,7 @@ def load_tune_rows(tune_jsons: list[Path]) -> tuple[list[dict[str, object]], lis
                     "nfrog": row["nfrog"],
                     "hmc_dt": row["hmc_dt"],
                     "hmc_mass": row["hmc_mass"],
+                    "hmc_mass_spatial_uniform": row.get("hmc_mass_spatial_uniform", 0.0),
                     "acceptance_mean": row["acceptance_mean"],
                     "tau_int_doubleOcc_mean": row["tau_int_doubleOcc_mean"],
                     "ess_per_sec_doubleOcc_mean": row["ess_per_sec_doubleOcc_mean"],
@@ -167,6 +169,7 @@ def load_tune_rows(tune_jsons: list[Path]) -> tuple[list[dict[str, object]], lis
                 "nfrog": rec["nfrog"],
                 "hmc_dt": rec["hmc_dt"],
                 "hmc_mass": rec["hmc_mass"],
+                "hmc_mass_spatial_uniform": rec.get("hmc_mass_spatial_uniform", 0.0),
                 "acceptance_mean": rec["acceptance_mean"],
                 "tau_int_doubleOcc_mean": rec["tau_int_doubleOcc_mean"],
                 "ess_per_sec_doubleOcc_mean": rec["ess_per_sec_doubleOcc_mean"],
@@ -307,12 +310,12 @@ def write_report(
         "",
         "## Stage Summary",
         "",
-        "| label | case | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
-        "| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        "| label | case | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | m_uniform | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
+        "| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in sorted(stage_cases, key=lambda item: (str(item["case"]), float(item["beta"]), str(item["label"]))):
         lines.append(
-            "| {label} | {case} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
+            "| {label} | {case} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
                 **row
             )
         )
@@ -321,13 +324,13 @@ def write_report(
             "",
             "## Recommended Tune Summary",
             "",
-            "| label | case | beta | dtau | nfrog | dt | mass | acceptance | tau_int(doubleOcc) | ESS/sec | DeltaH_abs_max |",
-            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+            "| label | case | beta | dtau | nfrog | dt | mass | m_uniform | acceptance | tau_int(doubleOcc) | ESS/sec | DeltaH_abs_max |",
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
     for row in sorted(tune_recommended, key=lambda item: (str(item["case"]), float(item["beta"]), str(item["label"]))):
         lines.append(
-            "| {label} | {case} | {beta:.6g} | {dtau:.6g} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {hmc_deltaH_abs_max:.3f} |".format(
+            "| {label} | {case} | {beta:.6g} | {dtau:.6g} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {hmc_deltaH_abs_max:.3f} |".format(
                 **row
             )
         )
@@ -365,14 +368,14 @@ def write_report(
                 "",
                 f"## Case Summary: {case}",
                 "",
-                "| label | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
-                "| --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+                "| label | beta | dtau | repeats | bins | cut | warm | samples/post | max drift | repeat span | nfrog | dt | mass | m_uniform | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
+                "| --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
             ]
         )
         case_rows = [row for row in stage_cases if str(row["case"]) == case]
         for row in sorted(case_rows, key=lambda item: (float(item["beta"]), str(item["label"]))):
             lines.append(
-                "| {label} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
+                "| {label} | {beta:.6g} | {dtau:.6g} | {completed_repeats}/{requested_repeats} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {gate_drift_ratio_max:.3f} | {gate_repeat_span_ratio:.3f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
                     **row
                 )
             )
@@ -436,6 +439,7 @@ def main() -> int:
             "nfrog",
             "hmc_dt",
             "hmc_mass",
+            "hmc_mass_spatial_uniform",
             "completed_repeats",
             "requested_repeats",
             "missing_repeats",
@@ -463,12 +467,12 @@ def main() -> int:
     write_csv(
         output_dir / "tune_candidates.csv",
         tune_candidates,
-        ["label", "work_root", "case", "beta", "dtau", "nfrog", "hmc_dt", "hmc_mass", "acceptance_mean", "tau_int_doubleOcc_mean", "ess_per_sec_doubleOcc_mean", "hmc_deltaH_abs_max"],
+        ["label", "work_root", "case", "beta", "dtau", "nfrog", "hmc_dt", "hmc_mass", "hmc_mass_spatial_uniform", "acceptance_mean", "tau_int_doubleOcc_mean", "ess_per_sec_doubleOcc_mean", "hmc_deltaH_abs_max"],
     )
     write_csv(
         output_dir / "tune_recommended.csv",
         tune_recommended,
-        ["label", "work_root", "case", "beta", "dtau", "nfrog", "hmc_dt", "hmc_mass", "acceptance_mean", "tau_int_doubleOcc_mean", "ess_per_sec_doubleOcc_mean", "hmc_deltaH_abs_max"],
+        ["label", "work_root", "case", "beta", "dtau", "nfrog", "hmc_dt", "hmc_mass", "hmc_mass_spatial_uniform", "acceptance_mean", "tau_int_doubleOcc_mean", "ess_per_sec_doubleOcc_mean", "hmc_deltaH_abs_max"],
     )
 
     for observable in TREND_OBSERVABLES:

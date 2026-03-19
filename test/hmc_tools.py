@@ -338,13 +338,17 @@ def prepare_run_dir(
     )
 
 
-def run_case(run_dir: Path, *, np_ranks: int = 1) -> None:
+def run_case(run_dir: Path, *, np_ranks: int = 1, env_overrides: dict[str, str] | None = None) -> None:
+    env = os.environ.copy()
+    if env_overrides:
+        env.update(env_overrides)
     with (run_dir / "output.log").open("w", encoding="ascii") as stream:
         subprocess.run(
             ["mpirun", "-np", str(np_ranks), "./BPQMC.out"],
             cwd=run_dir,
             stdout=stream,
             stderr=subprocess.STDOUT,
+            env=env,
             check=True,
         )
 
