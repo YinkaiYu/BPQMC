@@ -5,6 +5,8 @@ It records what has already been validated, what is still unresolved, and which 
 trends look robust enough to reuse when moving toward larger lattices and HPC runs.
 For the current `test/` directory layout, see `test/README.md`; archived small-benchmark
 helpers referenced here now live under `test/archive_small_benchmark/`.
+For the persistent action checklist that should survive long tuning sessions, see
+`PRODUCTION-RAMP.md`.
 
 ## Current Priority
 
@@ -79,13 +81,24 @@ Current next rung:
   - `L=6`, `Nbos=1e4`, `U2=100`
     - conservative short-tune winner: residual mass `m=16`, uniform mass `mu=1`,
       `nfrog=20`, `dt=0.001`, jitter `=2`
-    - active long stage:
+    - completed long stage:
       [l6_n1e4_u1e2_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p001_diag1024](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e2_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p001_diag1024)
+    - current result:
+      - `overall_status = healthy`
+      - `Accept_HMC ≈ 0.980 / 0.981`
+      - `squareOcc/IPR drift/span max ≈ 0.0135`
+      - retained repeat-span ratio `≈ 0.051`
   - `L=6`, `Nbos=1e4`, `U2=300`
     - conservative short-tune winner: residual mass `m=16`, uniform mass `mu=1`,
       `nfrog=28`, `dt=0.0005`, jitter `=2`
-    - active long stage:
+    - current long stage:
       [l6_n1e4_u3e2_beta32_dtau1em2_stage_m16_mu1_nf28_dt5em4_diag1024](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u3e2_beta32_dtau1em2_stage_m16_mu1_nf28_dt5em4_diag1024)
+    - current result:
+      - `overall_status = needs_review`
+      - case status `slow_drift`
+      - `Accept_HMC ≈ 0.986 / 0.979`
+      - `squareOcc/IPR drift/span max ≈ 0.401`
+      - retained repeat-span ratio `≈ 0.055`
 
 Current main blocker:
 
@@ -96,6 +109,8 @@ Current main blocker:
     `squareOcc/IPR` windows split again across seeds
   - whether the same mass split remains useful when `U2` is increased toward `1e2`, `1e3`,
     and later `Nbos` is also raised toward `1e5`
+  - the immediate blocker rung is now `L=6`, `Nbos=1e4`, `U2=300`, where the conservative
+    `28 x 0.0005` geometry is mobile but still `slow_drift`
 - trace-based tuning lesson from the original `Nbos=1e4, U2=1` blocker point:
   - a short traced run with `m=16`, `mu=1`, `20 x 0.008` gives an approximate uniform-mode period
     `T_md ~ 0.16` from `phi_mean_f2`

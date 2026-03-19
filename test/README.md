@@ -1,6 +1,8 @@
 # Test Directory Layout
 
 This directory is now organized around the future production/HPC workflow.
+The short persistent plan for that workflow lives in `../PRODUCTION-RAMP.md`;
+the more detailed handoff note lives in `../HMC-REFERENCE.md`.
 
 ## Active Top-Level Files
 
@@ -111,7 +113,8 @@ The default SLURM entry point is `dqmc_production`, which now dispatches by `PRO
 - by default it uses `1024 / 512 / 512` for `stage` / `collect`
 
 For the active workstation ramp, keep the current healthy rung, next rung, and main blocker
-documented in `../HMC-REFERENCE.md` before moving on to a harder stage.
+documented in `../HMC-REFERENCE.md`, and keep the actionable ladder in `../PRODUCTION-RAMP.md`,
+before moving on to a harder stage.
 At the moment, the baseline `L=6, Nbos=1e3, U2=1` projector ladder has already been pushed
 through `beta=160, dtau=0.004`, and the representative `beta=192, dtau=0.002` stage is already
 showing `stable_window` on `2/3` completed repeats. The current workstation priority is therefore

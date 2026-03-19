@@ -28,6 +28,10 @@ The cleaned `test/` layout is documented in `test/README.md`.
 Top-level `test/` is now reserved for active production/HPC workflows; archived
 small-benchmark tools live under `test/archive_small_benchmark/`.
 The current active workflow is HMC production bring-up, not local-vs-HMC correctness benchmarking.
+The persistent production checklist now lives in `PRODUCTION-RAMP.md`, while
+`HMC-REFERENCE.md` remains the more detailed running handoff note.
+The single merged entry point for accumulated production results is
+`data/triangular_hmc_production/overview/report.md`.
 
 Run a triangular-lattice HMC smoke test in a fresh temporary directory:
 
