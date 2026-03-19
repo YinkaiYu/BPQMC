@@ -559,6 +559,10 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
                 except (FileNotFoundError, KeyError, ValueError) as exc:
                     print(f"    [skip] incomplete run: {exc}", flush=True)
                     continue
+                if "Accept_HMC" not in info or "Tot_CPU_time" not in info:
+                    missing_keys = [key for key in ("Accept_HMC", "Tot_CPU_time") if key not in info]
+                    print(f"    [skip] incomplete run: missing {','.join(missing_keys)}", flush=True)
+                    continue
                 row = {
                     "name": cfg.name,
                     "nfrog": nfrog,
