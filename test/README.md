@@ -73,6 +73,9 @@ The active production workflow is now:
 - `production_hmc.py stage`: long HMC-only runs with sample-index trace capture for `squareOcc`, `IPR`, `doubleOcc`, `nearestOcc`
 - `production_hmc.py collect`: rebuild `production_stage*.json/csv` from finished or partially finished `runs/` without rerunning QMC
 - `production_hmc.py report`: render a Markdown + PNG report from `production_stage.json`, `production_tune.json`, or `production_benchmark.json`
+- `production_hmc.py` also supports `--hmc-mass-spatial-uniform`
+  - `0` keeps the old scalar-mass HMC
+  - positive values split the per-time-slice spatially uniform mode away from the residual `--hmc-mass`
 
 For thermalization checks across different initial states, `production_hmc.py` also supports:
 
@@ -111,3 +114,5 @@ For the active workstation ramp, keep the current healthy rung, next rung, and m
 documented in `../HMC-REFERENCE.md` before moving on to a harder stage.
 At the moment, the baseline `L=6, Nbos=1e3, U2=1` projector ladder has already been pushed
 through `beta=160, dtau=0.004`, and the next rung is `beta=192, dtau=0.002`.
+The current blocker experiment is a spatial-uniform preconditioned stage on
+`L=6, Nbos=1e4, U2=1` with `mass=16`, `uniform_mass=1`, `20 x 0.008`.

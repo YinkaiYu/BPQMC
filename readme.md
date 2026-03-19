@@ -178,6 +178,14 @@ Key subcommands:
 - `report`: render Markdown + PNG summaries
 - `benchmark`: legacy direct local-vs-HMC comparison, kept only as an archived-style helper
 
+Optional production preconditioning knob:
+
+- `--hmc-mass-spatial-uniform`
+  - this keeps the input file format unchanged and drives an environment-backed HMC preconditioner
+  - `hmc_mass` remains the residual-mode mass
+  - `hmc-mass-spatial-uniform` sets a lighter or heavier mass for the per-time-slice spatially uniform mode
+  - `0` disables the split and recovers the old scalar-mass HMC
+
 Example: short production tune scan on a conservative triangular ladder rung:
 
 ```bash
@@ -195,6 +203,7 @@ cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
   --grid '8:0.02,12:0.015,16:0.01' \
   --hmc-jitter 2 \
   --hmc-mass 4 \
+  --hmc-mass-spatial-uniform 0 \
   --repeats 2 \
   --work-root data/triangular_hmc_production/l6_n1e3_u1_tune
 ```
@@ -218,6 +227,7 @@ cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
   --hmc-dt 0.015 \
   --hmc-jitter 2 \
   --hmc-mass 4 \
+  --hmc-mass-spatial-uniform 0 \
   --stage-label l6_n1e3_u1_beta32_dtau1em2 \
   --work-root data/triangular_hmc_production/l6_n1e3_u1_stage
 ```
@@ -241,6 +251,7 @@ cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
   --hmc-dt 0.015 \
   --hmc-jitter 2 \
   --hmc-mass 4 \
+  --hmc-mass-spatial-uniform 0 \
   --stage-label l6_n1e3_u1_beta32_dtau1em2 \
   --work-root data/triangular_hmc_production/l6_n1e3_u1_stage
 ```
@@ -262,6 +273,7 @@ cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
   --grid '8:0.02,12:0.015,16:0.01' \
   --hmc-jitter 2 \
   --hmc-mass 4 \
+  --hmc-mass-spatial-uniform 0 \
   --work-root data/triangular_hmc_production/l6_n1e3_u1_beta192_dtau2em3_tune_m4
 ```
 
@@ -283,6 +295,30 @@ jupyter notebook hmc_report_template.ipynb
 
 The notebook now understands `stage`, `tune`, and `benchmark` summaries and rewrites
 the image paths from `report.md` so PNG figures display correctly inside the notebook.
+
+Example: blocker-focused preconditioned probe on `L=6, Nbos=1e4, U2=1`:
+
+```bash
+cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
+/home/yyk/conda/envs/notebook/bin/python test/production_hmc.py stage \
+  --lattice-type triangular \
+  --l-values 6 \
+  --nbos-values 10000 \
+  --u2-values 1 \
+  --beta 32 \
+  --dtau 0.01 \
+  --bins 512 \
+  --thermal-cut 256 \
+  --warm 512 \
+  --repeats 2 \
+  --hmc-nfrog 20 \
+  --hmc-dt 0.008 \
+  --hmc-jitter 2 \
+  --hmc-mass 16 \
+  --hmc-mass-spatial-uniform 1 \
+  --stage-label l6_n1e4_u1_beta32_dtau1em2_m16_mu1_nf20_dt0p008_diag512 \
+  --work-root data/triangular_hmc_production/l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p008_diag512
+```
 
 The `stage` report writes:
 

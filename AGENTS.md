@@ -78,11 +78,15 @@
   - then it promotes gradually in `(Nbos, U2, beta, dtau, L)`
   - `test/production_hmc.py` can now expand multiple initial-state families with
     `--ini-type-values` and `--ini-ampl-values`
+  - `test/production_hmc.py` also supports `--hmc-mass-spatial-uniform`
+    to split the per-time-slice spatially uniform mode away from the residual `--hmc-mass`
 - Current workstation production examples already distinguish:
   - a healthy projector ladder at `L=6, Nbos=1e3, U2=1`, currently healthy through `beta=160`, `dtau=0.004`
   - a slow-drift rung at `L=6, Nbos=1e4, U2=1`
   - a stronger-coupling but stage-healthy rung at `L=6, Nbos=1e4, U2=10`
   - the current next rung is `L=6, Nbos=1e3, U2=1, beta=192, dtau=0.002`
+  - the current blocker-side preconditioning probe is `L=6, Nbos=1e4, U2=1`,
+    `mass=16`, `uniform_mass=1`, `nfrog=20`, `dt=0.008`
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
   - the merged report now exposes per-case sections plus `bins`, `thermal_cut`, `warm`, and `samples/post`
     so short traces are easier to separate from genuinely deep thermalization runs
@@ -129,6 +133,8 @@
 - `test/production_hmc.py stage` runs HMC-only production stage jobs and stores sample-index traces.
 - `test/production_hmc.py collect` rebuilds `production_stage*.json/csv` from completed `runs/`.
 - `test/production_hmc.py report` renders Markdown + PNG summaries from `production_stage.json`, `production_tune.json`, or the legacy `production_benchmark.json`.
+- `test/production_hmc.py` can optionally pass `--hmc-mass-spatial-uniform` into the HMC kernel
+  through the environment variable `BPQMC_HMC_MASS_SPATIAL_UNIFORM`.
 - `test/render_hmc_report.py` now understands three summary modes:
   - `tune`
   - `stage`

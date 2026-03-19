@@ -23,6 +23,8 @@ The active production CLI is `test/production_hmc.py`:
 - `stage`: long HMC-only runs with `squareOcc`/`IPR` traces
 - `collect`: rebuild stage summaries from completed or partially completed stage `runs/`
 - `report`: render Markdown + PNG summaries
+- `--hmc-mass-spatial-uniform`: optional per-time-slice spatial-uniform-mode mass split
+  on top of the residual `--hmc-mass`; `0` disables it
 
 For seed/init-state convergence checks, the production driver can now expand multiple
 initial-state families in one invocation via:
@@ -72,6 +74,12 @@ Current main blocker:
 - even the newer `warm=512`, `bins=1024`, `thermal_cut=512` rerun still falls back to
   `strong_drift` once the stage gate checks the worst retained repeat rather than only the mean
 - this rung is the first serious candidate for stronger preconditioning rather than more blind scalar-mass scans
+- the current first explicit preconditioning probe is:
+  - residual mass `m=16`
+  - spatial-uniform mass `mu=1`
+  - `nfrog=20`, `dt=0.008`, jitter `=2`
+  - work root:
+    [l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p008_diag512](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p008_diag512)
 
 ## Current Production Checkpoint
 
@@ -128,6 +136,12 @@ Current convergence interpretation for the healthy baseline ladder:
 - The SLURM helper `test/dqmc_production` mirrors that split:
   - `PROD_COMMAND=tune` / `collect-tune` default to `64 / 32 / 32`
   - `PROD_COMMAND=stage` / `collect` default to `1024 / 512 / 512`
+- The new spatial-uniform mass split is intentionally script-driven rather than baked into the
+  parameter file format:
+  - `hmc_mass` remains the residual-mode mass recorded in `paramC_sets.txt`
+  - `--hmc-mass-spatial-uniform` is forwarded by the Python tooling as
+    `BPQMC_HMC_MASS_SPATIAL_UNIFORM`
+  - `info.txt` now records both masses so archived runs remain self-describing
 
 ### Healthy reference rung
 
