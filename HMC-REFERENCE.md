@@ -80,6 +80,21 @@ Current main blocker:
   - `nfrog=20`, `dt=0.008`, jitter `=2`
   - work root:
     [l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p008_diag512](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf20_dt0p008_diag512)
+- current partial result from `rep0` only:
+  - `warm=512`, `bins=512`, `thermal_cut=256`
+  - `Accept_HMC ≈ 0.986`
+  - retained-window `squareOcc/IPR drift/span ≈ 0.092`
+  - this is promising but not yet decisive because the important question is whether `rep1` lands on the same plateau
+- current trace-based tuning lesson for the same blocker point:
+  - a short traced run with `m=16`, `mu=1`, `20 x 0.008` gives an approximate uniform-mode period
+    `T_md ~ 0.16` from `phi_mean_f2`
+  - this means `Nfrog * dt ~ 0.16` is closer to a full cycle than to the earlier
+    quarter-period heuristic target
+  - the next short scan was therefore centered near `Nfrog * dt ~ 0.04`
+  - that quarter-period-informed scan currently favors `6 x 0.008`, jitter `=1`
+    with `ESS/sec(doubleOcc) ~ 1.57`
+  - follow-up work root:
+    [l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf6_dt0p008_diag512](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1_beta32_dtau1em2_stage_m16_mu1_nf6_dt0p008_diag512)
 
 ## Current Production Checkpoint
 
