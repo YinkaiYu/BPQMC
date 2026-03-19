@@ -295,12 +295,13 @@ def classify_stage_case(
     gate_rows = [row for row in observable_rows if row["observable"] in GATE_OBSERVABLES]
     if not gate_rows:
         return "insufficient_gate_data", "Missing squareOcc/IPR traces."
-    worst_ratio = max(float(row["drift_over_span_mean"]) for row in gate_rows)
-    if worst_ratio <= stable_ratio:
-        return "stable_window", "squareOcc/IPR drift is small compared with the observed span."
-    if worst_ratio <= warning_ratio:
-        return "slow_drift", "squareOcc/IPR is improving but still shows a visible residual drift."
-    return "strong_drift", "squareOcc/IPR still drifts strongly over the retained stage window."
+    worst_mean_ratio = max(float(row["drift_over_span_mean"]) for row in gate_rows)
+    worst_repeat_ratio = max(float(row["drift_over_span_max"]) for row in gate_rows)
+    if worst_mean_ratio <= stable_ratio and worst_repeat_ratio <= stable_ratio:
+        return "stable_window", "squareOcc/IPR drift is small both on average and in the worst repeat."
+    if worst_mean_ratio <= warning_ratio and worst_repeat_ratio <= warning_ratio:
+        return "slow_drift", "squareOcc/IPR is improving but at least one repeat still shows a visible residual drift."
+    return "strong_drift", "squareOcc/IPR still drifts strongly in at least one retained repeat window."
 
 
 def collect_stage_case(
@@ -434,7 +435,9 @@ def collect_stage_case(
         "hmc_deltaH_abs_max": max(float(row["hmc_deltaH_abs_max"]) for row in repeat_rows),
         "stuck_repeats": stuck_repeats,
         "squareOcc_drift_ratio": float(gate_summary.get("squareOcc", {}).get("drift_over_span_mean", 0.0)),
+        "squareOcc_drift_ratio_max": float(gate_summary.get("squareOcc", {}).get("drift_over_span_max", 0.0)),
         "IPR_drift_ratio": float(gate_summary.get("IPR", {}).get("drift_over_span_mean", 0.0)),
+        "IPR_drift_ratio_max": float(gate_summary.get("IPR", {}).get("drift_over_span_max", 0.0)),
         "status": status,
         "status_detail": status_detail,
     }
@@ -867,7 +870,9 @@ def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "hmc_deltaH_abs_max",
             "stuck_repeats",
             "squareOcc_drift_ratio",
+            "squareOcc_drift_ratio_max",
             "IPR_drift_ratio",
+            "IPR_drift_ratio_max",
             "status",
             "status_detail",
         ],
