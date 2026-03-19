@@ -23,6 +23,12 @@ The active production CLI is `test/production_hmc.py`:
 - `collect`: rebuild stage summaries from completed `runs/`
 - `report`: render Markdown + PNG summaries
 
+For seed/init-state convergence checks, the production driver can now expand multiple
+initial-state families in one invocation via:
+
+- `--ini-type-values`
+- `--ini-ampl-values`
+
 The default output root for this new workflow should be under:
 
 - `data/triangular_hmc_production/`

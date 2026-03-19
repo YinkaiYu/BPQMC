@@ -280,6 +280,9 @@ The `stage` report writes:
 The stage workflow is intended for the gradual production ladder.
 The first judgement is whether `squareOcc` and `IPR` visibly stabilize across sample index, seeds, and initial-state choices.
 Acceptance and `ESS/sec` are secondary diagnostics.
+If you want one command to launch several initial-state families, use
+`--ini-type-values` and/or `--ini-ampl-values`; the driver will emit separate case names
+for each family so convergence across seeds and initial states can be judged from one report.
 
 Current local workstation examples under `data/triangular_hmc_production/` already include:
 

@@ -75,6 +75,8 @@
   - it may start from `L=6`
   - it first gates on `squareOcc` and `IPR`
   - then it promotes gradually in `(Nbos, U2, beta, dtau, L)`
+  - `test/production_hmc.py` can now expand multiple initial-state families with
+    `--ini-type-values` and `--ini-ampl-values`
 - Current workstation production examples already distinguish:
   - a healthy projector ladder at `L=6, Nbos=1e3, U2=1`, currently healthy through `beta=128`, `dtau=0.005`
   - a slow-drift rung at `L=6, Nbos=1e4, U2=1`

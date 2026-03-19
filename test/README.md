@@ -68,6 +68,14 @@ The active production workflow is now:
 - `production_hmc.py collect`: rebuild `production_stage*.json/csv` from finished `runs/` without rerunning QMC
 - `production_hmc.py report`: render a Markdown + PNG report from `production_stage.json`, `production_tune.json`, or `production_benchmark.json`
 
+For thermalization checks across different initial states, `production_hmc.py` also supports:
+
+- `--ini-type-values`
+- `--ini-ampl-values`
+
+These options expand multiple initial-state families into distinct case names under the same
+`tune` or `stage` work root.
+
 The default SLURM entry point is `dqmc_production`, which now dispatches by `PROD_COMMAND`:
 
 - `PROD_COMMAND=tune`
