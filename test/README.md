@@ -93,6 +93,7 @@ The resulting report lives at:
   drift is easier to diagnose from one entry point
 - the dashed marker in each trace is only the configured `thermal_cut`, and the overlaid
   lines are independent stage runs rather than one continued chain
+- the production stage gate is judged on the worst retained repeat as well as the mean drift
 
 The default SLURM entry point is `dqmc_production`, which now dispatches by `PROD_COMMAND`:
 

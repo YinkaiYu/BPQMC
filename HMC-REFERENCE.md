@@ -43,6 +43,8 @@ The unified entry point for the accumulated production results is now:
   so late slow-mode drift is easier to spot without opening each rung directory separately
 - in the merged trace panels, the dashed line is only the configured `thermal_cut`, and the
   overlaid lines are independent stage runs rather than one continued chain
+- the production stage gate now checks the worst retained repeat as well as the mean drift,
+  so one drifting chain can no longer be hidden by averaging over healthier repeats
 
 ## Current Stage / Next Stage / Blocker
 
@@ -65,6 +67,8 @@ Current main blocker:
 - `L=6`, `Nbos=1e4`, `U2=1`, `beta=32`, `dtau=0.01`
 - deeper thermal cuts alone do not remove the residual `squareOcc/IPR` slow drift
 - longer trajectories with the same scalar mass also did not beat the `16 x 0.01` baseline
+- even the newer `warm=512`, `bins=1024`, `thermal_cut=512` rerun still falls back to
+  `strong_drift` once the stage gate checks the worst retained repeat rather than only the mean
 - this rung is the first serious candidate for stronger preconditioning rather than more blind scalar-mass scans
 
 ## Current Production Checkpoint

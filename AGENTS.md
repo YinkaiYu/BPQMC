@@ -173,6 +173,7 @@
 - `HMC-REFERENCE.md` should always state the current healthy rung, next rung, and main blocker so the production ramp can resume after context loss.
 - For production data review, prefer `test/render_hmc_production_overview.py` over opening many per-directory reports by hand.
 - In the merged trace plots, the dashed line is only the configured `thermal_cut`, and the overlaid lines are independent stage runs rather than one continued chain.
+- The production stage gate should be interpreted on the worst retained repeat, not only on the mean drift across repeats.
 - When judging convergence, do not just check whether a deeper rung runs.
   Explicitly inspect whether `squareOcc` and `IPR` stop changing as `beta` increases and as `dtau` decreases.
 - `test/production_convergence_scan.py` is the convenience wrapper for those fixed-`beta` and fixed-`dtau` scans.

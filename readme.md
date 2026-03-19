@@ -343,6 +343,7 @@ This merged report is the preferred place to inspect:
   be mistaken for a deep thermalization run
 - note that the dashed marker in each trace is only the configured `thermal_cut`
   and the overlaid lines are independent stage runs, not one continued chain
+- note that the production stage gate is now judged on the worst retained repeat as well as the mean drift
 
 For explicit convergence scans at fixed `beta` or fixed `dtau`, use:
 
