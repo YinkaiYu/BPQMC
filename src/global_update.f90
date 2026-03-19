@@ -14,6 +14,7 @@ module GlobalUpdate_mod
     private :: HMC_force_prop_L, HMC_set_overlap, HMC_log_overlap_abs2
     private :: HMC_draw_nfrog
     private :: HMC_flavor_active
+    private :: HMC_use_spatial_uniform_mass, HMC_kinetic_energy
     private :: HMC_rng_gaussian, HMC_measure_sweep_L, HMC_measure_sweep_R
     private :: HMC_monitor_init, HMC_monitor_close, HMC_monitor_step
     private :: HMC_trace_init, HMC_trace_close, HMC_trace_begin, HMC_trace_step
@@ -318,28 +319,80 @@ contains
     subroutine Global_sample_momentum(this, iseed)
         class(GlobalUpdate), intent(inout) :: this
         integer, intent(inout) :: iseed
-        integer :: nt, ii, nf
-        real(kind=8) :: sigma_p
+        integer :: nt, ii, nf, nsite_active
+        real(kind=8) :: sigma_p, sigma_uniform, mean_p
 
         sigma_p = sqrt(hmc_mass)
+        sigma_uniform = sqrt(hmc_mass_spatial_uniform)
         this%momentum = 0.d0
 
         do nt = this%tau_begin, this%tau_end
-            do ii = this%ii_begin, this%ii_end
-                do nf = 1, Naux
-                    if (.not. HMC_flavor_active(nf)) cycle
-                    this%momentum(nf, ii, nt) = sigma_p * HMC_rng_gaussian(iseed)
+            nsite_active = this%ii_end - this%ii_begin + 1
+            do nf = 1, Naux
+                if (.not. HMC_flavor_active(nf)) cycle
+                do ii = this%ii_begin, this%ii_end
+                    this%momentum(nf, ii, nt) = HMC_rng_gaussian(iseed)
                 enddo
+                if (HMC_use_spatial_uniform_mass(this, nsite_active)) then
+                    mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
+                    do ii = this%ii_begin, this%ii_end
+                        this%momentum(nf, ii, nt) = sigma_uniform * mean_p + &
+                            sigma_p * (this%momentum(nf, ii, nt) - mean_p)
+                    enddo
+                else
+                    do ii = this%ii_begin, this%ii_end
+                        this%momentum(nf, ii, nt) = sigma_p * this%momentum(nf, ii, nt)
+                    enddo
+                endif
             enddo
         enddo
         return
     end subroutine Global_sample_momentum
 
+    logical function HMC_use_spatial_uniform_mass(this, nsite_active)
+        class(GlobalUpdate), intent(in) :: this
+        integer, intent(in) :: nsite_active
+
+        HMC_use_spatial_uniform_mass = .false.
+        if (hmc_mass_spatial_uniform <= 0.d0) return
+        if (abs(hmc_mass_spatial_uniform - hmc_mass) <= Zero) return
+        if (nsite_active <= 1) return
+        if (this%ii_begin > this%ii_end) return
+        HMC_use_spatial_uniform_mass = .true.
+        return
+    end function HMC_use_spatial_uniform_mass
+
+    real(kind=8) function HMC_kinetic_energy(this) result(kinetic)
+        class(GlobalUpdate), intent(in) :: this
+        integer :: nt, nf, nsite_active
+        real(kind=8) :: mean_p, residual_sq
+
+        kinetic = 0.d0
+        if (this%ii_begin > this%ii_end .or. this%tau_begin > this%tau_end) return
+
+        nsite_active = this%ii_end - this%ii_begin + 1
+        do nt = this%tau_begin, this%tau_end
+            do nf = 1, Naux
+                if (.not. HMC_flavor_active(nf)) cycle
+                if (HMC_use_spatial_uniform_mass(this, nsite_active)) then
+                    mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
+                    residual_sq = sum((this%momentum(nf, this%ii_begin:this%ii_end, nt) - mean_p) ** 2)
+                    kinetic = kinetic + 0.5d0 * dble(nsite_active) * mean_p * mean_p / hmc_mass_spatial_uniform
+                    kinetic = kinetic + 0.5d0 * residual_sq / hmc_mass
+                else
+                    kinetic = kinetic + 0.5d0 * sum(this%momentum(nf, this%ii_begin:this%ii_end, nt) ** 2) / hmc_mass
+                endif
+            enddo
+        enddo
+        return
+    end function HMC_kinetic_energy
+
     subroutine Global_leapfrog(this, action_new, nsteps, stage_id)
         class(GlobalUpdate), intent(inout) :: this
         real(kind=8), intent(out) :: action_new
         integer, intent(in) :: nsteps, stage_id
-        integer :: nlf, nt, ii, nf
+        integer :: nlf, nt, ii, nf, nsite_active
+        real(kind=8) :: mean_p
 
         if (this%ii_begin <= this%ii_end .and. this%tau_begin <= this%tau_end) then
             do nt = this%tau_begin, this%tau_end
@@ -354,12 +407,21 @@ contains
         call HMC_trace_begin(stage_id, nsteps, this%action_cur, this%momentum, this%force_cur)
         do nlf = 1, nsteps
             if (this%ii_begin <= this%ii_end .and. this%tau_begin <= this%tau_end) then
+                nsite_active = this%ii_end - this%ii_begin + 1
                 do nt = this%tau_begin, this%tau_end
-                    do ii = this%ii_begin, this%ii_end
-                        do nf = 1, Naux
-                            if (.not. HMC_flavor_active(nf)) cycle
-                            Conf%phi_list(nf, ii, nt) = Conf%phi_list(nf, ii, nt) + (hmc_dt / hmc_mass) * this%momentum(nf, ii, nt)
-                        enddo
+                    do nf = 1, Naux
+                        if (.not. HMC_flavor_active(nf)) cycle
+                        if (HMC_use_spatial_uniform_mass(this, nsite_active)) then
+                            mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
+                            do ii = this%ii_begin, this%ii_end
+                                Conf%phi_list(nf, ii, nt) = Conf%phi_list(nf, ii, nt) + hmc_dt * &
+                                    ((this%momentum(nf, ii, nt) - mean_p) / hmc_mass + mean_p / hmc_mass_spatial_uniform)
+                            enddo
+                        else
+                            do ii = this%ii_begin, this%ii_end
+                                Conf%phi_list(nf, ii, nt) = Conf%phi_list(nf, ii, nt) + (hmc_dt / hmc_mass) * this%momentum(nf, ii, nt)
+                            enddo
+                        endif
                     enddo
                 enddo
             endif
@@ -407,11 +469,11 @@ contains
         call this%select_site_block(iseed)
         call this%select_tau_block(iseed)
         call this%sample_momentum(iseed)
-        ham_old = 0.5d0 * sum(this%momentum * this%momentum) / hmc_mass + this%action_cur
+        ham_old = HMC_kinetic_energy(this) + this%action_cur
 
         nsteps = HMC_draw_nfrog(iseed)
         call this%leapfrog(action_new, nsteps, stage_id)
-        ham_new = 0.5d0 * sum(this%momentum * this%momentum) / hmc_mass + action_new
+        ham_new = HMC_kinetic_energy(this) + action_new
         if (.not. ieee_is_finite(this%action_cur) .or. .not. ieee_is_finite(action_new) .or. &
             .not. ieee_is_finite(ham_old) .or. .not. ieee_is_finite(ham_new)) then
             write(6,*) 'Non-finite HMC energy detected at rank=', IRANK

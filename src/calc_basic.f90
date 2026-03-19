@@ -29,6 +29,7 @@ module CalcBasic ! Global parameters
     integer,                public              :: NfrogJitter
     real(kind=8),           public              :: hmc_dt
     real(kind=8),           public              :: hmc_mass
+    real(kind=8),           public              :: hmc_mass_spatial_uniform
     integer,                public              :: hmc_block_tau
     integer,                public              :: hmc_block_sites
 ! initial state parameters
@@ -72,6 +73,7 @@ contains
             hmc_dt = 0.d0
             NfrogJitter = 0
             hmc_mass = 1.d0
+            hmc_mass_spatial_uniform = 0.d0
             hmc_block_tau = 0
             hmc_block_sites = 0
             read(hmc_line, *, iostat=ios_hmc) is_global, Nfrog, hmc_dt, NfrogJitter, hmc_mass, hmc_block_tau, hmc_block_sites
@@ -114,6 +116,7 @@ contains
             endif
             read(20,*) iniHam, iniTwist, imbalance
             close(20)
+            call read_env_real("BPQMC_HMC_MASS_SPATIAL_UNIFORM", hmc_mass_spatial_uniform)
         endif 
 !   MPI process: parallelization
         call MPI_BCAST(Beta, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
@@ -124,6 +127,7 @@ contains
         call MPI_BCAST(shiftLoc, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_dt, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_mass, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(hmc_mass_spatial_uniform, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_block_tau, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_block_sites, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(shiftWarm, Naux, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
@@ -183,6 +187,9 @@ contains
             endif
             if (hmc_mass <= 0.d0) then
                 write(6,*) "hmc_mass must be positive in HMC mode"; stop
+            endif
+            if (hmc_mass_spatial_uniform < 0.d0) then
+                write(6,*) "hmc_mass_spatial_uniform must be non-negative in HMC mode"; stop
             endif
             if (hmc_block_tau < 0) then
                 write(6,*) "hmc_block_tau must be non-negative in HMC mode"; stop
@@ -256,6 +263,20 @@ contains
         end select
         return
     end function normalize_lattice_name
+
+    subroutine read_env_real(name, value)
+        character(len=*), intent(in) :: name
+        real(kind=8), intent(inout) :: value
+        character(len=64) :: env_value
+        integer :: env_status, ios
+
+        call get_environment_variable(name, env_value, status=env_status)
+        if (env_status /= 0) return
+        if (len_trim(env_value) == 0) return
+        read(env_value, *, iostat=ios) value
+        if (ios /= 0) return
+        return
+    end subroutine read_env_real
 
     pure logical function is_triangular_lattice()
         is_triangular_lattice = trim(lattice_type) == 'triangular'
@@ -332,6 +353,7 @@ contains
                 write(50,*) 'Leapfrog jitter                               :', NfrogJitter
                 write(50,*) 'Leapfrog step size                             :', hmc_dt
                 write(50,*) 'Leapfrog mass                                  :', hmc_mass
+                write(50,*) 'Spatial-uniform leapfrog mass                  :', hmc_mass_spatial_uniform
                 write(50,*) 'HMC tau block size                             :', hmc_block_tau
                 write(50,*) 'HMC site block size                            :', hmc_block_sites
             else
