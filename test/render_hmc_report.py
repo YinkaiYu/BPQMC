@@ -203,11 +203,12 @@ def save_tune_summary(summary: dict, out_dir: Path) -> None:
         plt.close(fig)
 
         rec = case["recommended"]
+        viable = case.get("recommended_viable", True)
         lines.extend(
             [
                 f"## {case['name']}",
                 "",
-                "Recommended candidate:",
+                "Recommended candidate:" if viable else "No viable recommended candidate in this scan.",
                 "",
                 "- `nfrog={}`".format(int(rec["nfrog"])),
                 "- `dt={}`".format(rec["hmc_dt"]),

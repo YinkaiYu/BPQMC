@@ -593,7 +593,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
         if not case_rows:
             raise FileNotFoundError(f"No completed tune rows found for case: {cfg.name}")
         healthy_rows = [row for row in case_rows if row["stuck_repeats"] == 0]
-        candidates = healthy_rows if healthy_rows else case_rows
+        candidates = healthy_rows if healthy_rows else list(case_rows)
         candidates.sort(
             key=lambda row: (
                 int(row.get("missing_repeats", 0)),
@@ -606,22 +606,36 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             )
         )
         best = candidates[0]
-        print(
-            "  [recommended] nfrog={nfrog} dt={dt:.6g} acc={acc:.3f} tau={tau:.3f} ess={ess:.3f}".format(
-                nfrog=int(best["nfrog"]),
-                dt=float(best["hmc_dt"]),
-                acc=float(best["acceptance_mean"]),
-                tau=float(best["tau_int_doubleOcc_mean"]),
-                ess=float(best["ess_per_sec_doubleOcc_mean"]),
-            ),
-            flush=True,
-        )
+        recommended_viable = bool(healthy_rows)
+        if recommended_viable:
+            print(
+                "  [recommended] nfrog={nfrog} dt={dt:.6g} acc={acc:.3f} tau={tau:.3f} ess={ess:.3f}".format(
+                    nfrog=int(best["nfrog"]),
+                    dt=float(best["hmc_dt"]),
+                    acc=float(best["acceptance_mean"]),
+                    tau=float(best["tau_int_doubleOcc_mean"]),
+                    ess=float(best["ess_per_sec_doubleOcc_mean"]),
+                ),
+                flush=True,
+            )
+        else:
+            print(
+                "  [recommended] none viable; best fallback nfrog={nfrog} dt={dt:.6g} acc={acc:.3f} tau={tau:.3f} ess={ess:.3f}".format(
+                    nfrog=int(best["nfrog"]),
+                    dt=float(best["hmc_dt"]),
+                    acc=float(best["acceptance_mean"]),
+                    tau=float(best["tau_int_doubleOcc_mean"]),
+                    ess=float(best["ess_per_sec_doubleOcc_mean"]),
+                ),
+                flush=True,
+            )
         tuned_cases.append(
             {
                 "name": cfg.name,
                 "config": asdict(cfg),
                 "rows": case_rows,
                 "recommended": best,
+                "recommended_viable": recommended_viable,
             }
         )
 
@@ -700,6 +714,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "hmc_mass_spatial_uniform": case["recommended"]["hmc_mass_spatial_uniform"],
         }
         for case in tuned_cases
+        if case.get("recommended_viable", True)
     }
     (work_root / "recommended_hmc.json").write_text(json.dumps(tuned_map, indent=2), encoding="utf-8")
     return 0

@@ -171,6 +171,7 @@ def load_tune_rows(tune_jsons: list[Path]) -> tuple[list[dict[str, object]], lis
                 "case": case["name"],
                 "beta": beta,
                 "dtau": dtau,
+                "recommended_viable": int(case.get("recommended_viable", True)),
                 "nfrog": rec["nfrog"],
                 "hmc_dt": rec["hmc_dt"],
                 "hmc_mass": rec["hmc_mass"],
@@ -310,6 +311,9 @@ def render_trace_plot(sample_rows: list[dict[str, object]], case: str, observabl
 
 
 def render_recommended_plot(rows: list[dict[str, object]], metric: str, xkey: str, output_path: Path) -> None:
+    rows = [row for row in rows if int(row.get("recommended_viable", 1)) == 1]
+    if not rows:
+        return
     grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
     for row in rows:
         grouped[str(row["case"])].append(row)
@@ -468,13 +472,15 @@ def write_report(
             "",
             "## Recommended Tune Summary",
             "",
-            "| label | case | beta | dtau | nfrog | dt | mass | m_uniform | acceptance | tau_int(doubleOcc) | ESS/sec | DeltaH_abs_max |",
-            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+            "`viable=0` means every candidate in that tune sweep was flagged as stuck or below the minimum run acceptance.",
+            "",
+            "| label | case | beta | dtau | viable | nfrog | dt | mass | m_uniform | acceptance | tau_int(doubleOcc) | ESS/sec | DeltaH_abs_max |",
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
     for row in sorted(tune_recommended, key=lambda item: (str(item["case"]), float(item["beta"]), str(item["label"]))):
         lines.append(
-            "| {label} | {case} | {beta:.6g} | {dtau:.6g} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {hmc_deltaH_abs_max:.3f} |".format(
+            "| {label} | {case} | {beta:.6g} | {dtau:.6g} | {recommended_viable} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {hmc_mass_spatial_uniform:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {hmc_deltaH_abs_max:.3f} |".format(
                 **row
             )
         )
@@ -645,7 +651,7 @@ def main() -> int:
     write_csv(
         output_dir / "tune_recommended.csv",
         tune_recommended,
-        ["label", "work_root", "case", "beta", "dtau", "nfrog", "hmc_dt", "hmc_mass", "hmc_mass_spatial_uniform", "acceptance_mean", "tau_int_doubleOcc_mean", "ess_per_sec_doubleOcc_mean", "hmc_deltaH_abs_max"],
+        ["label", "work_root", "case", "beta", "dtau", "recommended_viable", "nfrog", "hmc_dt", "hmc_mass", "hmc_mass_spatial_uniform", "acceptance_mean", "tau_int_doubleOcc_mean", "ess_per_sec_doubleOcc_mean", "hmc_deltaH_abs_max"],
     )
 
     for observable in TREND_OBSERVABLES:
