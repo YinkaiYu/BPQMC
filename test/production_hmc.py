@@ -926,7 +926,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Production tuning, stage runs, and reporting for HMC/local PQMC.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    def add_common(subparser: argparse.ArgumentParser) -> None:
+    def add_common(
+        subparser: argparse.ArgumentParser,
+        *,
+        bins_default: int = 64,
+        thermal_cut_default: int = 32,
+        warm_default: int = 32,
+    ) -> None:
         subparser.add_argument("--lattice-type", default="triangular")
         subparser.add_argument("--l-values", default="12")
         subparser.add_argument("--nbos-values", default="100000,1000000,10000000")
@@ -936,10 +942,10 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--beta", type=float, default=256.0)
         subparser.add_argument("--dtau", type=float, default=1.0e-3)
         subparser.add_argument("--nwrap", type=int, default=32)
-        subparser.add_argument("--bins", type=int, default=64)
+        subparser.add_argument("--bins", type=int, default=bins_default)
         subparser.add_argument("--sweeps", type=int, default=1)
-        subparser.add_argument("--thermal-cut", type=int, default=32)
-        subparser.add_argument("--warm", type=int, default=32)
+        subparser.add_argument("--thermal-cut", type=int, default=thermal_cut_default)
+        subparser.add_argument("--warm", type=int, default=warm_default)
         subparser.add_argument("--ini-type", type=int, default=2)
         subparser.add_argument("--ini-ampl", type=float, default=0.1)
         subparser.add_argument("--ini-type-values", default="", help="Optional comma-separated initial-state type list.")
@@ -977,7 +983,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench.set_defaults(func=run_benchmark)
 
     def add_stage_args(subparser: argparse.ArgumentParser) -> None:
-        add_common(subparser)
+        add_common(subparser, bins_default=1024, thermal_cut_default=512, warm_default=512)
         subparser.add_argument("--repeats", type=int, default=2)
         subparser.add_argument("--stage-label", default="")
         subparser.add_argument("--hmc-json", default="", help="JSON file with per-case HMC parameters, usually recommended_hmc.json.")

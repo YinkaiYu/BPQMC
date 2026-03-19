@@ -42,11 +42,38 @@ def load_stage_rows(stage_jsons: list[Path]) -> tuple[list[dict[str, object]], l
         data = json.loads(path.read_text(encoding="utf-8"))
         work_root = path.parent
         samples_path = work_root / "production_stage_samples.csv"
+        config_summary = data.get("config_summary", {})
         case = data["cases"][0]
         cfg = case["config"]
         case_key = case["name"]
         beta = float(cfg["beta"])
         dtau = float(cfg["beta"]) / float(cfg["ltrot"])
+        trace_counts: dict[int, int] = defaultdict(int)
+        post_counts: dict[int, int] = defaultdict(int)
+        if samples_path.exists():
+            with samples_path.open("r", encoding="utf-8", newline="") as stream:
+                reader = csv.DictReader(stream)
+                for row in reader:
+                    if row["observable"] not in TRACE_OBSERVABLES:
+                        continue
+                    repeat = int(row["repeat"])
+                    post_thermal = int(row["post_thermal"])
+                    sample_rows.append(
+                        {
+                            "stage_label": data["stage_label"],
+                            "case": row["name"],
+                            "repeat": repeat,
+                            "observable": row["observable"],
+                            "sample_index": int(row["sample_index"]),
+                            "post_thermal": post_thermal,
+                            "value": float(row["value"]),
+                        }
+                    )
+                    if row["observable"] == "squareOcc":
+                        trace_counts[repeat] += 1
+                        post_counts[repeat] += post_thermal
+        trace_count_values = list(trace_counts.values())
+        post_count_values = list(post_counts.values())
         case_rows.append(
             {
                 "label": work_root.name,
@@ -59,9 +86,15 @@ def load_stage_rows(stage_jsons: list[Path]) -> tuple[list[dict[str, object]], l
                 "U2": cfg["ru2"],
                 "beta": beta,
                 "dtau": dtau,
+                "bins": int(config_summary.get("bins", 0)),
+                "thermal_cut": int(config_summary.get("thermal_cut", 0)),
+                "warm": int(config_summary.get("warm", 0)),
                 "nfrog": case["hmc"]["nfrog"],
                 "hmc_dt": case["hmc"]["hmc_dt"],
                 "hmc_mass": case["hmc"]["hmc_mass"],
+                "trace_samples_mean": (sum(trace_count_values) / len(trace_count_values)) if trace_count_values else 0.0,
+                "post_thermal_samples_mean": (sum(post_count_values) / len(post_count_values)) if post_count_values else 0.0,
+                "trace_samples_max": max(trace_count_values) if trace_count_values else 0,
                 "acceptance_mean": sum(float(item["acceptance"]) for item in case["repeat_runs"]) / len(case["repeat_runs"]),
                 "tau_int_doubleOcc_mean": sum(float(item["tau_int_doubleOcc"]) for item in case["repeat_runs"]) / len(case["repeat_runs"]),
                 "ess_per_sec_doubleOcc_mean": sum(float(item["ess_per_sec_doubleOcc"]) for item in case["repeat_runs"]) / len(case["repeat_runs"]),
@@ -83,23 +116,6 @@ def load_stage_rows(stage_jsons: list[Path]) -> tuple[list[dict[str, object]], l
                     "status": case["status"],
                 }
             )
-        if samples_path.exists():
-            with samples_path.open("r", encoding="utf-8", newline="") as stream:
-                reader = csv.DictReader(stream)
-                for row in reader:
-                    if row["observable"] not in TRACE_OBSERVABLES:
-                        continue
-                    sample_rows.append(
-                        {
-                            "stage_label": data["stage_label"],
-                            "case": row["name"],
-                            "repeat": int(row["repeat"]),
-                            "observable": row["observable"],
-                            "sample_index": int(row["sample_index"]),
-                            "post_thermal": int(row["post_thermal"]),
-                            "value": float(row["value"]),
-                        }
-                    )
     return case_rows, obs_rows, sample_rows
 
 
@@ -269,15 +285,16 @@ def write_report(
         "",
         "This is the unified entry point for the current `data/triangular_hmc_production/` campaign.",
         "It merges stage and tune summaries so the production ladder can be reviewed from one report.",
+        "Short traces can look stable before a late slow-mode drift becomes visible, so always read the `samples/post` coverage before trusting a stage.",
         "",
         "## Stage Summary",
         "",
-        "| label | case | beta | dtau | nfrog | dt | mass | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        "| label | case | beta | dtau | bins | cut | warm | samples/post | nfrog | dt | mass | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in sorted(stage_cases, key=lambda item: (str(item["case"]), float(item["beta"]), str(item["label"]))):
         lines.append(
-            "| {label} | {case} | {beta:.6g} | {dtau:.6g} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
+            "| {label} | {case} | {beta:.6g} | {dtau:.6g} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
                 **row
             )
         )
@@ -328,6 +345,22 @@ def write_report(
         lines.extend(
             [
                 "",
+                f"## Case Summary: {case}",
+                "",
+                "| label | beta | dtau | bins | cut | warm | samples/post | nfrog | dt | mass | acceptance | tau_int(doubleOcc) | ESS/sec | status |",
+                "| --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+            ]
+        )
+        case_rows = [row for row in stage_cases if str(row["case"]) == case]
+        for row in sorted(case_rows, key=lambda item: (float(item["beta"]), str(item["label"]))):
+            lines.append(
+                "| {label} | {beta:.6g} | {dtau:.6g} | {bins} | {thermal_cut} | {warm} | {trace_samples_mean:.0f}/{post_thermal_samples_mean:.0f} | {nfrog} | {hmc_dt:.6g} | {hmc_mass:.6g} | {acceptance_mean:.3f} | {tau_int_doubleOcc_mean:.3f} | {ess_per_sec_doubleOcc_mean:.3f} | {status} |".format(
+                    **row
+                )
+            )
+        lines.extend(
+            [
+                "",
                 f"## Trends: {case}",
                 "",
                 f"![{case} squareOcc vs beta](trend_{case_tag}_squareOcc_vs_beta.png)",
@@ -368,7 +401,31 @@ def main() -> int:
     write_csv(
         output_dir / "stage_cases.csv",
         stage_cases,
-        ["label", "stage_label", "work_root", "case", "Lx", "Ly", "Nbos", "U2", "beta", "dtau", "nfrog", "hmc_dt", "hmc_mass", "acceptance_mean", "tau_int_doubleOcc_mean", "ess_per_sec_doubleOcc_mean", "status"],
+        [
+            "label",
+            "stage_label",
+            "work_root",
+            "case",
+            "Lx",
+            "Ly",
+            "Nbos",
+            "U2",
+            "beta",
+            "dtau",
+            "bins",
+            "thermal_cut",
+            "warm",
+            "nfrog",
+            "hmc_dt",
+            "hmc_mass",
+            "trace_samples_mean",
+            "post_thermal_samples_mean",
+            "trace_samples_max",
+            "acceptance_mean",
+            "tau_int_doubleOcc_mean",
+            "ess_per_sec_doubleOcc_mean",
+            "status",
+        ],
     )
     write_csv(
         output_dir / "stage_observables.csv",
