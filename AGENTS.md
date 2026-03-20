@@ -199,6 +199,7 @@
 - `test/render_hmc_live_progress.py` writes:
   - `live_progress/live_trace_*.png`
   - `live_progress/report.md`
+  - `live_progress/summary.json`
   - its summary table now reports the worst per-run `drift/span` among the currently visible repeats,
     not a smoothed or longest-trace surrogate
 - `test/archive_small_benchmark/small_hmc_benchmark.py` writes:

@@ -195,6 +195,15 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
     - `20 x 0.00008`
     - `24 x 0.00006`
     - `28 x 0.00005`
+  - current fixed-family partial tune result:
+    - recommended candidate: `20 x 0.00008`
+    - `acceptance ≈ 0.995`
+    - `tau_int(doubleOcc) ≈ 4.41`
+    - `ESS/sec ≈ 0.591`
+  - current retained-window follow-up:
+    - `512 / 256 / 32`
+    - `20 x 0.00008`
+    - `50001,51001,52001` seed family block
 - Working interpretation:
   - shell1-only preconditioning helped the very early trace shape but did not solve the retained-window drift
   - the first shell2 family also failed on completed stages

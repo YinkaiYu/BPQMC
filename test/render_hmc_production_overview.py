@@ -579,13 +579,15 @@ def scan_live_reports(root: Path) -> list[dict[str, str]]:
         case_name = stage_root.name
         pngs = sorted(report_path.parent.glob("live_trace_*.png"))
         stage_json = stage_root / "production_stage.json"
+        live_summary_json = report_path.parent / "summary.json"
         thermal_cut = 0
         if stage_json.exists():
             data = json.loads(stage_json.read_text(encoding="utf-8"))
             thermal_cut = int(data.get("config_summary", {}).get("thermal_cut", 0))
+        elif live_summary_json.exists():
+            live_data = json.loads(live_summary_json.read_text(encoding="utf-8"))
+            thermal_cut = int(live_data.get("thermal_cut", 0))
         run_dirs = sorted((stage_root / "runs").glob("*/*"))
-        if thermal_cut == 0 and run_dirs:
-            thermal_cut = parse_info_value(run_dirs[0] / "info.txt", "# Warm")
         longest_trace, window_mode, square_ratio, ipr_ratio = summarize_run_dirs(run_dirs, thermal_cut)
         rows.append(
             {

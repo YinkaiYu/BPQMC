@@ -250,6 +250,15 @@ Current main blocker:
         - `20 x 0.00008`
         - `24 x 0.00006`
         - `28 x 0.00005`
+      - current fixed-family partial tune:
+        - recommended candidate: `20 x 0.00008`
+        - `acceptance ≈ 0.995`
+        - `tau_int(doubleOcc) ≈ 4.41`
+        - `ESS/sec ≈ 0.591`
+        - report:
+          [lowk0p5 fixed-family tune](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_lowk0p5_seedfamily3_probe_v2/report/report.md)
+      - current retained-window follow-up:
+        - [lowk0p5 stage live](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk0p5_nf20_dt8em05_diag512_seedfamily3/live_progress/report.md)
     - if `m_lowk = 0.5` still cannot reduce the worst-repeat retained-window drift materially,
       the next target should be an even wider Fourier-accelerated mass map plus a default
       multi-seed-family diagnosis workflow rather than returning to shell-by-shell rescans

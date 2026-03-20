@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -214,6 +215,15 @@ def write_markdown(
     (out_dir / "report.md").write_text("\n".join(lines), encoding="utf-8")
 
 
+def write_summary_json(work_root: Path, thermal_cut: int, out_dir: Path, case_summaries: dict[str, dict[str, object]]) -> None:
+    payload = {
+        "work_root": str(work_root),
+        "thermal_cut": thermal_cut,
+        "cases": case_summaries,
+    }
+    (out_dir / "summary.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Render live trace plots from in-flight HMC stage runs.")
     parser.add_argument("--work-root", required=True, help="Stage work root containing runs/.")
@@ -240,6 +250,7 @@ def main() -> int:
         trace_files.append((case_name, filename))
         case_summaries[case_name] = summarize_case_runs(case_run_dirs, args.thermal_cut)
     write_markdown(work_root, cases, args.thermal_cut, output_dir, trace_files, case_summaries)
+    write_summary_json(work_root, args.thermal_cut, output_dir, case_summaries)
     return 0
 
 

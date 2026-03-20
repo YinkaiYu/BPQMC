@@ -18,6 +18,8 @@ These are the files intended for ongoing use:
 - `render_hmc_report.py`: production report renderer for `tune`, `stage`, and legacy `benchmark` summaries
 - `render_hmc_production_overview.py`: merged renderer for the whole `data/triangular_hmc_production/` tree
 - `render_hmc_live_progress.py`: live renderer for in-flight stage runs whose current repeat has not yet completed
+  - writes `live_progress/summary.json` in addition to Markdown/PNG so the unified overview
+    can reuse the exact same `thermal_cut` and worst-repeat live drift summary
 - `production_convergence_scan.py`: convenience wrapper for fixed-`beta` and fixed-`dtau` stage scans
   - defaults to `bins=1024`, `thermal_cut=512`, `warm=512` for less conservative convergence checks
 - `production_hmc.py stage` and `production_hmc.py collect` now use the same `1024 / 512 / 512`
