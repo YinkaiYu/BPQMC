@@ -404,18 +404,21 @@ The current next production rungs are:
   - the first `shell2` family `shell1_mass=8`, `shell2_mass=4` has also now failed on completed stages
   - the lighter `shell2` follow-up `shell1_mass=4`, `shell2_mass=2` also failed to produce
     a selective tune window; all cheap candidates stayed at `acceptance = 1` with huge positive `DeltaH`
-  - the active replacement path is now the broader combined low-|k| split:
-    - `mass=16`, `uniform_mass=1`, `lowk_mass=4`
+  - the first combined low-|k| family `lowk_mass=4` also later closed as `strong_drift`
+  - the current live lead is now a lighter combined low-|k| split:
+    - `mass=16`, `uniform_mass=1`, `lowk_mass=2`
     - short-tune grid:
-      - `12 x 0.0003`
-      - `16 x 0.00025`
-      - `20 x 0.0002`
-      - `24 x 0.00015`
-    - current recommended candidate: `16 x 0.00025`
-    - current backup candidate: `20 x 0.0002`
+      - `12 x 0.00025`
+      - `16 x 0.0002`
+      - `20 x 0.00015`
+      - `24 x 0.00012`
+    - current recommended candidate: `16 x 0.0002`
+    - critical current lesson: this family is strongly seed-family sensitive
+      - `seed_base=50001` freezes immediately
+      - `seed_base=51001` and `52001` both move
     - active live traces:
-      - `l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk4_nf16_dt2p5em4_diag512_warm0`
-      - `l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk4_nf20_dt2em4_diag512_warm0`
+      - `l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk2_nf16_dt2em4_diag512_warm32_seed51001`
+      - `l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk2_nf16_dt2em4_diag512_warm32_seed52001`
 
 See `HMC-REFERENCE.md` for the running interpretation of these stage results and blockers.
 For a single merged entry point across all production directories, open:

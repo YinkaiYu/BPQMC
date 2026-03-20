@@ -113,30 +113,41 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
           - `16 x 0.00025`
           - `20 x 0.0002`
           - `24 x 0.00015`
+        - completed `warm=0` stages are now both `strong_drift`
+    - current second probe:
+      - lighter combined low-|k| split:
+        - `lowk_mass = 2`
+        - grid:
+          - `12 x 0.00025`
+          - `16 x 0.0002`
+          - `20 x 0.00015`
+          - `24 x 0.00012`
         - current recommended candidate:
-          - `16 x 0.00025`
-        - current backup candidate:
-          - `20 x 0.0002`
+          - `16 x 0.0002`
+        - key live issue:
+          - `seed_base = 50001` freezes immediately
+          - `seed_base = 51001` and `52001` both move
 
 ## Immediate Next Steps
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Finish the active combined low-|k| probe:
-   - `m = 16`, `mu = 1`, `m_lowk = 4`
-   - current active warm=`0` stages:
-     - `16 x 0.00025`
-     - `20 x 0.0002`
+2. Finish the active lighter combined low-|k| probe:
+   - `m = 16`, `mu = 1`, `m_lowk = 2`
+   - current moving seed-family stages:
+     - `16 x 0.0002`, `warm = 32`, `seed_base = 51001`
+     - `16 x 0.0002`, `warm = 32`, `seed_base = 52001`
    - current deeper retained-window stage:
-     - `16 x 0.00025`, `1024 / 512 / 512`
-3. Compare the low-|k| probe against the closed bad references:
+     - `16 x 0.0002`, `1024 / 512 / 512`, `warm = 32`, `seed_base = 51001`
+3. Compare the lighter low-|k| probe against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
    - shell1-only `mk = 4`, `24 x 0.0002`
    - shell1-only `mk = 8`, `24 x 0.00025`
    - first shell2 family `mk1 = 8`, `mk2 = 4`
    - lighter shell2 follow-up `mk1 = 4`, `mk2 = 2`
-   If the combined low-|k| family still does not flatten materially faster, widen the
-   Fourier-accelerated low-|k| basis again rather than returning to shell-by-shell rescans.
+   - first combined low-|k| family `m_lowk = 4`
+   If the lighter combined low-|k| family still does not flatten materially faster, widen the
+   Fourier-accelerated low-|k| basis again and make multi-seed-family diagnosis mandatory.
 4. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
    representative preconditioned rung and use it as the production-side reference.
 5. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp
@@ -166,16 +177,22 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
     - `24 x 0.00015`
   - all candidates still kept `acceptance = 1` with huge positive `DeltaH`
 - `U2 = 1e3`, current combined low-|k| probe:
-  - `m_lowk = 4`
+  - first family `m_lowk = 4`
   - `12 x 0.0003` already dies with `acceptance = 0`
-  - `16 x 0.00025` is the current recommended candidate
-  - `20 x 0.0002` is the current slower backup candidate
+  - `16 x 0.00025` and `20 x 0.0002` both later end as `strong_drift`
+  - second family `m_lowk = 2`
+  - `12 x 0.00025` dies with `acceptance = 0`
+  - `16 x 0.0002` is the current recommended candidate
+  - `20 x 0.00015` and `24 x 0.00012` are slower backups
 - Working interpretation:
   - shell1-only preconditioning helped the very early trace shape but did not solve the retained-window drift
   - the first shell2 family also failed on completed stages
   - the lighter shell2 follow-up also failed to produce a genuinely selective tune window
   - the broader combined low-|k| family is the first path that produces both
-    an unstable point and nearby sane-`DeltaH` points, so it is now the main production lead
+    unstable points and nearby sane-`DeltaH` points
+  - however, the first `m_lowk = 4` family is still too drifty on completed stages
+  - the current `m_lowk = 2` family moves on `51001` and `52001` seed blocks but freezes on `50001`,
+    so the main question has shifted to seed-family robustness rather than mere acceptance
 
 ## Medium-Term Ladder
 

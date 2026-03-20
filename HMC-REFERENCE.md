@@ -185,6 +185,32 @@ Current next rung:
             - [nf20 dt2e-4 warm0](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk4_nf20_dt2em4_diag512_warm0/live_progress/report.md)
           - active deeper retained-window stage:
             - [nf16 dt2p5e-4 diag1024](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk4_nf16_dt2p5em4_diag1024)
+        - current verdict on `m_lowk=4`:
+          - both `warm=0` completed stages (`16 x 0.00025` and `20 x 0.0002`) are now formally `strong_drift`
+          - the deeper `1024 / 512 / 512` stage on `16 x 0.00025` is still drifting strongly before it even crosses the retained cut
+      - current active second low-|k| follow-up:
+        - lighter combined low-|k| split:
+          - `m=16`, `mu=1`, `m_lowk=2`
+          - short-tune work root:
+            [l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_lowk2_probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_lowk2_probe)
+          - short-tune reading:
+            - `12 x 0.00025` dies with `acceptance = 0`
+            - `16 x 0.0002` is the current recommended candidate
+            - `20 x 0.00015` and `24 x 0.00012` are slower but also viable
+          - critical new observation:
+            - this family is strongly seed-family sensitive
+            - `seed_base = 50001` freezes immediately into a constant trace
+            - `seed_base = 51001` and `seed_base = 52001` both move and reproduce
+              the short-tune trajectory shape
+          - active stage roots:
+            - frozen reference:
+              [lowk2 warm0 seed50001](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk2_nf16_dt2em4_diag512_warm0/live_progress/report.md)
+            - moving seed family:
+              [lowk2 warm32 seed51001](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk2_nf16_dt2em4_diag512_warm32_seed51001/live_progress/report.md)
+            - second moving seed family:
+              [lowk2 warm32 seed52001](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk2_nf16_dt2em4_diag512_warm32_seed52001/live_progress/report.md)
+            - active deeper retained-window stage on the moving family:
+              [lowk2 diag1024 seed51001](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk2_nf16_dt2em4_diag1024_warm32_seed51001)
 
 Current main blocker:
 
@@ -203,11 +229,15 @@ Current main blocker:
       cheap follow-up `mk1=4`, `mk2=2` never produced a selective tune window
     - the current active implementation path is the broader combined low-|k| split:
       `lowk_mass`, which groups the first three triangular nonzero momentum shells
-    - the current first promising family on that path is `m=16`, `mu=1`, `m_lowk=4`,
-      with active `warm=0` traces at `16 x 0.00025` and `20 x 0.0002`
-    - if this broader low-|k| family still leaves retained-window drift at `U2 = 1000`,
-      the next target should be an even wider Fourier-accelerated mass map rather than
-      returning to shell-by-shell rescans
+    - the first combined family `m_lowk = 4` is already closed as `strong_drift`
+    - the current live candidate is the lighter family `m_lowk = 2`, especially
+      `m=16`, `mu=1`, `16 x 0.0002`
+    - the decisive question on this family is now not just drift magnitude but also
+      seed-family robustness:
+      `50001` freezes while `51001` and `52001` move
+    - if `m_lowk = 2` remains heavily seed-family dependent even on longer retained windows,
+      the next target should be an even wider Fourier-accelerated mass map plus a default
+      multi-seed-family diagnosis workflow rather than returning to shell-by-shell rescans
   - `L=6`, `Nbos=1e4`, `U2=300` is still active, but its deeper `2048 / 1024 / 1024` rerun already looks much healthier;
     the main remaining question there is cross-repeat agreement, not obvious single-trace drift
 - trace-based tuning lesson from the original `Nbos=1e4, U2=1` blocker point:

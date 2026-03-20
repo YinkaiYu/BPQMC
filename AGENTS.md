@@ -111,10 +111,12 @@
       the first `shell2` family `shell1_mass=8`, `shell2_mass=4` is now also closed as `strong_drift`
       the lighter `shell2` follow-up `shell1_mass=4`, `shell2_mass=2` is no longer the main lead;
       all cheap candidates still kept `acceptance=1` with huge positive `DeltaH`
-      the current active path is the broader combined low-|k| split:
-      - `lowk_mass=4`, `nfrog=16`, `dt=0.00025`
-      - `lowk_mass=4`, `nfrog=20`, `dt=0.0002`
-      - the retained-window active stage is currently `lowk_mass=4`, `nfrog=16`, `dt=0.00025`
+      the first combined low-|k| family `lowk_mass=4` is now also closed as `strong_drift`
+      the current active path is the lighter combined low-|k| split:
+      - `lowk_mass=2`, `nfrog=16`, `dt=0.0002`
+      - `lowk_mass=2`, `nfrog=20`, `dt=0.00015`
+      - the main current issue is seed-family sensitivity:
+        `seed_base=50001` freezes, while `51001` and `52001` move
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
   - that unified `report.md` now begins with `## Current Representative Stage Per Case`
     before the full historical stage table

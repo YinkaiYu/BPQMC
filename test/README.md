@@ -144,4 +144,6 @@ The immediate next production rungs are:
   shell1-only `mk=4` and `mk=8` completed stages are also now `strong_drift`,
   the first `shell2` family `mk1=8`, `mk2=4` is also now `strong_drift`,
   the lighter `shell2` follow-up `mk1=4`, `mk2=2` also never produced a selective tune window,
-  and the active replacement path is now the broader combined low-|k| split
+  the first combined low-|k| family `m_lowk=4` is also now `strong_drift`,
+  and the active replacement path is now the lighter combined low-|k| split `m_lowk=2`,
+  with the main current issue being seed-family sensitivity rather than acceptance alone
