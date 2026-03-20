@@ -421,14 +421,16 @@ The current next production rungs are:
   - the first combined low-|k| family `lowk_mass=4` also later closed as `strong_drift`
   - the completed three-shell broader-family ladder `lowk_mass = 2 -> 1 -> 0.5`
     is also now insufficient; the fixed-family `lowk_mass = 0.5` stage is formally `strong_drift`
-  - the current replacement path is therefore not another lighter three-shell mass by itself,
-    but a widened grouped low-|k| basis driven by `--hmc-mass-spatial-lowk-shells`
-  - current widened-basis short-tune winner:
-    - `mass=16`, `uniform_mass=1`, `lowk_mass=0.5`, `lowk_shells=4`
-    - `nfrog=28`, `dt=0.00005`
-    - with explicit seed families `50001,51001,52001`
-  - active retained-window follow-up:
-    - `512 / 256 / 32` on the same widened grouped low-|k| geometry
+  - the widened grouped low-|k| basis remains the active geometry class, but the
+    completed four-shell families with `uniform_mass=1`, `lowk_mass=0.5` and
+    `uniform_mass=1`, `lowk_mass=0.25` are both now formally `strong_drift`
+  - current active retained-window lead:
+    - `mass=16`, `uniform_mass=0.5`, `lowk_mass=0.25`, `lowk_shells=4`
+    - short-tune winner: `nfrog=24`, `dt=0.00004`
+    - explicit seed families `50001,51001,52001`
+  - current live reading:
+    - the first completed visible repeat has crossed the configured cut and is moving rather than freezing
+    - but its current `squareOcc/IPR drift/span` is still about `0.752`, so the blocker is not yet resolved
   - for future scans, prefer explicit seed-family batches over manual directory cloning:
     `--seed-base-values 50001,51001,52001`
     and note that this explicit list is now reused verbatim across the whole scan,

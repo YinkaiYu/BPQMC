@@ -253,22 +253,30 @@ Current main blocker:
         - `tau_int(doubleOcc) ≈ 50.7`
         - worst retained-window drift ratio `≈ 0.78`
         - retained-window repeat span `≈ 1.00`
-    - the current active replacement path is therefore a widened grouped low-|k| basis:
-      - `m_lowk = 0.5`
-      - `lowk_shells = 4`
-      - explicit seed-family block `50001, 51001, 52001`
-      - completed short-tune winner:
-        - `28 x 0.00005`
-        - `acceptance ≈ 0.995`
-        - `tau_int(doubleOcc) ≈ 8.32`
-        - `ESS/sec ≈ 0.331`
-      - active retained-window follow-up:
-        - `28 x 0.00005`, `512 / 256 / 32`
+    - the widened grouped low-|k| basis is now the only serious replacement path left:
+      - completed widened four-shell retained-window stages:
+        - `mu = 1`, `m_lowk = 0.5`, `lowk_shells = 4`, `28 x 0.00005`
+          is formally `strong_drift`
+        - `mu = 1`, `m_lowk = 0.25`, `lowk_shells = 4`, `28 x 0.000035`
+          is also formally `strong_drift`
+      - widening further to `lowk_shells = 5` only made the tune more conservative and slower
+      - current live lead:
+        - `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 4`
         - explicit seed-family block `50001, 51001, 52001`
-    - if the widened `lowk_shells = 4` family still cannot reduce the worst-repeat
-      retained-window drift materially, the next target should be an even wider
-      Fourier-accelerated mass map plus a default multi-seed-family diagnosis workflow
-      rather than returning to shell-by-shell rescans
+        - completed short-tune winner:
+          - `24 x 0.00004`
+          - `acceptance ≈ 0.995`
+          - `tau_int(doubleOcc) ≈ 8.02`
+          - `ESS/sec ≈ 0.272`
+        - current retained-window follow-up:
+          - `24 x 0.00004`, `512 / 256 / 32`
+          - the first visible repeat `seed_base = 50001` is moving rather than freezing
+          - the first completed repeat has crossed the configured cut but still sits at
+            `squareOcc/IPR drift/span ≈ 0.752`
+      - if this lighter-uniform-mass family still cannot reduce the worst-repeat
+        retained-window drift materially, the next target should be an even wider
+        Fourier-accelerated mass map plus a default multi-seed-family diagnosis workflow
+        rather than returning to shell-by-shell rescans
   - `L=6`, `Nbos=1e4`, `U2=300` is still active, but its deeper `2048 / 1024 / 1024` rerun already looks much healthier;
     the main remaining question there is cross-repeat agreement, not obvious single-trace drift
 - trace-based tuning lesson from the original `Nbos=1e4, U2=1` blocker point:

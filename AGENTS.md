@@ -120,12 +120,16 @@
       the first combined low-|k| family `lowk_mass=4` is now also closed as `strong_drift`
       the completed three-shell broader-family ladder `lowk_mass=2 -> 1 -> 0.5`
       is also still `strong_drift`
-      the current active path is therefore a widened grouped low-|k| basis:
-      - short-tune winner: `lowk_mass=0.5`, `lowk_shells=4`, `nfrog=28`, `dt=0.00005`
+      the widened grouped low-|k| basis remains the only serious active path, but the
+      `uniform_mass=1` four-shell families `lowk_mass=0.5` and `lowk_mass=0.25`
+      have both now completed as `strong_drift`
+      the current active lead lowers the exact uniform mode as well:
+      - short-tune winner:
+        `uniform_mass=0.5`, `lowk_mass=0.25`, `lowk_shells=4`, `nfrog=24`, `dt=0.00004`
       - active retained-window follow-up: `512 / 256 / 32` with explicit seed families
         `50001,51001,52001`
-      - the main current issue is still seed-family sensitivity:
-        `seed_base=50001` freezes, while `51001` and `52001` move
+      - the current first completed visible repeat has crossed the configured cut and is moving
+        rather than freezing, but still shows `squareOcc/IPR drift/span≈0.752`
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
   - that unified `report.md` now begins with `## Current Representative Stage Per Case`
     before the full historical stage table

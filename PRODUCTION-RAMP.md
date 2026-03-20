@@ -123,39 +123,44 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
         - tune winner: `20 x 0.00012`
         - completed moving-family stages at `51001` / `52001` still remain `strong_drift`
         - partial three-family `256 / 128 / 32` stage also remains `strong_drift`
-    - current active broader-family probe:
-      - `lowk_mass = 0.5`
-      - fixed-family short-tune winner:
-        - `20 x 0.00008`
+    - completed widened grouped low-|k| stages:
+      - `lowk_mass = 0.5`, `lowk_shells = 4`, retained-window stage `28 x 0.00005`
+        now completes `3/3` as `strong_drift`
+      - `lowk_mass = 0.25`, `lowk_shells = 4`, retained-window stage `28 x 0.000035`
+        now also completes `3/3` as `strong_drift`
+      - widening to `lowk_shells = 5` only made the short tune more conservative,
+        with much worse `ESS/sec`
+    - current active probe:
+      - lower the exact spatially uniform mode as well as the grouped low-|k| block
+      - short-tune winner:
+        - `uniform_mass = 0.5`
+        - `lowk_mass = 0.25`
+        - `lowk_shells = 4`
+        - `24 x 0.00004`
         - `acceptance ≈ 0.995`
-        - `tau_int(doubleOcc) ≈ 4.41`
-        - `ESS/sec ≈ 0.591`
+        - `tau_int(doubleOcc) ≈ 8.02`
+        - `ESS/sec ≈ 0.272`
       - active retained-window follow-up:
         - `512 / 256 / 32`
-        - `20 x 0.00008`
+        - `24 x 0.00004`
         - explicit seed family block `50001, 51001, 52001`
+      - current early reading:
+        - `seed_base = 50001` no longer freezes immediately
+        - the first completed visible repeat has crossed the configured cut and is
+          still drifting strongly, with current `squareOcc/IPR drift/span ≈ 0.752`
+        - still unresolved; cross-family retained-window agreement has not been shown yet
 
 ## Immediate Next Steps
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Move past the now-closed three-shell `m_lowk = 0.5` family and start the widened
-   grouped low-|k| probe:
-   - `m = 16`, `mu = 1`, `m_lowk = 0.5`, `lowk_shells = 4`
-   - explicit seed-family block `50001, 51001, 52001`
-   - completed short-tune winner:
-     - `28 x 0.00005`
-     - `acceptance ≈ 0.995`
-     - `tau_int(doubleOcc) ≈ 8.32`
-     - `ESS/sec ≈ 0.331`
-   - active retained-window follow-up:
-     - `28 x 0.00005`, `512 / 256 / 32`
-     - explicit seed-family block `50001, 51001, 52001`
-   - immediate check:
-     - whether widening the Fourier-accelerated low-|k| basis reduces the
-     worst-repeat retained drift below the closed three-shell
-     `m_lowk = 0.5` / `1` / `2` / `4` families
-3. Compare the active broader low-|k| probe against the closed bad references:
+2. Let the current `uniform_mass = 0.5`, `lowk_mass = 0.25`, `lowk_shells = 4`
+   retained-window stage run deeper and check whether the early improvement
+   on `seed_base = 50001` survives beyond the first post-cut window.
+3. If the current `mu = 0.5` retained-window stage still ends with strong
+   cross-family retained-window mismatch, move to a broader Fourier mass map
+   rather than another small scalar tweak inside the same grouped low-|k| family.
+4. Compare the current broader low-|k| probe against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
    - shell1-only `mk = 4`, `24 x 0.0002`
    - shell1-only `mk = 8`, `24 x 0.00025`
@@ -165,12 +170,13 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
    - combined low-|k| `m_lowk = 2`
    - combined low-|k| `m_lowk = 1`
    - closed three-shell combined low-|k| `m_lowk = 0.5`
-   - active widened combined low-|k| `m_lowk = 0.5`, `lowk_shells = 4`
-   If the widened `lowk_shells = 4` family still does not flatten materially faster,
-   widen the Fourier-accelerated low-|k| basis again and keep multi-seed-family diagnosis mandatory.
-4. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
+   - widened combined low-|k| `m_lowk = 0.5`, `lowk_shells = 4`
+   - widened combined low-|k| `m_lowk = 0.25`, `lowk_shells = 4`
+   - current low-|k| plus lighter uniform mode
+     `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 4`
+5. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
    representative preconditioned rung and use it as the production-side reference.
-5. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp
+6. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp
    move to larger `Nbos` or larger `L`.
 
 ## Current Early-Trace Reading
@@ -208,16 +214,19 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
   - tune winner: `20 x 0.00012`
   - completed moving-family stages at `51001` / `52001` still remain `strong_drift`
   - partial three-family `256 / 128 / 32` stage also remains `strong_drift`
-  - current active probe: `m_lowk = 0.5`
-    - `16 x 0.0001`
-    - `20 x 0.00008`
-    - `24 x 0.00006`
-    - `28 x 0.00005`
-  - current fixed-family partial tune result:
-    - recommended candidate: `20 x 0.00008`
-    - `acceptance ≈ 0.995`
-    - `tau_int(doubleOcc) ≈ 4.41`
-    - `ESS/sec ≈ 0.591`
+  - widened combined low-|k| `m_lowk = 0.5`, `lowk_shells = 4`
+    - tune winner: `28 x 0.00005`
+    - completed retained-window stage: still `strong_drift`
+  - widened combined low-|k| `m_lowk = 0.25`, `lowk_shells = 4`
+    - tune winner: `28 x 0.000035`
+    - completed retained-window stage: still `strong_drift`
+  - current active probe lowers the exact uniform mode as well:
+    - `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 4`
+    - tune winner: `24 x 0.00004`
+    - early retained-window reading:
+      - `seed_base = 50001` is moving rather than freezing
+      - current first completed repeat has crossed the cut but still sits at
+        `drift/span ≈ 0.752`
   - current retained-window follow-up:
     - `512 / 256 / 32`
     - `20 x 0.00008`
