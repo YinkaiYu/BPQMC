@@ -51,6 +51,8 @@ The unified entry point for the accumulated production results is now:
 - the same `report.md` now starts with `## Current Representative Stage Per Case`,
   so one current retained-window result per fixed `(L, Nbos, U2)` can be reviewed first
 - the same `report.md` now also contains a `## Live Progress` section for in-flight large-`U2` stages
+- that live section is now intentionally conservative: it reports the worst currently visible
+  repeat rather than averaging or silently choosing one longest trace
 - explicit fixed-`beta` or fixed-`dtau` scans can be launched with
   [production_convergence_scan.py](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/production_convergence_scan.py)
 - the overview report now shows `bins`, `thermal_cut`, `warm`, and `samples/post` per stage,

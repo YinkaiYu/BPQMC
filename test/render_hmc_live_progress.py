@@ -82,6 +82,44 @@ def partial_trace_stats(values: list[float], thermal_cut: int) -> dict[str, floa
     }
 
 
+def summarize_case_runs(run_dirs: list[Path], thermal_cut: int) -> dict[str, object]:
+    per_run: list[dict[str, object]] = []
+    longest_trace = 0
+    window_modes: set[str] = set()
+    square_ratio_max = 0.0
+    ipr_ratio_max = 0.0
+    for run_dir in run_dirs:
+        square_stats = partial_trace_stats(read_trace(run_dir / "squareOcc"), thermal_cut)
+        ipr_stats = partial_trace_stats(read_trace(run_dir / "IPR"), thermal_cut)
+        longest_trace = max(longest_trace, int(square_stats["longest_trace"]))
+        window_modes.add(str(square_stats["window_mode"]))
+        square_ratio_max = max(square_ratio_max, float(square_stats["drift_ratio"]))
+        ipr_ratio_max = max(ipr_ratio_max, float(ipr_stats["drift_ratio"]))
+        per_run.append(
+            {
+                "run": run_dir.name,
+                "longest_trace": int(square_stats["longest_trace"]),
+                "window_mode": str(square_stats["window_mode"]),
+                "square_ratio": float(square_stats["drift_ratio"]),
+                "ipr_ratio": float(ipr_stats["drift_ratio"]),
+            }
+        )
+    if not window_modes:
+        window_mode = "empty"
+    elif len(window_modes) == 1:
+        window_mode = next(iter(window_modes))
+    else:
+        window_mode = "mixed"
+    per_run.sort(key=lambda row: (-max(float(row["square_ratio"]), float(row["ipr_ratio"])), str(row["run"])))
+    return {
+        "longest_trace": longest_trace,
+        "window_mode": window_mode,
+        "square_ratio": square_ratio_max,
+        "ipr_ratio": ipr_ratio_max,
+        "per_run": per_run,
+    }
+
+
 def render_case_plot(case_name: str, run_dirs: list[Path], thermal_cut: int, out_dir: Path) -> str:
     fig, axes = plt.subplots(len(TRACE_OBSERVABLES), 1, figsize=(10, 2.8 * len(TRACE_OBSERVABLES)), sharex=True)
     if len(TRACE_OBSERVABLES) == 1:
@@ -136,6 +174,7 @@ def write_markdown(
         "This report is intended for in-flight stage runs that do not yet have a completed repeat.",
         "The dashed red line marks the configured `thermal_cut`; the dotted gray line marks the configured warm-up bins when it can be read from `info.txt`.",
         "If the longest trace has not crossed the configured cut yet, the drift ratios below are computed on the currently available pre-cut samples.",
+        "The summary ratios below are the worst per-run `drift/span` values across the currently visible repeats, not an average over runs.",
         "",
         "| Case | Runs seen | Longest trace | Window | squareOcc drift/span | IPR drift/span |",
         "| --- | ---: | ---: | --- | ---: | ---: |",
@@ -155,6 +194,23 @@ def write_markdown(
     lines.extend(["", "## Traces", ""])
     for case_name, filename in trace_files:
         lines.extend([f"### {case_name}", "", f"![{case_name}]({filename})", ""])
+        summary = case_summaries[case_name]
+        per_run = summary.get("per_run", [])
+        if per_run:
+            lines.extend(
+                [
+                    "",
+                    "| run | trace length | window | squareOcc drift/span | IPR drift/span |",
+                    "| --- | ---: | --- | ---: | ---: |",
+                ]
+            )
+            for row in per_run:
+                lines.append(
+                    "| {run} | {longest_trace} | {window_mode} | {square_ratio:.3f} | {ipr_ratio:.3f} |".format(
+                        **row
+                    )
+                )
+        lines.append("")
     (out_dir / "report.md").write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -182,23 +238,7 @@ def main() -> int:
     for case_name, case_run_dirs in sorted(cases.items()):
         filename = render_case_plot(case_name, case_run_dirs, args.thermal_cut, output_dir)
         trace_files.append((case_name, filename))
-        best_square: list[float] = []
-        best_ipr: list[float] = []
-        longest = -1
-        for run_dir in case_run_dirs:
-            square_vals = read_trace(run_dir / "squareOcc")
-            if len(square_vals) > longest:
-                longest = len(square_vals)
-                best_square = square_vals
-                best_ipr = read_trace(run_dir / "IPR")
-        square_stats = partial_trace_stats(best_square, args.thermal_cut)
-        ipr_stats = partial_trace_stats(best_ipr, args.thermal_cut)
-        case_summaries[case_name] = {
-            "longest_trace": square_stats["longest_trace"],
-            "window_mode": square_stats["window_mode"],
-            "square_ratio": square_stats["drift_ratio"],
-            "ipr_ratio": ipr_stats["drift_ratio"],
-        }
+        case_summaries[case_name] = summarize_case_runs(case_run_dirs, args.thermal_cut)
     write_markdown(work_root, cases, args.thermal_cut, output_dir, trace_files, case_summaries)
     return 0
 

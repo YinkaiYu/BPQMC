@@ -102,6 +102,8 @@ The resulting report lives at:
 - that same `report.md` now starts with `## Current Representative Stage Per Case`
   before the full historical stage table
 - the in-flight large-`U2` live links are now also folded into that same `report.md` under `## Live Progress`
+- that live section now reports the worst per-run `drift/span` currently visible, so seed-family
+  differences are not hidden by averaging
 - the standalone helper page is `data/triangular_hmc_production/overview/high_u2_live_progress.md`
 - the report now includes per-case sections and `samples/post` coverage, so late slow-mode
   drift is easier to diagnose from one entry point

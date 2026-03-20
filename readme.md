@@ -35,6 +35,8 @@ The single merged entry point for accumulated production results is
 That same `report.md` now also carries a `## Current Representative Stage Per Case`
 section for the current best retained-window stage at each fixed `(L, Nbos, U2)`,
 plus a `## Live Progress` section for in-flight large-`U2` stages.
+The live section is intentionally conservative: it reports the worst per-run `drift/span`
+among the currently visible repeats, not an average across runs.
 
 Run a triangular-lattice HMC smoke test in a fresh temporary directory:
 

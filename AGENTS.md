@@ -198,6 +198,8 @@
 - `test/render_hmc_live_progress.py` writes:
   - `live_progress/live_trace_*.png`
   - `live_progress/report.md`
+  - its summary table now reports the worst per-run `drift/span` among the currently visible repeats,
+    not a smoothed or longest-trace surrogate
 - `test/archive_small_benchmark/small_hmc_benchmark.py` writes:
   - `small_tune.csv`, `small_tune.json`, `recommended_hmc.json`
   - `small_benchmark_cases.csv`, `small_benchmark_observables.csv`, `small_benchmark_samples.csv`
@@ -226,6 +228,8 @@
 - `PRODUCTION-RAMP.md` should be kept in sync whenever the active next rung or blocker changes.
 - For production data review, prefer `test/render_hmc_production_overview.py` over opening many per-directory reports by hand.
 - The unified `overview/report.md` now also contains a `## Live Progress` section for in-flight large-`U2` stages.
+- That unified live section now also uses the worst currently visible repeat, so in-flight
+  drift is not understated by averaging across seed families.
 - In the merged trace plots, the dashed line is only the configured `thermal_cut`, and the overlaid lines are independent stage runs rather than one continued chain.
 - The production stage gate should be interpreted on the worst retained repeat, not only on the mean drift across repeats.
 - The production stage gate should also be read against the cross-repeat retained-window mismatch,

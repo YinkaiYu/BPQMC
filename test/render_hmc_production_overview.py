@@ -535,6 +535,29 @@ def scan_live_reports(root: Path) -> list[dict[str, str]]:
         ratio = abs(drift) / span if span > 0.0 else 0.0
         return len(values), mode, ratio
 
+    def summarize_run_dirs(run_dirs: list[Path], thermal_cut: int) -> tuple[int, str, float, float]:
+        longest_trace = 0
+        window_modes: set[str] = set()
+        square_ratio = 0.0
+        ipr_ratio = 0.0
+        for run_dir in run_dirs:
+            run_square = read_trace(run_dir / "squareOcc")
+            run_ipr = read_trace(run_dir / "IPR")
+            run_len, run_mode, run_square_ratio = partial_trace_stats(run_square, thermal_cut)
+            _, run_ipr_mode, run_ipr_ratio = partial_trace_stats(run_ipr, thermal_cut)
+            longest_trace = max(longest_trace, run_len)
+            window_modes.add(run_mode)
+            window_modes.add(run_ipr_mode)
+            square_ratio = max(square_ratio, run_square_ratio)
+            ipr_ratio = max(ipr_ratio, run_ipr_ratio)
+        if not window_modes:
+            window_mode = "empty"
+        elif len(window_modes) == 1:
+            window_mode = next(iter(window_modes))
+        else:
+            window_mode = "mixed"
+        return longest_trace, window_mode, square_ratio, ipr_ratio
+
     def parse_info_value(info_path: Path, key: str) -> int:
         if not info_path.exists():
             return 0
@@ -563,17 +586,7 @@ def scan_live_reports(root: Path) -> list[dict[str, str]]:
         run_dirs = sorted((stage_root / "runs").glob("*/*"))
         if thermal_cut == 0 and run_dirs:
             thermal_cut = parse_info_value(run_dirs[0] / "info.txt", "# Warm")
-        best_square: list[float] = []
-        best_ipr: list[float] = []
-        longest_trace = -1
-        for run_dir in run_dirs:
-            square_vals = read_trace(run_dir / "squareOcc")
-            if len(square_vals) > longest_trace:
-                longest_trace = len(square_vals)
-                best_square = square_vals
-                best_ipr = read_trace(run_dir / "IPR")
-        longest_trace, window_mode, square_ratio = partial_trace_stats(best_square, thermal_cut)
-        _, _, ipr_ratio = partial_trace_stats(best_ipr, thermal_cut)
+        longest_trace, window_mode, square_ratio, ipr_ratio = summarize_run_dirs(run_dirs, thermal_cut)
         rows.append(
             {
                 "stage_root": str(stage_root.resolve()),
