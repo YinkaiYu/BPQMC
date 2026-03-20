@@ -34,8 +34,11 @@ module CalcBasic ! Global parameters
     integer,                public              :: hmc_mass_spatial_lowk_shells
     real(kind=8),           public              :: hmc_mass_spatial_midk
     integer,                public              :: hmc_mass_spatial_midk_shells
+    integer,                parameter, public   :: hmc_shell_map_max = 16
     real(kind=8),           public              :: hmc_mass_spatial_shell1
     real(kind=8),           public              :: hmc_mass_spatial_shell2
+    integer,                public              :: hmc_mass_spatial_shell_map_count
+    real(kind=8),           public              :: hmc_mass_spatial_shell_map(hmc_shell_map_max)
     integer,                public              :: hmc_block_tau
     integer,                public              :: hmc_block_sites
 ! initial state parameters
@@ -86,6 +89,8 @@ contains
             hmc_mass_spatial_midk_shells = 0
             hmc_mass_spatial_shell1 = 0.d0
             hmc_mass_spatial_shell2 = 0.d0
+            hmc_mass_spatial_shell_map_count = 0
+            hmc_mass_spatial_shell_map = 0.d0
             hmc_block_tau = 0
             hmc_block_sites = 0
             read(hmc_line, *, iostat=ios_hmc) is_global, Nfrog, hmc_dt, NfrogJitter, hmc_mass, hmc_block_tau, hmc_block_sites
@@ -135,6 +140,7 @@ contains
             call read_env_int("BPQMC_HMC_MASS_SPATIAL_MIDK_SHELLS", hmc_mass_spatial_midk_shells)
             call read_env_real("BPQMC_HMC_MASS_SPATIAL_SHELL1", hmc_mass_spatial_shell1)
             call read_env_real("BPQMC_HMC_MASS_SPATIAL_SHELL2", hmc_mass_spatial_shell2)
+            call read_env_real_list("BPQMC_HMC_MASS_SPATIAL_SHELL_MAP", hmc_mass_spatial_shell_map, hmc_mass_spatial_shell_map_count)
         endif 
 !   MPI process: parallelization
         call MPI_BCAST(Beta, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
@@ -152,6 +158,8 @@ contains
         call MPI_BCAST(hmc_mass_spatial_midk_shells, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_mass_spatial_shell1, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_mass_spatial_shell2, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(hmc_mass_spatial_shell_map_count, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(hmc_mass_spatial_shell_map, hmc_shell_map_max, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_block_tau, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_block_sites, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(shiftWarm, Naux, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
@@ -232,6 +240,14 @@ contains
             endif
             if (hmc_mass_spatial_shell2 < 0.d0) then
                 write(6,*) "hmc_mass_spatial_shell2 must be non-negative in HMC mode"; stop
+            endif
+            if (hmc_mass_spatial_shell_map_count < 0 .or. hmc_mass_spatial_shell_map_count > hmc_shell_map_max) then
+                write(6,*) "hmc_mass_spatial_shell_map_count is out of range in HMC mode"; stop
+            endif
+            if (hmc_mass_spatial_shell_map_count > 0) then
+                if (any(hmc_mass_spatial_shell_map(1:hmc_mass_spatial_shell_map_count) < 0.d0)) then
+                    write(6,*) "hmc_mass_spatial_shell_map entries must be non-negative in HMC mode"; stop
+                endif
             endif
             if (hmc_block_tau < 0) then
                 write(6,*) "hmc_block_tau must be non-negative in HMC mode"; stop
@@ -334,6 +350,45 @@ contains
         return
     end subroutine read_env_int
 
+    subroutine read_env_real_list(name, values, count)
+        character(len=*), intent(in) :: name
+        real(kind=8), intent(inout) :: values(:)
+        integer, intent(inout) :: count
+        character(len=512) :: env_value, buffer, token
+        integer :: env_status, ios, pos
+
+        call get_environment_variable(name, env_value, status=env_status)
+        if (env_status /= 0) return
+        buffer = adjustl(trim(env_value))
+        if (len_trim(buffer) == 0) return
+
+        values = 0.d0
+        count = 0
+        do while (len_trim(buffer) > 0 .and. count < size(values))
+            pos = index(buffer, ',')
+            if (pos > 0) then
+                token = adjustl(buffer(:pos-1))
+                if (pos < len(buffer)) then
+                    buffer = adjustl(buffer(pos+1:))
+                else
+                    buffer = ''
+                endif
+            else
+                token = adjustl(buffer)
+                buffer = ''
+            endif
+            if (len_trim(token) == 0) cycle
+            read(token, *, iostat=ios) values(count + 1)
+            if (ios /= 0) then
+                values = 0.d0
+                count = 0
+                return
+            endif
+            count = count + 1
+        enddo
+        return
+    end subroutine read_env_real_list
+
     pure logical function is_triangular_lattice()
         is_triangular_lattice = trim(lattice_type) == 'triangular'
         return
@@ -416,6 +471,11 @@ contains
                 write(50,*) 'Mid-k leapfrog shell count                     :', hmc_mass_spatial_midk_shells
                 write(50,*) 'Lowest-shell leapfrog mass                     :', hmc_mass_spatial_shell1
                 write(50,*) 'Second-shell leapfrog mass                     :', hmc_mass_spatial_shell2
+                write(50,*) 'Shell-map leapfrog shell count                 :', hmc_mass_spatial_shell_map_count
+                if (hmc_mass_spatial_shell_map_count > 0) then
+                    write(50,*) 'Shell-map leapfrog masses                      :', &
+                        hmc_mass_spatial_shell_map(1:hmc_mass_spatial_shell_map_count)
+                endif
                 write(50,*) 'HMC tau block size                             :', hmc_block_tau
                 write(50,*) 'HMC site block size                            :', hmc_block_sites
             else

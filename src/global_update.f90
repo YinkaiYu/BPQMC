@@ -14,7 +14,7 @@ module GlobalUpdate_mod
     private :: HMC_force_prop_L, HMC_set_overlap, HMC_log_overlap_abs2
     private :: HMC_draw_nfrog
     private :: HMC_flavor_active
-    private :: HMC_use_spatial_uniform_mass, HMC_use_spatial_lowk_mass, HMC_use_spatial_midk_mass, HMC_use_spatial_shell1_mass, HMC_use_spatial_shell2_mass, HMC_kinetic_energy
+    private :: HMC_use_spatial_uniform_mass, HMC_use_spatial_shell_map, HMC_use_spatial_lowk_mass, HMC_use_spatial_midk_mass, HMC_use_spatial_shell1_mass, HMC_use_spatial_shell2_mass, HMC_kinetic_energy
     private :: HMC_shell_init, HMC_shell_clear, HMC_build_shell_basis, HMC_build_shell_band_basis, HMC_project_modes
     private :: HMC_shell_metric, HMC_keep_canonical_q
     private :: HMC_rng_gaussian, HMC_measure_sweep_L, HMC_measure_sweep_R
@@ -74,10 +74,13 @@ module GlobalUpdate_mod
     integer, save :: HMC_midk_nmode = 0
     integer, save :: HMC_shell1_nmode = 0
     integer, save :: HMC_shell2_nmode = 0
+    integer, save :: HMC_shell_map_nband = 0
+    integer, save :: HMC_shell_map_nmode(hmc_shell_map_max) = 0
     real(kind=8), allocatable, save :: HMC_lowk_basis(:,:)
     real(kind=8), allocatable, save :: HMC_midk_basis(:,:)
     real(kind=8), allocatable, save :: HMC_shell1_basis(:,:)
     real(kind=8), allocatable, save :: HMC_shell2_basis(:,:)
+    real(kind=8), allocatable, save :: HMC_shell_map_basis(:,:,:)
     logical, save :: HMC_trace_enabled = .false.
     integer, parameter :: HMC_trace_unit = 87
     integer, save :: HMC_trace_count = 0
@@ -332,10 +335,12 @@ contains
     subroutine Global_sample_momentum(this, iseed)
         class(GlobalUpdate), intent(inout) :: this
         integer, intent(inout) :: iseed
-        integer :: nt, ii, nf, nsite_active, imode
+        integer :: nt, ii, nf, nsite_active, imode, iband
         real(kind=8) :: sigma_p, sigma_uniform, sigma_lowk, sigma_midk, sigma_shell1, sigma_shell2, sigma_uniform_eff
-        real(kind=8) :: mean_p, lowk_part, midk_part, shell1_part, shell2_part
+        real(kind=8) :: mean_p, lowk_part, midk_part, shell1_part, shell2_part, shell_map_part
+        real(kind=8) :: sigma_shell_map(hmc_shell_map_max)
         real(kind=8) :: lowk_coeff(HMC_shell_max_modes), midk_coeff(HMC_shell_max_modes), shell1_coeff(HMC_shell_max_modes), shell2_coeff(HMC_shell_max_modes)
+        real(kind=8) :: shell_map_coeff(HMC_shell_max_modes, hmc_shell_map_max)
 
         sigma_p = sqrt(hmc_mass)
         sigma_uniform = sqrt(hmc_mass_spatial_uniform)
@@ -343,6 +348,10 @@ contains
         sigma_midk = sqrt(hmc_mass_spatial_midk)
         sigma_shell1 = sqrt(hmc_mass_spatial_shell1)
         sigma_shell2 = sqrt(hmc_mass_spatial_shell2)
+        sigma_shell_map = sigma_p
+        do iband = 1, min(hmc_mass_spatial_shell_map_count, hmc_shell_map_max)
+            if (hmc_mass_spatial_shell_map(iband) > 0.d0) sigma_shell_map(iband) = sqrt(hmc_mass_spatial_shell_map(iband))
+        enddo
         this%momentum = 0.d0
 
         do nt = this%tau_begin, this%tau_end
@@ -352,7 +361,40 @@ contains
                 do ii = this%ii_begin, this%ii_end
                     this%momentum(nf, ii, nt) = HMC_rng_gaussian(iseed)
                 enddo
-                if (HMC_use_spatial_lowk_mass(this, nsite_active) .or. HMC_use_spatial_midk_mass(this, nsite_active)) then
+                if (HMC_use_spatial_shell_map(this, nsite_active)) then
+                    mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
+                    do iband = 1, HMC_shell_map_nband
+                        if (HMC_shell_map_nmode(iband) > 0 .and. hmc_mass_spatial_shell_map(iband) > 0.d0 .and. &
+                            abs(hmc_mass_spatial_shell_map(iband) - hmc_mass) > Zero) then
+                            call HMC_project_modes(this%momentum(nf, this%ii_begin:this%ii_end, nt), &
+                                                   HMC_shell_map_basis(:,1:HMC_shell_map_nmode(iband),iband), &
+                                                   HMC_shell_map_nmode(iband), shell_map_coeff(:, iband))
+                        else
+                            shell_map_coeff(:, iband) = 0.d0
+                        endif
+                    enddo
+                    if (HMC_use_spatial_uniform_mass(this, nsite_active)) then
+                        sigma_uniform_eff = sigma_uniform
+                    else
+                        sigma_uniform_eff = sigma_p
+                    endif
+                    do ii = this%ii_begin, this%ii_end
+                        this%momentum(nf, ii, nt) = sigma_p * this%momentum(nf, ii, nt) + &
+                            (sigma_uniform_eff - sigma_p) * mean_p
+                        do iband = 1, HMC_shell_map_nband
+                            if (HMC_shell_map_nmode(iband) <= 0) cycle
+                            if (hmc_mass_spatial_shell_map(iband) <= 0.d0) cycle
+                            if (abs(hmc_mass_spatial_shell_map(iband) - hmc_mass) <= Zero) cycle
+                            shell_map_part = 0.d0
+                            do imode = 1, HMC_shell_map_nmode(iband)
+                                shell_map_part = shell_map_part + shell_map_coeff(imode, iband) * &
+                                                  HMC_shell_map_basis(ii, imode, iband)
+                            enddo
+                            this%momentum(nf, ii, nt) = this%momentum(nf, ii, nt) + &
+                                (sigma_shell_map(iband) - sigma_p) * shell_map_part
+                        enddo
+                    enddo
+                elseif (HMC_use_spatial_lowk_mass(this, nsite_active) .or. HMC_use_spatial_midk_mass(this, nsite_active)) then
                     mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
                     if (HMC_use_spatial_lowk_mass(this, nsite_active)) then
                         call HMC_project_modes(this%momentum(nf, this%ii_begin:this%ii_end, nt), HMC_lowk_basis, HMC_lowk_nmode, lowk_coeff)
@@ -473,9 +515,30 @@ contains
         return
     end function HMC_use_spatial_midk_mass
 
+    logical function HMC_use_spatial_shell_map(this, nsite_active)
+        class(GlobalUpdate), intent(in) :: this
+        integer, intent(in) :: nsite_active
+        integer :: iband
+
+        HMC_use_spatial_shell_map = .false.
+        if (hmc_mass_spatial_shell_map_count <= 0) return
+        if (.not. allocated(HMC_shell_map_basis)) return
+        if (HMC_shell_map_nband <= 0) return
+        if (nsite_active /= Ndim) return
+        do iband = 1, HMC_shell_map_nband
+            if (HMC_shell_map_nmode(iband) <= 0) cycle
+            if (hmc_mass_spatial_shell_map(iband) <= 0.d0) cycle
+            if (abs(hmc_mass_spatial_shell_map(iband) - hmc_mass) <= Zero) cycle
+            HMC_use_spatial_shell_map = .true.
+            return
+        enddo
+        return
+    end function HMC_use_spatial_shell_map
+
     subroutine HMC_shell_init()
         integer, dimension(3) :: shell1_qx, shell1_qy, shell2_qx, shell2_qy
-        integer :: lowk_shell_count
+        integer :: lowk_shell_count, iband
+        real(kind=8), allocatable :: basis_tmp(:,:)
 
         call HMC_shell_clear()
         if (.not. is_triangular_lattice()) return
@@ -488,6 +551,21 @@ contains
         shell1_qy = (/ 0, 1,  1 /)
         shell2_qx = (/ 1, 2, -1 /)
         shell2_qy = (/ 1, -1, 2 /)
+
+        if (hmc_mass_spatial_shell_map_count > 0) then
+            HMC_shell_map_nband = min(hmc_mass_spatial_shell_map_count, hmc_shell_map_max)
+            allocate(HMC_shell_map_basis(Ndim, HMC_shell_max_modes, HMC_shell_map_nband))
+            HMC_shell_map_basis = 0.d0
+            HMC_shell_map_nmode = 0
+            do iband = 1, HMC_shell_map_nband
+                call HMC_build_shell_band_basis(iband, iband, basis_tmp, HMC_shell_map_nmode(iband))
+                if (allocated(basis_tmp)) then
+                    HMC_shell_map_basis(:,1:HMC_shell_map_nmode(iband),iband) = basis_tmp(:,1:HMC_shell_map_nmode(iband))
+                    deallocate(basis_tmp)
+                endif
+            enddo
+            return
+        endif
 
         lowk_shell_count = 0
         if (hmc_mass_spatial_lowk > 0.d0) then
@@ -614,10 +692,13 @@ contains
         HMC_midk_nmode = 0
         HMC_shell1_nmode = 0
         HMC_shell2_nmode = 0
+        HMC_shell_map_nband = 0
+        HMC_shell_map_nmode = 0
         if (allocated(HMC_lowk_basis)) deallocate(HMC_lowk_basis)
         if (allocated(HMC_midk_basis)) deallocate(HMC_midk_basis)
         if (allocated(HMC_shell1_basis)) deallocate(HMC_shell1_basis)
         if (allocated(HMC_shell2_basis)) deallocate(HMC_shell2_basis)
+        if (allocated(HMC_shell_map_basis)) deallocate(HMC_shell_map_basis)
         return
     end subroutine HMC_shell_clear
 
@@ -770,9 +851,11 @@ contains
 
     real(kind=8) function HMC_kinetic_energy(this) result(kinetic)
         class(GlobalUpdate), intent(in) :: this
-        integer :: nt, nf, nsite_active
-        real(kind=8) :: mean_p, residual_sq, total_sq, uniform_sq, lowk_sq, midk_sq, shell1_sq, shell2_sq
+        integer :: nt, nf, nsite_active, iband
+        real(kind=8) :: mean_p, residual_sq, total_sq, uniform_sq, lowk_sq, midk_sq, shell1_sq, shell2_sq, shell_map_sq
+        real(kind=8) :: shell_map_sq_list(hmc_shell_map_max)
         real(kind=8) :: lowk_coeff(HMC_shell_max_modes), midk_coeff(HMC_shell_max_modes), shell1_coeff(HMC_shell_max_modes), shell2_coeff(HMC_shell_max_modes)
+        real(kind=8) :: shell_map_coeff(HMC_shell_max_modes, hmc_shell_map_max)
 
         kinetic = 0.d0
         if (this%ii_begin > this%ii_end .or. this%tau_begin > this%tau_end) return
@@ -781,7 +864,33 @@ contains
         do nt = this%tau_begin, this%tau_end
             do nf = 1, Naux
                 if (.not. HMC_flavor_active(nf)) cycle
-                if (HMC_use_spatial_lowk_mass(this, nsite_active) .or. HMC_use_spatial_midk_mass(this, nsite_active)) then
+                if (HMC_use_spatial_shell_map(this, nsite_active)) then
+                    mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
+                    shell_map_sq_list = 0.d0
+                    do iband = 1, HMC_shell_map_nband
+                        if (HMC_shell_map_nmode(iband) > 0 .and. hmc_mass_spatial_shell_map(iband) > 0.d0 .and. &
+                            abs(hmc_mass_spatial_shell_map(iband) - hmc_mass) > Zero) then
+                            call HMC_project_modes(this%momentum(nf, this%ii_begin:this%ii_end, nt), &
+                                                   HMC_shell_map_basis(:,1:HMC_shell_map_nmode(iband),iband), &
+                                                   HMC_shell_map_nmode(iband), shell_map_coeff(:, iband))
+                            shell_map_sq_list(iband) = sum(shell_map_coeff(1:HMC_shell_map_nmode(iband), iband) ** 2)
+                        endif
+                    enddo
+                    shell_map_sq = sum(shell_map_sq_list(1:HMC_shell_map_nband))
+                    total_sq = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt) ** 2)
+                    uniform_sq = dble(nsite_active) * mean_p * mean_p
+                    residual_sq = max(0.d0, total_sq - uniform_sq - shell_map_sq)
+                    if (HMC_use_spatial_uniform_mass(this, nsite_active)) then
+                        kinetic = kinetic + 0.5d0 * uniform_sq / hmc_mass_spatial_uniform
+                    else
+                        kinetic = kinetic + 0.5d0 * uniform_sq / hmc_mass
+                    endif
+                    do iband = 1, HMC_shell_map_nband
+                        if (shell_map_sq_list(iband) <= 0.d0) cycle
+                        kinetic = kinetic + 0.5d0 * shell_map_sq_list(iband) / hmc_mass_spatial_shell_map(iband)
+                    enddo
+                    kinetic = kinetic + 0.5d0 * residual_sq / hmc_mass
+                elseif (HMC_use_spatial_lowk_mass(this, nsite_active) .or. HMC_use_spatial_midk_mass(this, nsite_active)) then
                     mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
                     if (HMC_use_spatial_lowk_mass(this, nsite_active)) then
                         call HMC_project_modes(this%momentum(nf, this%ii_begin:this%ii_end, nt), HMC_lowk_basis, HMC_lowk_nmode, lowk_coeff)
@@ -848,10 +957,12 @@ contains
         class(GlobalUpdate), intent(inout) :: this
         real(kind=8), intent(out) :: action_new
         integer, intent(in) :: nsteps, stage_id
-        integer :: nlf, nt, ii, nf, nsite_active, imode
-        real(kind=8) :: mean_p, lowk_part, midk_part, shell1_part, shell2_part
+        integer :: nlf, nt, ii, nf, nsite_active, imode, iband
+        real(kind=8) :: mean_p, lowk_part, midk_part, shell1_part, shell2_part, shell_map_part
         real(kind=8) :: inv_mass_residual, inv_mass_uniform, inv_mass_lowk, inv_mass_midk, inv_mass_shell1, inv_mass_shell2
         real(kind=8) :: lowk_coeff(HMC_shell_max_modes), midk_coeff(HMC_shell_max_modes), shell1_coeff(HMC_shell_max_modes), shell2_coeff(HMC_shell_max_modes)
+        real(kind=8) :: inv_mass_shell_map(hmc_shell_map_max)
+        real(kind=8) :: shell_map_coeff(HMC_shell_max_modes, hmc_shell_map_max)
 
         if (this%ii_begin <= this%ii_end .and. this%tau_begin <= this%tau_end) then
             do nt = this%tau_begin, this%tau_end
@@ -870,7 +981,44 @@ contains
                 do nt = this%tau_begin, this%tau_end
                     do nf = 1, Naux
                         if (.not. HMC_flavor_active(nf)) cycle
-                        if (HMC_use_spatial_lowk_mass(this, nsite_active) .or. HMC_use_spatial_midk_mass(this, nsite_active)) then
+                        if (HMC_use_spatial_shell_map(this, nsite_active)) then
+                            mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
+                            inv_mass_residual = 1.d0 / hmc_mass
+                            do iband = 1, HMC_shell_map_nband
+                                if (HMC_shell_map_nmode(iband) > 0 .and. hmc_mass_spatial_shell_map(iband) > 0.d0 .and. &
+                                    abs(hmc_mass_spatial_shell_map(iband) - hmc_mass) > Zero) then
+                                    call HMC_project_modes(this%momentum(nf, this%ii_begin:this%ii_end, nt), &
+                                                           HMC_shell_map_basis(:,1:HMC_shell_map_nmode(iband),iband), &
+                                                           HMC_shell_map_nmode(iband), shell_map_coeff(:, iband))
+                                    inv_mass_shell_map(iband) = 1.d0 / hmc_mass_spatial_shell_map(iband)
+                                else
+                                    shell_map_coeff(:, iband) = 0.d0
+                                    inv_mass_shell_map(iband) = inv_mass_residual
+                                endif
+                            enddo
+                            if (HMC_use_spatial_uniform_mass(this, nsite_active)) then
+                                inv_mass_uniform = 1.d0 / hmc_mass_spatial_uniform
+                            else
+                                inv_mass_uniform = inv_mass_residual
+                            endif
+                            do ii = this%ii_begin, this%ii_end
+                                Conf%phi_list(nf, ii, nt) = Conf%phi_list(nf, ii, nt) + hmc_dt * &
+                                    (inv_mass_residual * this%momentum(nf, ii, nt) + &
+                                     (inv_mass_uniform - inv_mass_residual) * mean_p)
+                                do iband = 1, HMC_shell_map_nband
+                                    if (HMC_shell_map_nmode(iband) <= 0) cycle
+                                    if (hmc_mass_spatial_shell_map(iband) <= 0.d0) cycle
+                                    if (abs(hmc_mass_spatial_shell_map(iband) - hmc_mass) <= Zero) cycle
+                                    shell_map_part = 0.d0
+                                    do imode = 1, HMC_shell_map_nmode(iband)
+                                        shell_map_part = shell_map_part + shell_map_coeff(imode, iband) * &
+                                                          HMC_shell_map_basis(ii, imode, iband)
+                                    enddo
+                                    Conf%phi_list(nf, ii, nt) = Conf%phi_list(nf, ii, nt) + hmc_dt * &
+                                        (inv_mass_shell_map(iband) - inv_mass_residual) * shell_map_part
+                                enddo
+                            enddo
+                        elseif (HMC_use_spatial_lowk_mass(this, nsite_active) .or. HMC_use_spatial_midk_mass(this, nsite_active)) then
                             mean_p = sum(this%momentum(nf, this%ii_begin:this%ii_end, nt)) / dble(nsite_active)
                             inv_mass_residual = 1.d0 / hmc_mass
                             if (HMC_use_spatial_lowk_mass(this, nsite_active)) then
