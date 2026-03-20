@@ -232,12 +232,22 @@ Current main blocker:
     - the current active implementation path is the broader combined low-|k| split:
       `lowk_mass`, which groups the first three triangular nonzero momentum shells
     - the first combined family `m_lowk = 4` is already closed as `strong_drift`
-    - the current live candidate is the lighter family `m_lowk = 2`, especially
-      `m=16`, `mu=1`, `16 x 0.0002`
-    - the decisive question on this family is now not just drift magnitude but also
-      seed-family robustness:
-      `50001` freezes while `51001` and `52001` move
-    - if `m_lowk = 2` remains heavily seed-family dependent even on longer retained windows,
+    - the next lighter family `m_lowk = 2` is also now closed as a serious workstation lead:
+      it moves on `51001` / `52001`, but completed `512 / 256 / 32` and
+      `1024 / 512 / 32` stages remain `strong_drift`
+    - the current completed broader-family lead is `m_lowk = 1`:
+      - tune winner: `m=16`, `mu=1`, `20 x 0.00012`
+      - completed moving-family stages at `51001` and `52001` still remain `strong_drift`
+      - a partial three-family `256 / 128 / 32` stage also remains `strong_drift`,
+        with large cross-family repeat span
+    - the current active probe is therefore one step lighter again:
+      - `m_lowk = 0.5`
+      - current grid:
+        - `16 x 0.0001`
+        - `20 x 0.00008`
+        - `24 x 0.00006`
+        - `28 x 0.00005`
+    - if `m_lowk = 0.5` still cannot reduce the worst-repeat retained-window drift materially,
       the next target should be an even wider Fourier-accelerated mass map plus a default
       multi-seed-family diagnosis workflow rather than returning to shell-by-shell rescans
   - `L=6`, `Nbos=1e4`, `U2=300` is still active, but its deeper `2048 / 1024 / 1024` rerun already looks much healthier;

@@ -139,13 +139,15 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
      - `16 x 0.0002`, `warm = 32`, `seed_base = 52001`
    - current deeper retained-window stage:
      - `16 x 0.0002`, `1024 / 512 / 512`, `warm = 32`, `seed_base = 51001`
-3. Compare the lighter low-|k| probe against the closed bad references:
+3. Compare the active broader low-|k| probe against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
    - shell1-only `mk = 4`, `24 x 0.0002`
    - shell1-only `mk = 8`, `24 x 0.00025`
    - first shell2 family `mk1 = 8`, `mk2 = 4`
    - lighter shell2 follow-up `mk1 = 4`, `mk2 = 2`
-   - first combined low-|k| family `m_lowk = 4`
+   - combined low-|k| `m_lowk = 4`
+   - combined low-|k| `m_lowk = 2`
+   - combined low-|k| `m_lowk = 1`
    If the lighter combined low-|k| family still does not flatten materially faster, widen the
    Fourier-accelerated low-|k| basis again and make multi-seed-family diagnosis mandatory.
 4. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
@@ -182,17 +184,27 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
   - `16 x 0.00025` and `20 x 0.0002` both later end as `strong_drift`
   - second family `m_lowk = 2`
   - `12 x 0.00025` dies with `acceptance = 0`
-  - `16 x 0.0002` is the current recommended candidate
-  - `20 x 0.00015` and `24 x 0.00012` are slower backups
+  - `16 x 0.0002` is the closed moving-family reference
+  - completed moving-family stages still remain `strong_drift`
+  - third family `m_lowk = 1`
+  - tune winner: `20 x 0.00012`
+  - completed moving-family stages at `51001` / `52001` still remain `strong_drift`
+  - partial three-family `256 / 128 / 32` stage also remains `strong_drift`
+  - current active probe: `m_lowk = 0.5`
+    - `16 x 0.0001`
+    - `20 x 0.00008`
+    - `24 x 0.00006`
+    - `28 x 0.00005`
 - Working interpretation:
   - shell1-only preconditioning helped the very early trace shape but did not solve the retained-window drift
   - the first shell2 family also failed on completed stages
   - the lighter shell2 follow-up also failed to produce a genuinely selective tune window
   - the broader combined low-|k| family is the first path that produces both
     unstable points and nearby sane-`DeltaH` points
-  - however, the first `m_lowk = 4` family is still too drifty on completed stages
-  - the current `m_lowk = 2` family moves on `51001` and `52001` seed blocks but freezes on `50001`,
-    so the main question has shifted to seed-family robustness rather than mere acceptance
+  - however, `m_lowk = 4`, `2`, and the first completed `m_lowk = 1` stages are all still too drifty
+    on retained windows
+  - the main question has therefore shifted from mere movement to whether a lighter broad low-|k|
+    mass can reduce worst-repeat retained drift without falling back into frozen or zero-accept basins
 
 ## Medium-Term Ladder
 
