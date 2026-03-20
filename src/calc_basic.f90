@@ -31,6 +31,7 @@ module CalcBasic ! Global parameters
     real(kind=8),           public              :: hmc_mass
     real(kind=8),           public              :: hmc_mass_spatial_uniform
     real(kind=8),           public              :: hmc_mass_spatial_lowk
+    integer,                public              :: hmc_mass_spatial_lowk_shells
     real(kind=8),           public              :: hmc_mass_spatial_shell1
     real(kind=8),           public              :: hmc_mass_spatial_shell2
     integer,                public              :: hmc_block_tau
@@ -78,6 +79,7 @@ contains
             hmc_mass = 1.d0
             hmc_mass_spatial_uniform = 0.d0
             hmc_mass_spatial_lowk = 0.d0
+            hmc_mass_spatial_lowk_shells = 3
             hmc_mass_spatial_shell1 = 0.d0
             hmc_mass_spatial_shell2 = 0.d0
             hmc_block_tau = 0
@@ -124,6 +126,7 @@ contains
             close(20)
             call read_env_real("BPQMC_HMC_MASS_SPATIAL_UNIFORM", hmc_mass_spatial_uniform)
             call read_env_real("BPQMC_HMC_MASS_SPATIAL_LOWK", hmc_mass_spatial_lowk)
+            call read_env_int("BPQMC_HMC_MASS_SPATIAL_LOWK_SHELLS", hmc_mass_spatial_lowk_shells)
             call read_env_real("BPQMC_HMC_MASS_SPATIAL_SHELL1", hmc_mass_spatial_shell1)
             call read_env_real("BPQMC_HMC_MASS_SPATIAL_SHELL2", hmc_mass_spatial_shell2)
         endif 
@@ -138,6 +141,7 @@ contains
         call MPI_BCAST(hmc_mass, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_mass_spatial_uniform, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_mass_spatial_lowk, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(hmc_mass_spatial_lowk_shells, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_mass_spatial_shell1, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_mass_spatial_shell2, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(hmc_block_tau, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
@@ -205,6 +209,9 @@ contains
             endif
             if (hmc_mass_spatial_lowk < 0.d0) then
                 write(6,*) "hmc_mass_spatial_lowk must be non-negative in HMC mode"; stop
+            endif
+            if (hmc_mass_spatial_lowk > 0.d0 .and. hmc_mass_spatial_lowk_shells <= 0) then
+                write(6,*) "hmc_mass_spatial_lowk_shells must be positive when low-k HMC mass is enabled"; stop
             endif
             if (hmc_mass_spatial_shell1 < 0.d0) then
                 write(6,*) "hmc_mass_spatial_shell1 must be non-negative in HMC mode"; stop
@@ -299,6 +306,20 @@ contains
         return
     end subroutine read_env_real
 
+    subroutine read_env_int(name, value)
+        character(len=*), intent(in) :: name
+        integer, intent(inout) :: value
+        character(len=64) :: env_value
+        integer :: env_status, ios
+
+        call get_environment_variable(name, env_value, status=env_status)
+        if (env_status /= 0) return
+        if (len_trim(env_value) == 0) return
+        read(env_value, *, iostat=ios) value
+        if (ios /= 0) return
+        return
+    end subroutine read_env_int
+
     pure logical function is_triangular_lattice()
         is_triangular_lattice = trim(lattice_type) == 'triangular'
         return
@@ -376,6 +397,7 @@ contains
                 write(50,*) 'Leapfrog mass                                  :', hmc_mass
                 write(50,*) 'Spatial-uniform leapfrog mass                  :', hmc_mass_spatial_uniform
                 write(50,*) 'Low-k leapfrog mass                            :', hmc_mass_spatial_lowk
+                write(50,*) 'Low-k leapfrog shell count                     :', hmc_mass_spatial_lowk_shells
                 write(50,*) 'Lowest-shell leapfrog mass                     :', hmc_mass_spatial_shell1
                 write(50,*) 'Second-shell leapfrog mass                     :', hmc_mass_spatial_shell2
                 write(50,*) 'HMC tau block size                             :', hmc_block_tau

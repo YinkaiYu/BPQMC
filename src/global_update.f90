@@ -15,7 +15,8 @@ module GlobalUpdate_mod
     private :: HMC_draw_nfrog
     private :: HMC_flavor_active
     private :: HMC_use_spatial_uniform_mass, HMC_use_spatial_lowk_mass, HMC_use_spatial_shell1_mass, HMC_use_spatial_shell2_mass, HMC_kinetic_energy
-    private :: HMC_shell_init, HMC_shell_clear, HMC_build_shell_basis, HMC_project_modes
+    private :: HMC_shell_init, HMC_shell_clear, HMC_build_shell_basis, HMC_build_lowk_basis, HMC_project_modes
+    private :: HMC_shell_metric, HMC_keep_canonical_q
     private :: HMC_rng_gaussian, HMC_measure_sweep_L, HMC_measure_sweep_R
     private :: HMC_monitor_init, HMC_monitor_close, HMC_monitor_step
     private :: HMC_trace_init, HMC_trace_close, HMC_trace_begin, HMC_trace_step
@@ -68,7 +69,7 @@ module GlobalUpdate_mod
     integer, save :: HMC_monitor_count = 0
     integer, save :: HMC_monitor_site = 1
     integer, save :: HMC_monitor_tau = 1
-    integer, parameter :: HMC_shell_max_modes = 24
+    integer, parameter :: HMC_shell_max_modes = 64
     integer, save :: HMC_lowk_nmode = 0
     integer, save :: HMC_shell1_nmode = 0
     integer, save :: HMC_shell2_nmode = 0
@@ -441,8 +442,7 @@ contains
     end function HMC_use_spatial_lowk_mass
 
     subroutine HMC_shell_init()
-        integer, dimension(3) :: shell1_qx, shell1_qy, shell2_qx, shell2_qy, shell3_qx, shell3_qy
-        integer, dimension(9) :: lowk_qx, lowk_qy
+        integer, dimension(3) :: shell1_qx, shell1_qy, shell2_qx, shell2_qy
 
         call HMC_shell_clear()
         if (.not. is_triangular_lattice()) return
@@ -455,13 +455,9 @@ contains
         shell1_qy = (/ 0, 1,  1 /)
         shell2_qx = (/ 1, 2, -1 /)
         shell2_qy = (/ 1, -1, 2 /)
-        shell3_qx = (/ 2, 0, -2 /)
-        shell3_qy = (/ 0, 2,  2 /)
-        lowk_qx = (/ shell1_qx, shell2_qx, shell3_qx /)
-        lowk_qy = (/ shell1_qy, shell2_qy, shell3_qy /)
 
         if (hmc_mass_spatial_lowk > 0.d0) then
-            call HMC_build_shell_basis(lowk_qx, lowk_qy, HMC_lowk_basis, HMC_lowk_nmode)
+            call HMC_build_lowk_basis(hmc_mass_spatial_lowk_shells, HMC_lowk_basis, HMC_lowk_nmode)
         endif
 
         if (hmc_mass_spatial_shell1 > 0.d0) then
@@ -476,6 +472,89 @@ contains
         endif
         return
     end subroutine HMC_shell_init
+
+    subroutine HMC_build_lowk_basis(nshell, basis_out, nmode)
+        integer, intent(in) :: nshell
+        real(kind=8), allocatable, intent(out) :: basis_out(:,:)
+        integer, intent(out) :: nmode
+        integer :: qx, qy, metric, nall, nmetric, nuse, nkeep, qx_lim, qy_lim, im, iq
+        integer, allocatable :: qx_all(:), qy_all(:), metric_all(:), metric_unique(:), qx_keep(:), qy_keep(:)
+        logical :: seen
+
+        nmode = 0
+        if (allocated(basis_out)) deallocate(basis_out)
+        if (nshell <= 0) return
+
+        qx_lim = max(1, Nlx / 2)
+        qy_lim = max(1, Nly / 2)
+        allocate(qx_all((2 * qx_lim + 1) * (2 * qy_lim + 1)))
+        allocate(qy_all((2 * qx_lim + 1) * (2 * qy_lim + 1)))
+        allocate(metric_all((2 * qx_lim + 1) * (2 * qy_lim + 1)))
+        allocate(metric_unique((2 * qx_lim + 1) * (2 * qy_lim + 1)))
+        nall = 0
+        nmetric = 0
+
+        do qx = -qx_lim, qx_lim
+            do qy = -qy_lim, qy_lim
+                if (.not. HMC_keep_canonical_q(qx, qy)) cycle
+                metric = HMC_shell_metric(qx, qy)
+                if (metric <= 0) cycle
+                nall = nall + 1
+                qx_all(nall) = qx
+                qy_all(nall) = qy
+                metric_all(nall) = metric
+                seen = .false.
+                do im = 1, nmetric
+                    if (metric_unique(im) == metric) then
+                        seen = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. seen) then
+                    nmetric = nmetric + 1
+                    metric_unique(nmetric) = metric
+                endif
+            enddo
+        enddo
+
+        if (nall <= 0 .or. nmetric <= 0) then
+            deallocate(qx_all, qy_all, metric_all, metric_unique)
+            return
+        endif
+
+        do im = 1, nmetric - 1
+            do iq = im + 1, nmetric
+                if (metric_unique(iq) < metric_unique(im)) then
+                    metric = metric_unique(im)
+                    metric_unique(im) = metric_unique(iq)
+                    metric_unique(iq) = metric
+                endif
+            enddo
+        enddo
+
+        nuse = min(nshell, nmetric)
+        allocate(qx_keep(nall))
+        allocate(qy_keep(nall))
+        nkeep = 0
+        do iq = 1, nall
+            do im = 1, nuse
+                if (metric_all(iq) == metric_unique(im)) then
+                    nkeep = nkeep + 1
+                    qx_keep(nkeep) = qx_all(iq)
+                    qy_keep(nkeep) = qy_all(iq)
+                    exit
+                endif
+            enddo
+        enddo
+
+        if (nkeep > 0) then
+            call HMC_build_shell_basis(qx_keep(1:nkeep), qy_keep(1:nkeep), basis_out, nmode)
+        endif
+
+        deallocate(qx_keep, qy_keep)
+        deallocate(qx_all, qy_all, metric_all, metric_unique)
+        return
+    end subroutine HMC_build_lowk_basis
 
     subroutine HMC_shell_clear()
         HMC_lowk_nmode = 0
@@ -568,6 +647,26 @@ contains
         deallocate(basis_work)
         return
     end subroutine HMC_build_shell_basis
+
+    integer pure function HMC_shell_metric(qx, qy)
+        integer, intent(in) :: qx, qy
+
+        HMC_shell_metric = qx * qx + qy * qy + qx * qy
+        return
+    end function HMC_shell_metric
+
+    logical pure function HMC_keep_canonical_q(qx, qy)
+        integer, intent(in) :: qx, qy
+
+        HMC_keep_canonical_q = .false.
+        if (qx == 0 .and. qy == 0) return
+        if (qx > 0) then
+            HMC_keep_canonical_q = .true.
+        elseif (qx == 0 .and. qy > 0) then
+            HMC_keep_canonical_q = .true.
+        endif
+        return
+    end function HMC_keep_canonical_q
 
     logical function HMC_use_spatial_shell1_mass(this, nsite_active)
         class(GlobalUpdate), intent(in) :: this
