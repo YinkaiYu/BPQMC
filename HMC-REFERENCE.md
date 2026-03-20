@@ -36,6 +36,9 @@ The active production CLI is `test/production_hmc.py`:
   on top of the residual, uniform, and shell1 masses; `0` disables it
 - `--hmc-mass-spatial-lowk-shells`: optional shell-count control for the grouped low-|k|
   subspace; default `3`, and larger values widen the Fourier-accelerated basis
+- `--hmc-mass-spatial-shell-map`: optional comma-separated per-shell mass profile for the
+  first few triangular nonzero momentum shells; when present, it supersedes the grouped
+  `lowk` / `midk` shell-band shortcuts
 
 For seed/init-state convergence checks, the production driver can now expand multiple
 initial-state families in one invocation via:
@@ -253,7 +256,7 @@ Current main blocker:
         - `tau_int(doubleOcc) ≈ 50.7`
         - worst retained-window drift ratio `≈ 0.78`
         - retained-window repeat span `≈ 1.00`
-    - the widened grouped low-|k| basis is now the only serious replacement path left:
+    - the widened grouped low-|k| basis is no longer the active lead:
       - completed widened four-shell retained-window stages:
         - `mu = 1`, `m_lowk = 0.5`, `lowk_shells = 4`, `28 x 0.00005`
           is formally `strong_drift`
@@ -274,20 +277,28 @@ Current main blocker:
         - `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 6`
         - the best completed tune point remains `20 x 0.00004`
         - widening a single grouped low-|k| block only became more conservative and slower
-      - current active grouped-`midk` probe:
+      - grouped-`midk` follow-ups are now also formally insufficient:
         - keep `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 4`
-        - split the next two shells into `m_midk = 1`, `midk_shells = 2`
-        - explicit seed-family block `50001, 51001, 52001`
-        - completed short-tune winner:
+        - first grouped-`midk` family:
+          - `m_midk = 1`, `midk_shells = 2`
+          - retained-window stages `20 x 0.00004` and `24 x 0.000035`
+            both later completed as `strong_drift`
+        - lighter grouped-`midk` follow-up:
+          - `m_midk = 0.5`, `midk_shells = 2`
+          - partial retained-window stage on `24 x 0.000035`
+            is also still `strong_drift`
+      - current active Fourier-mass replacement path:
+        - keep `mu = 0.5`
+        - use the explicit shell map
+          `0.125,0.125,0.25,0.25,0.5,0.5`
+        - completed partial short-tune winner:
           - `20 x 0.00004`
-          - `acceptance ≈ 1.000`
-          - `tau_int(doubleOcc) ≈ 8.66`
-          - `ESS/sec ≈ 0.390`
+          - `acceptance ≈ 0.995`
+          - `tau_int(doubleOcc) ≈ 8.98`
+          - `ESS/sec ≈ 0.190`
         - active retained-window follow-up:
           - `20 x 0.00004`, `512 / 256 / 32`
-      - if this grouped-`midk` family still cannot reduce the worst-repeat
-        retained-window drift materially, the next target should be an even more
-        structured Fourier mass map rather than returning to shell-by-shell rescans
+          - explicit seed families `50001,51001,52001`
   - `L=6`, `Nbos=1e4`, `U2=300` is still active, but its deeper `2048 / 1024 / 1024` rerun already looks much healthier;
     the main remaining question there is cross-repeat agreement, not obvious single-trace drift
 - trace-based tuning lesson from the original `Nbos=1e4, U2=1` blocker point:

@@ -144,32 +144,37 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
       - `lowk_shells = 6`
       - best completed tune point remains `20 x 0.00004`
       - this wider grouped block only became more conservative and slower
+    - grouped-`midk` follow-ups are now also formally `strong_drift`:
+      - `midk_mass = 1`, `midk_shells = 2`
+        - `20 x 0.00004`
+        - `24 x 0.000035`
+      - lighter grouped-`midk` follow-up:
+        - `midk_mass = 0.5`, `midk_shells = 2`
+        - partial retained-window stage on `24 x 0.000035` is still `strong_drift`
     - current active probe:
       - keep `mass = 16`
       - keep `uniform_mass = 0.5`
-      - keep `lowk_mass = 0.25` on the first four shells
-      - split the next two shells into a grouped `midk` block
-      - completed short-tune winner:
-        - `midk_mass = 1`
-        - `midk_shells = 2`
-        - `20 x 0.00004`
-        - `acceptance ≈ 1.000`
-        - `tau_int(doubleOcc) ≈ 8.66`
-        - `ESS/sec ≈ 0.390`
-      - active retained-window follow-up:
-        - `512 / 256 / 32`
-        - `20 x 0.00004`
-        - explicit seed family block `50001, 51001, 52001`
+      - replace grouped `lowk` / `midk` bands by an explicit shell map
+      - first active shell-map profile:
+        - `shell_map = 0.125,0.125,0.25,0.25,0.5,0.5`
+        - completed partial short-tune winner:
+          - `20 x 0.00004`
+          - `acceptance ≈ 0.995`
+          - `tau_int(doubleOcc) ≈ 8.98`
+          - `ESS/sec ≈ 0.190`
+        - active retained-window follow-up:
+          - `512 / 256 / 32`
+          - `20 x 0.00004`
+          - explicit seed family block `50001, 51001, 52001`
 
 ## Immediate Next Steps
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Let the new grouped-`midk` retained-window stage finish and check whether
-   separating shells `5-6` from the lightest four-shell block materially reduces
-   worst-repeat retained drift.
-3. If the grouped-`midk` stage is still `strong_drift`, keep the broader Fourier
-   mass-map direction but stop widening a single grouped low-|k| block any further.
+2. Let the first shell-map retained-window stage finish and check whether the explicit
+   per-shell profile materially reduces worst-repeat retained drift.
+3. Keep the broader Fourier mass-map direction and stop widening grouped `lowk` / `midk`
+   bands any further unless the shell-map route clearly fails.
 4. Compare the current broader low-|k| probe against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
    - shell1-only `mk = 4`, `24 x 0.0002`
@@ -186,8 +191,11 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
      `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 4`
    - widened grouped low-|k| follow-up
      `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 6`
-   - current grouped-`midk` follow-up
-     `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 4`, `m_midk = 1`, `midk_shells = 2`
+   - grouped-`midk` follow-ups
+     `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 4`,
+     `m_midk = 1 or 0.5`, `midk_shells = 2`
+   - first explicit shell-map follow-up
+     `mu = 0.5`, `shell_map = 0.125,0.125,0.25,0.25,0.5,0.5`
 5. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
    representative preconditioned rung and use it as the production-side reference.
 6. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp

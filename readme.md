@@ -437,15 +437,16 @@ The current next production rungs are:
     `mass=16`, `uniform_mass=0.5`, `lowk_mass=0.25`, `lowk_shells=4`, `nfrog=24`, `dt=0.00004`
     is now also formally `strong_drift`
   - widening that grouped low-`|k|` block to `lowk_shells=6` only made the tune more conservative
-  - current active probe keeps the first four shells at `lowk_mass=0.25`, lowers the exact
-    uniform mode to `uniform_mass=0.5`, and splits shells `5-6` into a grouped `midk` block:
-    - short-tune winner: `nfrog=20`, `dt=0.00004`
-    - `midk_mass=1`, `midk_shells=2`
+  - grouped `midk` follow-ups have now also been closed as retained-window `strong_drift`
+  - current active probe has therefore switched to the general shell-map interface:
+    - `mass=16`, `uniform_mass=0.5`
+    - `shell_map=0.125,0.125,0.25,0.25,0.5,0.5`
+    - current partial tune winner: `nfrog=20`, `dt=0.00004`
     - explicit seed families `50001,51001,52001`
     - current partial tune summary in `overview/report.md`:
-      - `acceptance≈1.000`
-      - `tau_int(doubleOcc)≈8.66`
-      - `ESS/sec≈0.390`
+      - `acceptance≈0.995`
+      - `tau_int(doubleOcc)≈8.98`
+      - `ESS/sec≈0.190`
   - for future scans, prefer explicit seed-family batches over manual directory cloning:
     `--seed-base-values 50001,51001,52001`
     and note that this explicit list is now reused verbatim across the whole scan,
@@ -468,6 +469,7 @@ cd /mnt/c/Users/Newton/Documents/LigroupIOP/2408_bosonSignProblem/code_BPQMC
 This merged report is the preferred place to inspect:
 
 - `squareOcc` / `IPR` trends versus `beta` and `dtau`
+- current large-`U2` live traces, including in-flight shell-map retained-window stages
 - recommended tune parameters versus rung
 - sample-index traces across different parameter points
 - per-case sections that keep different `Nbos` / `U2` scales separate

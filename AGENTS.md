@@ -99,6 +99,10 @@
   - `test/production_hmc.py` also supports `--hmc-mass-spatial-midk`
     and `--hmc-mass-spatial-midk-shells`
     to split the next grouped momentum-shell band away from the lightest low-|k| block
+  - `test/production_hmc.py` also supports `--hmc-mass-spatial-shell-map`
+    to pass a comma-separated per-shell mass profile for the first few triangular
+    nonzero momentum shells; when present, it supersedes the grouped `lowk` / `midk`
+    shortcuts
 - Current workstation production examples already distinguish:
   - a healthy projector ladder at `L=6, Nbos=1e3, U2=1`, currently healthy through `beta=160`, `dtau=0.004`
   - a partially collected but representative `beta=192`, `dtau=0.002` rung on the same baseline point,
@@ -133,12 +137,13 @@
       is now formally `strong_drift` at `2/3` repeats, with
       `squareOcc/IPR drift/span max≈0.772` and `repeat span≈0.414`
       widening that grouped low-|k| block to `lowk_shells=6` only made the tune more conservative
-      the current active lead therefore keeps the first four shells at `lowk_mass=0.25`,
-      lowers the exact uniform mode to `uniform_mass=0.5`, and splits shells `5-6`
-      into a grouped `midk` block:
-      - short-tune winner:
-        `uniform_mass=0.5`, `lowk_mass=0.25`, `lowk_shells=4`,
-        `midk_mass=1`, `midk_shells=2`, `nfrog=20`, `dt=0.00004`
+      the grouped-`midk` follow-ups are now also formally `strong_drift`
+      (`midk_mass=1` and `midk_mass=0.5`, both with `midk_shells=2`)
+      the current active lead is now the general shell-map preconditioner:
+      - partial short-tune winner:
+        `uniform_mass=0.5`,
+        `shell_map=0.125,0.125,0.25,0.25,0.5,0.5`,
+        `nfrog=20`, `dt=0.00004`
       - active retained-window follow-up: `512 / 256 / 32` with explicit seed families
         `50001,51001,52001`
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
