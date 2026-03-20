@@ -67,6 +67,17 @@ def parse_grid(text: str) -> list[tuple[int, float]]:
     return grid
 
 
+def resolve_seed_bases(
+    args: argparse.Namespace,
+    *,
+    requested_repeats: int,
+    base_offset: int = 0,
+) -> list[int]:
+    if args.seed_base_values:
+        return [seed + base_offset for seed in parse_int_list(args.seed_base_values)]
+    return [args.seed_base + base_offset + repeat * args.repeat_seed_step for repeat in range(requested_repeats)]
+
+
 def format_dt_tag(dt: float) -> str:
     return f"{dt:.9e}".replace("+", "").replace("-", "m").replace(".", "p")
 
@@ -365,8 +376,8 @@ def collect_stage_case(
     sample_rows: list[dict[str, object]] = []
     repeat_observables: dict[str, list[dict[str, float | int | str]]] = defaultdict(list)
 
-    for repeat in range(args.repeats):
-        seed = args.seed_base + case_index * args.seed_step + repeat * args.repeat_seed_step
+    seed_bases = resolve_seed_bases(args, requested_repeats=args.repeats, base_offset=case_index * args.seed_step)
+    for repeat, seed in enumerate(seed_bases):
         run_dir = Path(args.work_root).resolve() / "runs" / cfg.name / f"hmc_rep{repeat}"
         print(
             "  [{mode}] repeat={repeat} seed={seed} nfrog={nfrog} dt={dt:.6g} mass={mass:g} uniform_mass={uniform_mass:g} lowk_mass={lowk_mass:g} shell1_mass={shell1_mass:g} shell2_mass={shell2_mass:g}".format(
@@ -494,8 +505,8 @@ def collect_stage_case(
         "hmc_mass_spatial_shell1": hmc_mass_spatial_shell1,
         "hmc_mass_spatial_shell2": hmc_mass_spatial_shell2,
         "repeats": len(repeat_rows),
-        "requested_repeats": args.repeats,
-        "missing_repeats": max(args.repeats - len(repeat_rows), 0),
+        "requested_repeats": len(seed_bases),
+        "missing_repeats": max(len(seed_bases) - len(repeat_rows), 0),
         "acceptance_mean": series_mean(acceptance_values),
         "acceptance_stderr": sample_stderr(acceptance_values),
         "tau_int_doubleOcc_mean": series_mean(tau_values),
@@ -527,8 +538,8 @@ def collect_stage_case(
             "hmc_mass_spatial_shell1": hmc_mass_spatial_shell1,
             "hmc_mass_spatial_shell2": hmc_mass_spatial_shell2,
         },
-        "requested_repeats": args.repeats,
-        "missing_repeats": max(args.repeats - len(repeat_rows), 0),
+        "requested_repeats": len(seed_bases),
+        "missing_repeats": max(len(seed_bases) - len(repeat_rows), 0),
         "repeat_runs": repeat_rows,
         "observables": observable_rows,
         "status": status,
@@ -559,8 +570,8 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
         )
         for idx, (nfrog, dt) in enumerate(grid):
             repeat_rows = []
-            for repeat in range(args.repeats):
-                seed = args.seed_base + args.seed_step * idx + args.repeat_seed_step * repeat
+            seed_bases = resolve_seed_bases(args, requested_repeats=args.repeats, base_offset=args.seed_step * idx)
+            for repeat, seed in enumerate(seed_bases):
                 run_dir = work_root / "runs" / cfg.name / f"nf{nfrog}_dt{format_dt_tag(dt)}" / f"rep{repeat}"
                 print(
                     f"  [{'run' if execute else 'reuse'}] nfrog={nfrog} dt={dt:g} repeat={repeat} seed={seed}",
@@ -630,8 +641,8 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
                 continue
 
             summary_row = aggregate_tune_repeat_rows(repeat_rows)
-            summary_row["requested_repeats"] = args.repeats
-            summary_row["missing_repeats"] = max(args.repeats - len(repeat_rows), 0)
+            summary_row["requested_repeats"] = len(seed_bases)
+            summary_row["missing_repeats"] = max(len(seed_bases) - len(repeat_rows), 0)
             case_rows.append(summary_row)
             csv_rows.append(summary_row)
 
@@ -1175,6 +1186,7 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--imbalance", type=float, default=0.0)
         subparser.add_argument("--np", type=int, default=1)
         subparser.add_argument("--seed-base", type=int, default=50001)
+        subparser.add_argument("--seed-base-values", default="", help="Optional comma-separated explicit seed-base list; overrides --seed-base/--repeat-seed-step for repeats.")
         subparser.add_argument("--seed-step", type=int, default=1000)
         subparser.add_argument("--repeat-seed-step", type=int, default=100)
         subparser.add_argument("--binary", default=str(DEFAULT_BINARY))

@@ -79,6 +79,9 @@
   - then it promotes gradually in `(Nbos, U2, beta, dtau, L)`
   - `test/production_hmc.py` can now expand multiple initial-state families with
     `--ini-type-values` and `--ini-ampl-values`
+  - `test/production_hmc.py` can now also expand explicit seed-family lists with
+    `--seed-base-values 50001,51001,52001`, which is the preferred way to probe
+    `U2=1000` seed-family sensitivity without hand-copying many work roots
   - `test/production_hmc.py` also supports `--hmc-mass-spatial-uniform`
     to split the per-time-slice spatially uniform mode away from the residual `--hmc-mass`
   - `test/production_hmc.py` also supports `--hmc-mass-spatial-shell1`
