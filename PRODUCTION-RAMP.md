@@ -91,29 +91,32 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
   - current active replacement path:
     - keep `mass = 16`
     - keep `uniform_mass = 1`
-    - keep `shell1_mass = 8`
-    - add the new `shell2_mass` split
-    - current active short-tune probe:
+    - first shell2 family already tested:
+      - `shell1_mass = 8`
       - `shell2_mass = 4`
+      - completed `warm=0` and deeper stages are both still `strong_drift`
+      - the aggressive follow-up scan on the same family still keeps `acceptance = 1`
+    - current active probe:
+      - `shell1_mass = 4`
+      - `shell2_mass = 2`
       - grid:
         - `12 x 0.0003`
         - `16 x 0.00025`
         - `20 x 0.0002`
         - `24 x 0.00015`
-      - current winner:
-        - `12 x 0.0003`, jitter `=2`
-      - matching warm=`0` long trace is now running
 
 ## Immediate Next Steps
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Finish reading the active `U2 = 1e3` shell2 warm=`0` long trace:
-   - `mk1 = 8`, `mk2 = 4`
-   - winner from the first short shell2 probe:
+2. Finish the active lighter shell2 probe:
+   - `mk1 = 4`, `mk2 = 2`
+   - grid:
      - `12 x 0.0003`
-   If the early trace is materially flatter than the old shell1-only lines,
-   promote it immediately to a deeper `1024 / 512 / 512` stage.
+     - `16 x 0.00025`
+     - `20 x 0.0002`
+     - `24 x 0.00015`
+   If it still behaves like the first shell2 family, stop spending time on shell-by-shell rescans.
 3. Compare the shell2 probe against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
    - shell1-only `mk = 4`, `24 x 0.0002`
@@ -134,8 +137,14 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
   - `mk = 4`, `24 x 0.0002`
   - `mk = 8`, `24 x 0.00025`
   - both still end as `strong_drift`
-- `U2 = 1e3`, current shell2 probe:
+- `U2 = 1e3`, first shell2 family:
   - `mk1 = 8`, `mk2 = 4`
+  - short-tune winner: `12 x 0.0003`
+  - completed `warm=0` stage: `strong_drift`, `drift/span ≈ 0.762`
+  - completed deeper stage: `strong_drift`, `drift/span ≈ 0.744`
+  - aggressive follow-up still keeps `acceptance = 1`
+- `U2 = 1e3`, current lighter shell2 probe:
+  - `mk1 = 4`, `mk2 = 2`
   - grid:
     - `12 x 0.0003`
     - `16 x 0.00025`
@@ -143,8 +152,9 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
     - `24 x 0.00015`
 - Working interpretation:
   - shell1-only preconditioning helped the very early trace shape but did not solve the retained-window drift
-  - the next meaningful question is whether widening the low-|k| split to shell2 can convert that
-    early improvement into a genuinely stable retained window
+  - the first shell2 family also failed on completed stages
+  - the remaining cheap test is whether lighter low-|k| masses help at all; if not,
+    the next step should be a broader low-|k| basis rather than more shell-by-shell scans
 
 ## Medium-Term Ladder
 

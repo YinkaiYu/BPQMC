@@ -142,5 +142,5 @@ The immediate next production rungs are:
 - `L=6, Nbos=1e4, U2=1000` is the current blocker:
   the old scalar/uniform-only `20 x 0.0004` reference stage is now `strong_drift`,
   shell1-only `mk=4` and `mk=8` completed stages are also now `strong_drift`,
-  and the active replacement path is the wider `shell2_mass` split;
-  the first short-tune winner there is `mk1=8`, `mk2=4`, `12 x 0.0003`
+  the first `shell2` family `mk1=8`, `mk2=4` is also now `strong_drift`,
+  and the active replacement path is the lighter `shell2` family

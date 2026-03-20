@@ -143,7 +143,7 @@ Current next rung:
         `squareOcc` head-to-tail drift/span around `0.60`
       - the shell1-only `warm=0` traces initially looked healthier than the old bad reference,
         but their completed stages later showed that early flattening alone was not enough
-      - active shell2 probe:
+    - active shell2 probe:
         - `m=16`, `mu=1`, `mk1=8`, `mk2=4`
         - grid: `12 x 3e-4`, `16 x 2.5e-4`, `20 x 2e-4`, `24 x 1.5e-4`
         - current short-tune winner: `12 x 3e-4`, jitter `=2`
@@ -151,6 +151,18 @@ Current next rung:
           [l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_8_mk2_4_probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_8_mk2_4_probe)
         - matching warm=`0` long trace:
           [l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk1_8_mk2_4_nf12_dt3em4_diag512_warm0](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk1_8_mk2_4_nf12_dt3em4_diag512_warm0)
+      - completed-shell2 verdict:
+        - warm=`0`, `512 / 256 / 0` stage:
+          `squareOcc/IPR drift/span ≈ 0.762`, `strong_drift`
+        - deeper `1024 / 512 / 512` stage:
+          `squareOcc/IPR drift/span ≈ 0.744`, `strong_drift`
+      - follow-up aggressive scan on the same `mk1=8`, `mk2=4` family:
+        - [aggressive follow-up](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_8_mk2_4_aggressive)
+        - current best short-tune row there is `16 x 3.5e-4`, but it is still `acceptance = 1`
+      - current active replacement probe after that failure:
+        - `m=16`, `mu=1`, `mk1=4`, `mk2=2`
+        - work root:
+          [l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_4_mk2_2_probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_4_mk2_2_probe)
 
 Current main blocker:
 
@@ -166,7 +178,9 @@ Current main blocker:
     - the shell1-only replacement path is now also formally insufficient on completed stages
     - the active implementation path is a wider soft-mode split:
       `shell2_mass`, which covers the second triangular nonzero momentum shell
-    - if the new shell2 sweep still leaves every candidate in the same slow geometry family,
+    - the first shell2 family `mk1=8`, `mk2=4` is now also formally insufficient on completed stages
+    - the current lighter shell2 family `mk1=4`, `mk2=2` is the last cheap shell-by-shell probe
+    - if that lighter probe still leaves every candidate in the same slow geometry family,
       the next target should be a broader low-|k| basis or a more explicitly Fourier-accelerated mass map
   - `L=6`, `Nbos=1e4`, `U2=300` is still active, but its deeper `2048 / 1024 / 1024` rerun already looks much healthier;
     the main remaining question there is cross-repeat agreement, not obvious single-trace drift
