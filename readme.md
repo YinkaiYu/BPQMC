@@ -429,8 +429,12 @@ The current next production rungs are:
     - short-tune winner: `nfrog=24`, `dt=0.00004`
     - explicit seed families `50001,51001,52001`
   - current live reading:
-    - the first completed visible repeat has crossed the configured cut and is moving rather than freezing
-    - but its current `squareOcc/IPR drift/span` is still about `0.752`, so the blocker is not yet resolved
+    - the first two completed repeats now give a formal `2/3` `strong_drift` summary
+    - `squareOcc/IPR drift/span max≈0.772`, `repeat span≈0.414`, so the blocker is not yet resolved
+  - current follow-up probe:
+    - keep `mass=16`, `uniform_mass=0.5`, `lowk_mass=0.25`
+    - widen to `lowk_shells=6`
+    - active short-tune grid: `20x4e-05,24x3.5e-05,28x3e-05,32x2.5e-05`
   - for future scans, prefer explicit seed-family batches over manual directory cloning:
     `--seed-base-values 50001,51001,52001`
     and note that this explicit list is now reused verbatim across the whole scan,

@@ -146,20 +146,29 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
         - explicit seed family block `50001, 51001, 52001`
       - current early reading:
         - `seed_base = 50001` no longer freezes immediately
-        - the first completed visible repeat has crossed the configured cut and is
-          still drifting strongly, with current `squareOcc/IPR drift/span ≈ 0.752`
-        - still unresolved; cross-family retained-window agreement has not been shown yet
+        - the first two completed repeats now formally give `strong_drift`
+        - current formal partial-stage summary at `2/3` repeats:
+          - `squareOcc/IPR drift/span max ≈ 0.772`
+          - retained repeat-span ratio `≈ 0.414`
+      - next active probe after that failure:
+        - keep `mass = 16`
+        - keep `uniform_mass = 0.5`
+        - keep `lowk_mass = 0.25`
+        - widen the grouped low-|k| basis to `lowk_shells = 6`
+        - active short tune:
+          - grid `20 x 0.00004`, `24 x 0.000035`, `28 x 0.00003`, `32 x 0.000025`
+          - explicit seed family block `50001, 51001, 52001`
 
 ## Immediate Next Steps
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Let the current `uniform_mass = 0.5`, `lowk_mass = 0.25`, `lowk_shells = 4`
-   retained-window stage run deeper and check whether the early improvement
-   on `seed_base = 50001` survives beyond the first post-cut window.
-3. If the current `mu = 0.5` retained-window stage still ends with strong
-   cross-family retained-window mismatch, move to a broader Fourier mass map
-   rather than another small scalar tweak inside the same grouped low-|k| family.
+2. Let the new `uniform_mass = 0.5`, `lowk_mass = 0.25`, `lowk_shells = 6`
+   short tune finish and see whether widening the grouped low-|k| basis cures
+   the four-shell `2/3` strong-drift failure.
+3. If the new `lowk_shells = 6` tune still only finds over-conservative or
+   still-freezing candidates, move to a broader Fourier mass map with more than one
+   grouped low-|k| block rather than another tiny scalar tweak.
 4. Compare the current broader low-|k| probe against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
    - shell1-only `mk = 4`, `24 x 0.0002`
@@ -225,8 +234,15 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
     - tune winner: `24 x 0.00004`
     - early retained-window reading:
       - `seed_base = 50001` is moving rather than freezing
-      - current first completed repeat has crossed the cut but still sits at
-        `drift/span ≈ 0.752`
+      - current partial retained-window summary at `2/3` repeats is still
+        `strong_drift`, with `max drift/span ≈ 0.772`
+  - current active follow-up widens the grouped low-|k| basis further:
+    - `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 6`
+    - active short tune grid:
+      - `20 x 0.00004`
+      - `24 x 0.000035`
+      - `28 x 0.00003`
+      - `32 x 0.000025`
   - current retained-window follow-up:
     - `512 / 256 / 32`
     - `20 x 0.00008`

@@ -128,8 +128,11 @@
         `uniform_mass=0.5`, `lowk_mass=0.25`, `lowk_shells=4`, `nfrog=24`, `dt=0.00004`
       - active retained-window follow-up: `512 / 256 / 32` with explicit seed families
         `50001,51001,52001`
-      - the current first completed visible repeat has crossed the configured cut and is moving
-        rather than freezing, but still shows `squareOcc/IPR drift/span≈0.752`
+      - that four-shell retained-window stage is now formally `strong_drift` at `2/3` repeats,
+        with `squareOcc/IPR drift/span max≈0.772` and `repeat span≈0.414`
+      - the current active follow-up therefore widens the grouped low-|k| basis:
+        `uniform_mass=0.5`, `lowk_mass=0.25`, `lowk_shells=6`
+        short-tune grid: `20x4e-05,24x3.5e-05,28x3e-05,32x2.5e-05`
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
   - that unified `report.md` now begins with `## Current Representative Stage Per Case`
     before the full historical stage table

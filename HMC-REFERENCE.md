@@ -271,12 +271,20 @@ Current main blocker:
         - current retained-window follow-up:
           - `24 x 0.00004`, `512 / 256 / 32`
           - the first visible repeat `seed_base = 50001` is moving rather than freezing
-          - the first completed repeat has crossed the configured cut but still sits at
-            `squareOcc/IPR drift/span ≈ 0.752`
-      - if this lighter-uniform-mass family still cannot reduce the worst-repeat
-        retained-window drift materially, the next target should be an even wider
-        Fourier-accelerated mass map plus a default multi-seed-family diagnosis workflow
-        rather than returning to shell-by-shell rescans
+          - the current formal partial-stage summary at `2/3` repeats is still `strong_drift`,
+            with `squareOcc/IPR drift/span max ≈ 0.772` and retained repeat-span ratio `≈ 0.414`
+      - current active follow-up after that four-shell failure:
+        - keep `mu = 0.5`, `m_lowk = 0.25`
+        - widen to `lowk_shells = 6`
+        - active short-tune grid:
+          - `20 x 0.00004`
+          - `24 x 0.000035`
+          - `28 x 0.00003`
+          - `32 x 0.000025`
+      - if this wider grouped low-|k| family still cannot reduce the worst-repeat
+        retained-window drift materially, the next target should be a broader
+        Fourier mass map with more than one grouped low-|k| block rather than returning
+        to shell-by-shell rescans
   - `L=6`, `Nbos=1e4`, `U2=300` is still active, but its deeper `2048 / 1024 / 1024` rerun already looks much healthier;
     the main remaining question there is cross-repeat agreement, not obvious single-trace drift
 - trace-based tuning lesson from the original `Nbos=1e4, U2=1` blocker point:
