@@ -130,45 +130,46 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
         now also completes `3/3` as `strong_drift`
       - widening to `lowk_shells = 5` only made the short tune more conservative,
         with much worse `ESS/sec`
+    - completed four-shell light-uniform lead:
+      - `uniform_mass = 0.5`
+      - `lowk_mass = 0.25`
+      - `lowk_shells = 4`
+      - retained-window stage `24 x 0.00004`
+      - now formally `strong_drift`
+      - `squareOcc/IPR drift/span max ≈ 0.772`
+      - retained repeat-span ratio `≈ 0.414`
+    - widened grouped low-|k| follow-up:
+      - `uniform_mass = 0.5`
+      - `lowk_mass = 0.25`
+      - `lowk_shells = 6`
+      - best completed tune point remains `20 x 0.00004`
+      - this wider grouped block only became more conservative and slower
     - current active probe:
-      - lower the exact spatially uniform mode as well as the grouped low-|k| block
-      - short-tune winner:
-        - `uniform_mass = 0.5`
-        - `lowk_mass = 0.25`
-        - `lowk_shells = 4`
-        - `24 x 0.00004`
-        - `acceptance ≈ 0.995`
-        - `tau_int(doubleOcc) ≈ 8.02`
-        - `ESS/sec ≈ 0.272`
+      - keep `mass = 16`
+      - keep `uniform_mass = 0.5`
+      - keep `lowk_mass = 0.25` on the first four shells
+      - split the next two shells into a grouped `midk` block
+      - completed short-tune winner:
+        - `midk_mass = 1`
+        - `midk_shells = 2`
+        - `20 x 0.00004`
+        - `acceptance ≈ 1.000`
+        - `tau_int(doubleOcc) ≈ 8.66`
+        - `ESS/sec ≈ 0.390`
       - active retained-window follow-up:
         - `512 / 256 / 32`
-        - `24 x 0.00004`
+        - `20 x 0.00004`
         - explicit seed family block `50001, 51001, 52001`
-      - current early reading:
-        - `seed_base = 50001` no longer freezes immediately
-        - the first two completed repeats now formally give `strong_drift`
-        - current formal partial-stage summary at `2/3` repeats:
-          - `squareOcc/IPR drift/span max ≈ 0.772`
-          - retained repeat-span ratio `≈ 0.414`
-      - next active probe after that failure:
-        - keep `mass = 16`
-        - keep `uniform_mass = 0.5`
-        - keep `lowk_mass = 0.25`
-        - widen the grouped low-|k| basis to `lowk_shells = 6`
-        - active short tune:
-          - grid `20 x 0.00004`, `24 x 0.000035`, `28 x 0.00003`, `32 x 0.000025`
-          - explicit seed family block `50001, 51001, 52001`
 
 ## Immediate Next Steps
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Let the new `uniform_mass = 0.5`, `lowk_mass = 0.25`, `lowk_shells = 6`
-   short tune finish and see whether widening the grouped low-|k| basis cures
-   the four-shell `2/3` strong-drift failure.
-3. If the new `lowk_shells = 6` tune still only finds over-conservative or
-   still-freezing candidates, move to a broader Fourier mass map with more than one
-   grouped low-|k| block rather than another tiny scalar tweak.
+2. Let the new grouped-`midk` retained-window stage finish and check whether
+   separating shells `5-6` from the lightest four-shell block materially reduces
+   worst-repeat retained drift.
+3. If the grouped-`midk` stage is still `strong_drift`, keep the broader Fourier
+   mass-map direction but stop widening a single grouped low-|k| block any further.
 4. Compare the current broader low-|k| probe against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
    - shell1-only `mk = 4`, `24 x 0.0002`
@@ -181,8 +182,12 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
    - closed three-shell combined low-|k| `m_lowk = 0.5`
    - widened combined low-|k| `m_lowk = 0.5`, `lowk_shells = 4`
    - widened combined low-|k| `m_lowk = 0.25`, `lowk_shells = 4`
-   - current low-|k| plus lighter uniform mode
+   - low-|k| plus lighter uniform mode
      `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 4`
+   - widened grouped low-|k| follow-up
+     `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 6`
+   - current grouped-`midk` follow-up
+     `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 4`, `m_midk = 1`, `midk_shells = 2`
 5. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
    representative preconditioned rung and use it as the production-side reference.
 6. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp
@@ -229,24 +234,25 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
   - widened combined low-|k| `m_lowk = 0.25`, `lowk_shells = 4`
     - tune winner: `28 x 0.000035`
     - completed retained-window stage: still `strong_drift`
-  - current active probe lowers the exact uniform mode as well:
+  - low-|k| plus lighter uniform mode:
     - `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 4`
     - tune winner: `24 x 0.00004`
-    - early retained-window reading:
-      - `seed_base = 50001` is moving rather than freezing
-      - current partial retained-window summary at `2/3` repeats is still
-        `strong_drift`, with `max drift/span ≈ 0.772`
-  - current active follow-up widens the grouped low-|k| basis further:
+    - completed retained-window stage is still `strong_drift`
+  - widened grouped low-|k| follow-up:
     - `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 6`
-    - active short tune grid:
-      - `20 x 0.00004`
-      - `24 x 0.000035`
-      - `28 x 0.00003`
-      - `32 x 0.000025`
-  - current retained-window follow-up:
-    - `512 / 256 / 32`
-    - `20 x 0.00008`
-    - `50001,51001,52001` seed family block
+    - best completed tune point remains `20 x 0.00004`
+    - the wider grouped block is slower and more conservative, not healthier
+  - current grouped-`midk` probe:
+    - `mu = 0.5`, `m_lowk = 0.25`, `lowk_shells = 4`
+    - `m_midk = 1`, `midk_shells = 2`
+    - completed short-tune winner: `20 x 0.00004`
+    - completed short-tune summary across `50001,51001,52001`:
+      - `acceptance ≈ 1.000`
+      - `tau_int(doubleOcc) ≈ 8.66`
+      - `ESS/sec ≈ 0.390`
+    - active retained-window follow-up:
+      - `20 x 0.00004`, `512 / 256 / 32`
+      - explicit seed families `50001,51001,52001`
 - Working interpretation:
   - shell1-only preconditioning helped the very early trace shape but did not solve the retained-window drift
   - the first shell2 family also failed on completed stages

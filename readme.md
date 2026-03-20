@@ -214,6 +214,15 @@ Optional production preconditioning knob:
   - controls how many nonzero triangular momentum shells are grouped by
     `--hmc-mass-spatial-lowk`
   - default is `3`; larger values widen the Fourier-accelerated low-`|k|` basis
+- `--hmc-mass-spatial-midk`
+  - grouped follow-up block for the next momentum-shell band after the lightest
+    `--hmc-mass-spatial-lowk` sector
+  - use this when widening one single low-`|k|` block only makes the geometry slower
+- `--hmc-mass-spatial-midk-shells`
+  - controls how many additional triangular momentum shells are assigned to
+    `--hmc-mass-spatial-midk`
+  - with `lowk_shells=4` and `midk_shells=2`, the first four shells stay in the lightest
+    grouped block and the next two shells get a separate intermediate mass
 
 Example: short production tune scan on a conservative triangular ladder rung:
 
@@ -424,17 +433,19 @@ The current next production rungs are:
   - the widened grouped low-|k| basis remains the active geometry class, but the
     completed four-shell families with `uniform_mass=1`, `lowk_mass=0.5` and
     `uniform_mass=1`, `lowk_mass=0.25` are both now formally `strong_drift`
-  - current active retained-window lead:
-    - `mass=16`, `uniform_mass=0.5`, `lowk_mass=0.25`, `lowk_shells=4`
-    - short-tune winner: `nfrog=24`, `dt=0.00004`
+  - the completed light-uniform four-shell lead
+    `mass=16`, `uniform_mass=0.5`, `lowk_mass=0.25`, `lowk_shells=4`, `nfrog=24`, `dt=0.00004`
+    is now also formally `strong_drift`
+  - widening that grouped low-`|k|` block to `lowk_shells=6` only made the tune more conservative
+  - current active probe keeps the first four shells at `lowk_mass=0.25`, lowers the exact
+    uniform mode to `uniform_mass=0.5`, and splits shells `5-6` into a grouped `midk` block:
+    - short-tune winner: `nfrog=20`, `dt=0.00004`
+    - `midk_mass=1`, `midk_shells=2`
     - explicit seed families `50001,51001,52001`
-  - current live reading:
-    - the first two completed repeats now give a formal `2/3` `strong_drift` summary
-    - `squareOcc/IPR drift/span max≈0.772`, `repeat span≈0.414`, so the blocker is not yet resolved
-  - current follow-up probe:
-    - keep `mass=16`, `uniform_mass=0.5`, `lowk_mass=0.25`
-    - widen to `lowk_shells=6`
-    - active short-tune grid: `20x4e-05,24x3.5e-05,28x3e-05,32x2.5e-05`
+    - current partial tune summary in `overview/report.md`:
+      - `acceptance≈1.000`
+      - `tau_int(doubleOcc)≈8.66`
+      - `ESS/sec≈0.390`
   - for future scans, prefer explicit seed-family batches over manual directory cloning:
     `--seed-base-values 50001,51001,52001`
     and note that this explicit list is now reused verbatim across the whole scan,

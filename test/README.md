@@ -86,6 +86,12 @@ The active production workflow is now:
 - `production_hmc.py` also supports `--hmc-mass-spatial-uniform`
   - `0` keeps the old scalar-mass HMC
   - positive values split the per-time-slice spatially uniform mode away from the residual `--hmc-mass`
+- `production_hmc.py` also supports `--hmc-mass-spatial-lowk`
+  and `--hmc-mass-spatial-lowk-shells`
+  - these create a grouped low-`|k|` block spanning the first few nonzero triangular momentum shells
+- `production_hmc.py` also supports `--hmc-mass-spatial-midk`
+  and `--hmc-mass-spatial-midk-shells`
+  - these assign the next grouped momentum-shell band to a separate intermediate mass
 - `production_hmc.py` also supports `--hmc-mass-spatial-shell1`
   - `0` keeps the scalar/uniform-only geometry
   - positive values split the triangular lowest nonzero momentum shell away from the residual
