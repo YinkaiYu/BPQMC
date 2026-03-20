@@ -121,7 +121,9 @@
       the completed three-shell broader-family ladder `lowk_mass=2 -> 1 -> 0.5`
       is also still `strong_drift`
       the current active path is therefore a widened grouped low-|k| basis:
-      - `lowk_mass=0.5`, `lowk_shells=4`
+      - short-tune winner: `lowk_mass=0.5`, `lowk_shells=4`, `nfrog=28`, `dt=0.00005`
+      - active retained-window follow-up: `512 / 256 / 32` with explicit seed families
+        `50001,51001,52001`
       - the main current issue is still seed-family sensitivity:
         `seed_base=50001` freezes, while `51001` and `52001` move
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`

@@ -257,11 +257,14 @@ Current main blocker:
       - `m_lowk = 0.5`
       - `lowk_shells = 4`
       - explicit seed-family block `50001, 51001, 52001`
-      - first target grid:
-        - `16 x 0.0001`
-        - `20 x 0.00008`
-        - `24 x 0.00006`
+      - completed short-tune winner:
         - `28 x 0.00005`
+        - `acceptance ≈ 0.995`
+        - `tau_int(doubleOcc) ≈ 8.32`
+        - `ESS/sec ≈ 0.331`
+      - active retained-window follow-up:
+        - `28 x 0.00005`, `512 / 256 / 32`
+        - explicit seed-family block `50001, 51001, 52001`
     - if the widened `lowk_shells = 4` family still cannot reduce the worst-repeat
       retained-window drift materially, the next target should be an even wider
       Fourier-accelerated mass map plus a default multi-seed-family diagnosis workflow

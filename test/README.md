@@ -151,5 +151,7 @@ The immediate next production rungs are:
   the first combined low-|k| family `m_lowk=4` is also now `strong_drift`,
   the completed three-shell broader-family ladder `m_lowk=2 -> 1 -> 0.5` is also still `strong_drift`,
   and the active replacement path is now a widened grouped low-|k| basis
-  `m_lowk=0.5`, `lowk_shells=4`, with the main current issue being seed-family sensitivity
+  `m_lowk=0.5`, `lowk_shells=4`; the current widened-basis short-tune winner is
+  `nfrog=28`, `dt=0.00005`, and its retained-window follow-up is running with
+  explicit seed families `50001,51001,52001`. The main current issue remains seed-family sensitivity
   rather than acceptance alone

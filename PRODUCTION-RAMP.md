@@ -143,15 +143,18 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
    grouped low-|k| probe:
    - `m = 16`, `mu = 1`, `m_lowk = 0.5`, `lowk_shells = 4`
    - explicit seed-family block `50001, 51001, 52001`
-   - first target grid:
-     - `16 x 0.0001`
-     - `20 x 0.00008`
-     - `24 x 0.00006`
+   - completed short-tune winner:
      - `28 x 0.00005`
+     - `acceptance ≈ 0.995`
+     - `tau_int(doubleOcc) ≈ 8.32`
+     - `ESS/sec ≈ 0.331`
+   - active retained-window follow-up:
+     - `28 x 0.00005`, `512 / 256 / 32`
+     - explicit seed-family block `50001, 51001, 52001`
    - immediate check:
      - whether widening the Fourier-accelerated low-|k| basis reduces the
-       worst-repeat retained drift below the closed three-shell
-       `m_lowk = 0.5` / `1` / `2` / `4` families
+     worst-repeat retained drift below the closed three-shell
+     `m_lowk = 0.5` / `1` / `2` / `4` families
 3. Compare the active broader low-|k| probe against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
    - shell1-only `mk = 4`, `24 x 0.0002`

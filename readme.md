@@ -423,9 +423,12 @@ The current next production rungs are:
     is also now insufficient; the fixed-family `lowk_mass = 0.5` stage is formally `strong_drift`
   - the current replacement path is therefore not another lighter three-shell mass by itself,
     but a widened grouped low-|k| basis driven by `--hmc-mass-spatial-lowk-shells`
-  - immediate next probe:
+  - current widened-basis short-tune winner:
     - `mass=16`, `uniform_mass=1`, `lowk_mass=0.5`, `lowk_shells=4`
+    - `nfrog=28`, `dt=0.00005`
     - with explicit seed families `50001,51001,52001`
+  - active retained-window follow-up:
+    - `512 / 256 / 32` on the same widened grouped low-|k| geometry
   - for future scans, prefer explicit seed-family batches over manual directory cloning:
     `--seed-base-values 50001,51001,52001`
     and note that this explicit list is now reused verbatim across the whole scan,
