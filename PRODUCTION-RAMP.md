@@ -114,31 +114,41 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
           - `20 x 0.0002`
           - `24 x 0.00015`
         - completed `warm=0` stages are now both `strong_drift`
-    - current second probe:
-      - lighter combined low-|k| split:
-        - `lowk_mass = 2`
-        - grid:
-          - `12 x 0.00025`
-          - `16 x 0.0002`
-          - `20 x 0.00015`
-          - `24 x 0.00012`
-        - current recommended candidate:
-          - `16 x 0.0002`
-        - key live issue:
-          - `seed_base = 50001` freezes immediately
-          - `seed_base = 51001` and `52001` both move
+    - current completed broader-family leads:
+      - `lowk_mass = 2`
+        - tune winner: `16 x 0.0002`
+        - moving-family stages on `51001` / `52001` still remain `strong_drift`
+        - frozen-family stage on `50001` remains `stuck_or_invalid`
+      - `lowk_mass = 1`
+        - tune winner: `20 x 0.00012`
+        - completed moving-family stages at `51001` / `52001` still remain `strong_drift`
+        - partial three-family `256 / 128 / 32` stage also remains `strong_drift`
+    - current active broader-family probe:
+      - `lowk_mass = 0.5`
+      - fixed-family short-tune winner:
+        - `20 x 0.00008`
+        - `acceptance ≈ 0.995`
+        - `tau_int(doubleOcc) ≈ 4.41`
+        - `ESS/sec ≈ 0.591`
+      - active retained-window follow-up:
+        - `512 / 256 / 32`
+        - `20 x 0.00008`
+        - explicit seed family block `50001, 51001, 52001`
 
 ## Immediate Next Steps
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
 2. Finish the active lighter combined low-|k| probe:
-   - `m = 16`, `mu = 1`, `m_lowk = 2`
-   - current moving seed-family stages:
-     - `16 x 0.0002`, `warm = 32`, `seed_base = 51001`
-     - `16 x 0.0002`, `warm = 32`, `seed_base = 52001`
-   - current deeper retained-window stage:
-     - `16 x 0.0002`, `1024 / 512 / 512`, `warm = 32`, `seed_base = 51001`
+   - `m = 16`, `mu = 1`, `m_lowk = 0.5`
+   - current fixed-family short-tune winner:
+     - `20 x 0.00008`
+   - current retained-window follow-up:
+     - `20 x 0.00008`, `512 / 256 / 32`
+     - explicit seed-family block `50001, 51001, 52001`
+   - immediate check:
+     - whether worst-repeat retained drift is materially below the closed
+       `m_lowk = 1` / `2` / `4` families
 3. Compare the active broader low-|k| probe against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
    - shell1-only `mk = 4`, `24 x 0.0002`
@@ -148,7 +158,8 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
    - combined low-|k| `m_lowk = 4`
    - combined low-|k| `m_lowk = 2`
    - combined low-|k| `m_lowk = 1`
-   If the lighter combined low-|k| family still does not flatten materially faster, widen the
+   - active combined low-|k| `m_lowk = 0.5`
+   If the `m_lowk = 0.5` family still does not flatten materially faster, widen the
    Fourier-accelerated low-|k| basis again and make multi-seed-family diagnosis mandatory.
 4. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
    representative preconditioned rung and use it as the production-side reference.
