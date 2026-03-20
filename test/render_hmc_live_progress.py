@@ -51,6 +51,22 @@ def discover_run_dirs(work_root: Path) -> list[Path]:
     return sorted(path for path in runs_root.glob("*/*") if path.is_dir())
 
 
+def discover_configured_thermal_cut(work_root: Path, cli_thermal_cut: int) -> int:
+    if cli_thermal_cut > 0:
+        return cli_thermal_cut
+    for candidate in (work_root / "production_stage.json", work_root / "stage_config.json"):
+        if not candidate.exists():
+            continue
+        try:
+            data = json.loads(candidate.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if candidate.name == "production_stage.json":
+            return int(data.get("config_summary", {}).get("thermal_cut", 0))
+        return int(data.get("thermal_cut", 0))
+    return 0
+
+
 def partial_trace_stats(values: list[float], thermal_cut: int) -> dict[str, float | int | str]:
     if not values:
         return {
@@ -234,6 +250,7 @@ def main() -> int:
     work_root = Path(args.work_root).resolve()
     output_dir = Path(args.output_dir).resolve() if args.output_dir else work_root / "live_progress"
     output_dir.mkdir(parents=True, exist_ok=True)
+    thermal_cut = discover_configured_thermal_cut(work_root, args.thermal_cut)
 
     run_dirs = discover_run_dirs(work_root)
     if not run_dirs:
@@ -246,11 +263,11 @@ def main() -> int:
     trace_files: list[tuple[str, str]] = []
     case_summaries: dict[str, dict[str, object]] = {}
     for case_name, case_run_dirs in sorted(cases.items()):
-        filename = render_case_plot(case_name, case_run_dirs, args.thermal_cut, output_dir)
+        filename = render_case_plot(case_name, case_run_dirs, thermal_cut, output_dir)
         trace_files.append((case_name, filename))
-        case_summaries[case_name] = summarize_case_runs(case_run_dirs, args.thermal_cut)
-    write_markdown(work_root, cases, args.thermal_cut, output_dir, trace_files, case_summaries)
-    write_summary_json(work_root, args.thermal_cut, output_dir, case_summaries)
+        case_summaries[case_name] = summarize_case_runs(case_run_dirs, thermal_cut)
+    write_markdown(work_root, cases, thermal_cut, output_dir, trace_files, case_summaries)
+    write_summary_json(work_root, thermal_cut, output_dir, case_summaries)
     return 0
 
 

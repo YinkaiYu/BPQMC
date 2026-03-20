@@ -582,11 +582,15 @@ def scan_live_reports(root: Path) -> list[dict[str, str]]:
         case_name = stage_root.name
         pngs = sorted(report_path.parent.glob("live_trace_*.png"))
         stage_json = stage_root / "production_stage.json"
+        stage_config_json = stage_root / "stage_config.json"
         live_summary_json = report_path.parent / "summary.json"
         thermal_cut = 0
         if stage_json.exists():
             data = json.loads(stage_json.read_text(encoding="utf-8"))
             thermal_cut = int(data.get("config_summary", {}).get("thermal_cut", 0))
+        elif stage_config_json.exists():
+            data = json.loads(stage_config_json.read_text(encoding="utf-8"))
+            thermal_cut = int(data.get("thermal_cut", 0))
         elif live_summary_json.exists():
             live_data = json.loads(live_summary_json.read_text(encoding="utf-8"))
             thermal_cut = int(live_data.get("thermal_cut", 0))

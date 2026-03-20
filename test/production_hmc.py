@@ -563,6 +563,32 @@ def collect_stage_case(
     return case_summary, [case_row], observable_rows, repeat_rows + sample_rows
 
 
+def stage_config_payload(args: argparse.Namespace) -> dict[str, object]:
+    return {
+        "lattice_type": args.lattice_type,
+        "l_values": args.l_values,
+        "nbos_values": args.nbos_values,
+        "u2_values": args.u2_values,
+        "beta": args.beta,
+        "dtau": args.dtau,
+        "bins": args.bins,
+        "thermal_cut": args.thermal_cut,
+        "warm": args.warm,
+        "hmc_mass_spatial_uniform": args.hmc_mass_spatial_uniform,
+        "hmc_mass_spatial_lowk": args.hmc_mass_spatial_lowk,
+        "hmc_mass_spatial_lowk_shells": args.hmc_mass_spatial_lowk_shells,
+        "hmc_mass_spatial_shell1": args.hmc_mass_spatial_shell1,
+        "hmc_mass_spatial_shell2": args.hmc_mass_spatial_shell2,
+    }
+
+
+def write_stage_config(work_root: Path, args: argparse.Namespace) -> None:
+    (work_root / "stage_config.json").write_text(
+        json.dumps(stage_config_payload(args), indent=2),
+        encoding="utf-8",
+    )
+
+
 def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
     configs = build_configs(args)
     grid = parse_grid(args.grid)
@@ -1001,6 +1027,7 @@ def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
     binary = Path(args.binary).resolve()
     work_root = Path(args.work_root).resolve()
     work_root.mkdir(parents=True, exist_ok=True)
+    write_stage_config(work_root, args)
     tuned_map = load_hmc_map(args.hmc_json)
 
     cases = []
@@ -1036,22 +1063,7 @@ def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
         "overall_status": overall_status,
         "gate_observables": list(GATE_OBSERVABLES),
         "trace_observables": list(TRACE_OBSERVABLES),
-        "config_summary": {
-            "lattice_type": args.lattice_type,
-            "l_values": args.l_values,
-            "nbos_values": args.nbos_values,
-            "u2_values": args.u2_values,
-            "beta": args.beta,
-            "dtau": args.dtau,
-            "bins": args.bins,
-            "thermal_cut": args.thermal_cut,
-            "warm": args.warm,
-            "hmc_mass_spatial_uniform": args.hmc_mass_spatial_uniform,
-            "hmc_mass_spatial_lowk": args.hmc_mass_spatial_lowk,
-            "hmc_mass_spatial_lowk_shells": args.hmc_mass_spatial_lowk_shells,
-            "hmc_mass_spatial_shell1": args.hmc_mass_spatial_shell1,
-            "hmc_mass_spatial_shell2": args.hmc_mass_spatial_shell2,
-        },
+        "config_summary": stage_config_payload(args),
         "cases": cases,
     }
     (work_root / "production_stage.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
