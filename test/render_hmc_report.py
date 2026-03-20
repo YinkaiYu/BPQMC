@@ -174,6 +174,7 @@ def save_tune_summary(summary: dict, out_dir: Path) -> None:
             key=lambda row: (
                 row["hmc_mass"],
                 row.get("hmc_mass_spatial_uniform", 0.0),
+                row.get("hmc_mass_spatial_lowk", 0.0),
                 row.get("hmc_mass_spatial_shell1", 0.0),
                 row.get("hmc_mass_spatial_shell2", 0.0),
                 row["nfrog"] * row["hmc_dt"],
@@ -188,6 +189,7 @@ def save_tune_summary(summary: dict, out_dir: Path) -> None:
                 f"{int(row['nfrog'])}x{row['hmc_dt']:g}\n"
                 f"m={row['hmc_mass']:g}\n"
                 f"mu={row.get('hmc_mass_spatial_uniform', 0.0):g}\n"
+                f"mlow={row.get('hmc_mass_spatial_lowk', 0.0):g}\n"
                 f"mk1={row.get('hmc_mass_spatial_shell1', 0.0):g}\n"
                 f"mk2={row.get('hmc_mass_spatial_shell2', 0.0):g}"
             )
@@ -230,6 +232,7 @@ def save_tune_summary(summary: dict, out_dir: Path) -> None:
                 "- `jitter={}`".format(int(rec["hmc_jitter"])),
                 "- `mass={}`".format(rec["hmc_mass"]),
                 "- `uniform_mass={}`".format(rec.get("hmc_mass_spatial_uniform", 0.0)),
+                "- `lowk_mass={}`".format(rec.get("hmc_mass_spatial_lowk", 0.0)),
                 "- `shell1_mass={}`".format(rec.get("hmc_mass_spatial_shell1", 0.0)),
                 "- `shell2_mass={}`".format(rec.get("hmc_mass_spatial_shell2", 0.0)),
                 "- `acceptance={:.3f} ± {:.3f}`".format(rec["acceptance_mean"], rec["acceptance_stderr"]),
@@ -363,15 +366,16 @@ def write_stage_markdown(summary: dict, case_rows: list[dict[str, str]], trace_f
         "- `strong_drift`: gate observables still drift strongly or different repeats settle onto clearly different retained windows",
         "- `stuck_or_invalid`: acceptance or ESS indicates that at least one repeat is effectively unusable",
         "",
-        "| Case | mass | m_uniform | m_shell1 | m_shell2 | Acceptance | tau_int(doubleOcc) | ESS/sec | squareOcc drift/span | IPR drift/span | Status |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        "| Case | mass | m_uniform | m_lowk | m_shell1 | m_shell2 | Acceptance | tau_int(doubleOcc) | ESS/sec | squareOcc drift/span | IPR drift/span | Status |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in case_rows:
         lines.append(
-            "| {name} | {mass:.6g} | {uniform:.6g} | {shell1:.6g} | {shell2:.6g} | {accept:.3f} | {tau:.3f} | {ess:.3f} | {sq:.3f} | {ipr:.3f} | {status} |".format(
+            "| {name} | {mass:.6g} | {uniform:.6g} | {lowk:.6g} | {shell1:.6g} | {shell2:.6g} | {accept:.3f} | {tau:.3f} | {ess:.3f} | {sq:.3f} | {ipr:.3f} | {status} |".format(
                 name=row["name"],
                 mass=float(row["hmc_mass"]),
                 uniform=float(row.get("hmc_mass_spatial_uniform", 0.0)),
+                lowk=float(row.get("hmc_mass_spatial_lowk", 0.0)),
                 shell1=float(row.get("hmc_mass_spatial_shell1", 0.0)),
                 shell2=float(row.get("hmc_mass_spatial_shell2", 0.0)),
                 accept=float(row["acceptance_mean"]),
