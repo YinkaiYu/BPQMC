@@ -46,6 +46,7 @@ HMC_JITTER="${HMC_JITTER:-0}"
 HMC_MASS="${HMC_MASS:-1.0}"
 HMC_MASS_SPATIAL_UNIFORM="${HMC_MASS_SPATIAL_UNIFORM:-0.0}"
 HMC_MASS_SPATIAL_LOWK="${HMC_MASS_SPATIAL_LOWK:-0.0}"
+HMC_MASS_SPATIAL_LOWK_SHELLS="${HMC_MASS_SPATIAL_LOWK_SHELLS:-3}"
 HMC_MASS_SPATIAL_SHELL1="${HMC_MASS_SPATIAL_SHELL1:-0.0}"
 HMC_MASS_SPATIAL_SHELL2="${HMC_MASS_SPATIAL_SHELL2:-0.0}"
 STAGE_LABEL="${STAGE_LABEL:-triangular_prod_stage}"
@@ -89,6 +90,7 @@ case "$PROD_COMMAND" in
       --hmc-mass "$HMC_MASS" \
       --hmc-mass-spatial-uniform "$HMC_MASS_SPATIAL_UNIFORM" \
       --hmc-mass-spatial-lowk "$HMC_MASS_SPATIAL_LOWK" \
+      --hmc-mass-spatial-lowk-shells "$HMC_MASS_SPATIAL_LOWK_SHELLS" \
       --hmc-mass-spatial-shell1 "$HMC_MASS_SPATIAL_SHELL1" \
       --hmc-mass-spatial-shell2 "$HMC_MASS_SPATIAL_SHELL2"
     ;;
@@ -101,6 +103,7 @@ case "$PROD_COMMAND" in
       --hmc-mass "$HMC_MASS" \
       --hmc-mass-spatial-uniform "$HMC_MASS_SPATIAL_UNIFORM" \
       --hmc-mass-spatial-lowk "$HMC_MASS_SPATIAL_LOWK" \
+      --hmc-mass-spatial-lowk-shells "$HMC_MASS_SPATIAL_LOWK_SHELLS" \
       --hmc-mass-spatial-shell1 "$HMC_MASS_SPATIAL_SHELL1" \
       --hmc-mass-spatial-shell2 "$HMC_MASS_SPATIAL_SHELL2"
     ;;
@@ -115,6 +118,7 @@ case "$PROD_COMMAND" in
       --hmc-mass "$HMC_MASS" \
       --hmc-mass-spatial-uniform "$HMC_MASS_SPATIAL_UNIFORM" \
       --hmc-mass-spatial-lowk "$HMC_MASS_SPATIAL_LOWK" \
+      --hmc-mass-spatial-lowk-shells "$HMC_MASS_SPATIAL_LOWK_SHELLS" \
       --hmc-mass-spatial-shell1 "$HMC_MASS_SPATIAL_SHELL1" \
       --hmc-mass-spatial-shell2 "$HMC_MASS_SPATIAL_SHELL2"
     ;;
@@ -130,6 +134,7 @@ case "$PROD_COMMAND" in
       --hmc-mass "$HMC_MASS" \
       --hmc-mass-spatial-uniform "$HMC_MASS_SPATIAL_UNIFORM" \
       --hmc-mass-spatial-lowk "$HMC_MASS_SPATIAL_LOWK" \
+      --hmc-mass-spatial-lowk-shells "$HMC_MASS_SPATIAL_LOWK_SHELLS" \
       --hmc-mass-spatial-shell1 "$HMC_MASS_SPATIAL_SHELL1" \
       --hmc-mass-spatial-shell2 "$HMC_MASS_SPATIAL_SHELL2" \
       --trace-window-frac "$TRACE_WINDOW_FRAC" \
@@ -149,6 +154,7 @@ case "$PROD_COMMAND" in
       --hmc-mass "$HMC_MASS" \
       --hmc-mass-spatial-uniform "$HMC_MASS_SPATIAL_UNIFORM" \
       --hmc-mass-spatial-lowk "$HMC_MASS_SPATIAL_LOWK" \
+      --hmc-mass-spatial-lowk-shells "$HMC_MASS_SPATIAL_LOWK_SHELLS" \
       --hmc-mass-spatial-shell1 "$HMC_MASS_SPATIAL_SHELL1" \
       --hmc-mass-spatial-shell2 "$HMC_MASS_SPATIAL_SHELL2" \
       --trace-window-frac "$TRACE_WINDOW_FRAC" \

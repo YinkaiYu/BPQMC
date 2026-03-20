@@ -202,6 +202,18 @@ Optional production preconditioning knob:
   - `hmc-mass-spatial-uniform` still controls the exact spatially uniform mode
   - `hmc-mass-spatial-shell1` assigns a separate mass to the first real cosine/sine shell
   - `0` disables the shell split and recovers the scalar/uniform-only geometry
+- `--hmc-mass-spatial-shell2`
+  - triangular-only experimental preconditioner for the second nonzero momentum shell
+  - this sits on top of the residual, uniform, and shell1 splits
+  - `0` disables the second-shell split
+- `--hmc-mass-spatial-lowk`
+  - broader triangular low-`|k|` split that groups several nonzero momentum shells
+  - `hmc-mass-spatial-lowk` assigns one shared mass to that grouped low-`|k|` subspace
+  - `0` disables the grouped low-`|k|` split
+- `--hmc-mass-spatial-lowk-shells`
+  - controls how many nonzero triangular momentum shells are grouped by
+    `--hmc-mass-spatial-lowk`
+  - default is `3`; larger values widen the Fourier-accelerated low-`|k|` basis
 
 Example: short production tune scan on a conservative triangular ladder rung:
 
@@ -407,24 +419,17 @@ The current next production rungs are:
   - the lighter `shell2` follow-up `shell1_mass=4`, `shell2_mass=2` also failed to produce
     a selective tune window; all cheap candidates stayed at `acceptance = 1` with huge positive `DeltaH`
   - the first combined low-|k| family `lowk_mass=4` also later closed as `strong_drift`
-  - the current live lead is now a lighter combined low-|k| split:
-    - `mass=16`, `uniform_mass=1`, `lowk_mass=2`
-    - short-tune grid:
-      - `12 x 0.00025`
-      - `16 x 0.0002`
-      - `20 x 0.00015`
-      - `24 x 0.00012`
-    - current recommended candidate: `16 x 0.0002`
-    - critical current lesson: this family is strongly seed-family sensitive
-      - `seed_base=50001` freezes immediately
-      - `seed_base=51001` and `52001` both move
-    - active live traces:
-      - `l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk2_nf16_dt2em4_diag512_warm32_seed51001`
-      - `l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk2_nf16_dt2em4_diag512_warm32_seed52001`
-    - for future scans, prefer explicit seed-family batches over manual directory cloning:
-      `--seed-base-values 50001,51001,52001`
-      and note that this explicit list is now reused verbatim across the whole scan,
-      rather than being shifted per HMC grid candidate
+  - the completed three-shell broader-family ladder `lowk_mass = 2 -> 1 -> 0.5`
+    is also now insufficient; the fixed-family `lowk_mass = 0.5` stage is formally `strong_drift`
+  - the current replacement path is therefore not another lighter three-shell mass by itself,
+    but a widened grouped low-|k| basis driven by `--hmc-mass-spatial-lowk-shells`
+  - immediate next probe:
+    - `mass=16`, `uniform_mass=1`, `lowk_mass=0.5`, `lowk_shells=4`
+    - with explicit seed families `50001,51001,52001`
+  - for future scans, prefer explicit seed-family batches over manual directory cloning:
+    `--seed-base-values 50001,51001,52001`
+    and note that this explicit list is now reused verbatim across the whole scan,
+    rather than being shifted per HMC grid candidate
 
 See `HMC-REFERENCE.md` for the running interpretation of these stage results and blockers.
 For a single merged entry point across all production directories, open:

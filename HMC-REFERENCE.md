@@ -32,8 +32,10 @@ The active production CLI is `test/production_hmc.py`:
   `0` disables it
 - `--hmc-mass-spatial-shell2`: optional triangular second nonzero momentum-shell mass split
 - `--hmc-mass-spatial-lowk`: optional broader triangular low-|k| mass split that groups
-  the first three nonzero momentum shells into one preconditioned subspace
+  several nonzero momentum shells into one preconditioned subspace
   on top of the residual, uniform, and shell1 masses; `0` disables it
+- `--hmc-mass-spatial-lowk-shells`: optional shell-count control for the grouped low-|k|
+  subspace; default `3`, and larger values widen the Fourier-accelerated basis
 
 For seed/init-state convergence checks, the production driver can now expand multiple
 initial-state families in one invocation via:
@@ -243,25 +245,27 @@ Current main blocker:
       - completed moving-family stages at `51001` and `52001` still remain `strong_drift`
       - a partial three-family `256 / 128 / 32` stage also remains `strong_drift`,
         with large cross-family repeat span
-    - the current active probe is therefore one step lighter again:
+    - the closed three-shell `m_lowk = 0.5` family is now also formally `strong_drift`:
+      - completed stage report:
+        [lowk0p5 stage report](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk0p5_nf20_dt8em05_diag512_seedfamily3/report/report.md)
+      - key outcome:
+        - `acceptance ≈ 0.969`
+        - `tau_int(doubleOcc) ≈ 50.7`
+        - worst retained-window drift ratio `≈ 0.78`
+        - retained-window repeat span `≈ 1.00`
+    - the current active replacement path is therefore a widened grouped low-|k| basis:
       - `m_lowk = 0.5`
-      - current grid:
+      - `lowk_shells = 4`
+      - explicit seed-family block `50001, 51001, 52001`
+      - first target grid:
         - `16 x 0.0001`
         - `20 x 0.00008`
         - `24 x 0.00006`
         - `28 x 0.00005`
-      - current fixed-family partial tune:
-        - recommended candidate: `20 x 0.00008`
-        - `acceptance ≈ 0.995`
-        - `tau_int(doubleOcc) ≈ 4.41`
-        - `ESS/sec ≈ 0.591`
-        - report:
-          [lowk0p5 fixed-family tune](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_lowk0p5_seedfamily3_probe_v2/report/report.md)
-      - current retained-window follow-up:
-        - [lowk0p5 stage live](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk0p5_nf20_dt8em05_diag512_seedfamily3/live_progress/report.md)
-    - if `m_lowk = 0.5` still cannot reduce the worst-repeat retained-window drift materially,
-      the next target should be an even wider Fourier-accelerated mass map plus a default
-      multi-seed-family diagnosis workflow rather than returning to shell-by-shell rescans
+    - if the widened `lowk_shells = 4` family still cannot reduce the worst-repeat
+      retained-window drift materially, the next target should be an even wider
+      Fourier-accelerated mass map plus a default multi-seed-family diagnosis workflow
+      rather than returning to shell-by-shell rescans
   - `L=6`, `Nbos=1e4`, `U2=300` is still active, but its deeper `2048 / 1024 / 1024` rerun already looks much healthier;
     the main remaining question there is cross-repeat agreement, not obvious single-trace drift
 - trace-based tuning lesson from the original `Nbos=1e4, U2=1` blocker point:

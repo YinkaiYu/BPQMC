@@ -125,7 +125,7 @@ def get_hmc_params(
     case_name: str,
     args: argparse.Namespace,
     tuned_map: dict[str, dict[str, float]],
-) -> tuple[int, float, int, float, float, float, float, float]:
+) -> tuple[int, float, int, float, float, float, int, float, float]:
     if case_name in tuned_map:
         params = tuned_map[case_name]
         return (
@@ -135,6 +135,7 @@ def get_hmc_params(
             float(params.get("hmc_mass", 1.0)),
             float(params.get("hmc_mass_spatial_uniform", 0.0)),
             float(params.get("hmc_mass_spatial_lowk", 0.0)),
+            int(params.get("hmc_mass_spatial_lowk_shells", 3)),
             float(params.get("hmc_mass_spatial_shell1", 0.0)),
             float(params.get("hmc_mass_spatial_shell2", 0.0)),
         )
@@ -145,6 +146,7 @@ def get_hmc_params(
         args.hmc_mass,
         args.hmc_mass_spatial_uniform,
         args.hmc_mass_spatial_lowk,
+        args.hmc_mass_spatial_lowk_shells,
         args.hmc_mass_spatial_shell1,
         args.hmc_mass_spatial_shell2,
     )
@@ -153,12 +155,14 @@ def get_hmc_params(
 def hmc_env_overrides(
     hmc_mass_spatial_uniform: float,
     hmc_mass_spatial_lowk: float,
+    hmc_mass_spatial_lowk_shells: int,
     hmc_mass_spatial_shell1: float,
     hmc_mass_spatial_shell2: float,
 ) -> dict[str, str]:
     return {
         "BPQMC_HMC_MASS_SPATIAL_UNIFORM": f"{hmc_mass_spatial_uniform:.16g}",
         "BPQMC_HMC_MASS_SPATIAL_LOWK": f"{hmc_mass_spatial_lowk:.16g}",
+        "BPQMC_HMC_MASS_SPATIAL_LOWK_SHELLS": str(hmc_mass_spatial_lowk_shells),
         "BPQMC_HMC_MASS_SPATIAL_SHELL1": f"{hmc_mass_spatial_shell1:.16g}",
         "BPQMC_HMC_MASS_SPATIAL_SHELL2": f"{hmc_mass_spatial_shell2:.16g}",
     }
@@ -234,6 +238,7 @@ def aggregate_tune_repeat_rows(repeat_rows: list[dict[str, float | int | str]]) 
         "hmc_mass": repeat_rows[0]["hmc_mass"],
         "hmc_mass_spatial_uniform": repeat_rows[0]["hmc_mass_spatial_uniform"],
         "hmc_mass_spatial_lowk": repeat_rows[0]["hmc_mass_spatial_lowk"],
+        "hmc_mass_spatial_lowk_shells": repeat_rows[0]["hmc_mass_spatial_lowk_shells"],
         "hmc_mass_spatial_shell1": repeat_rows[0]["hmc_mass_spatial_shell1"],
         "hmc_mass_spatial_shell2": repeat_rows[0]["hmc_mass_spatial_shell2"],
         "repeats": len(repeat_rows),
@@ -371,7 +376,7 @@ def collect_stage_case(
 ) -> tuple[dict[str, object], list[dict[str, object]], list[dict[str, object]], list[dict[str, object]]]:
     if args.warm >= 0:
         cfg = cfg.with_sampling(is_warm=args.warm > 0, nwarm=max(args.warm, 0))
-    nfrog, hmc_dt, jitter, hmc_mass, hmc_mass_spatial_uniform, hmc_mass_spatial_lowk, hmc_mass_spatial_shell1, hmc_mass_spatial_shell2 = get_hmc_params(cfg.name, args, tuned_map)
+    nfrog, hmc_dt, jitter, hmc_mass, hmc_mass_spatial_uniform, hmc_mass_spatial_lowk, hmc_mass_spatial_lowk_shells, hmc_mass_spatial_shell1, hmc_mass_spatial_shell2 = get_hmc_params(cfg.name, args, tuned_map)
     repeat_rows: list[dict[str, object]] = []
     sample_rows: list[dict[str, object]] = []
     repeat_observables: dict[str, list[dict[str, float | int | str]]] = defaultdict(list)
@@ -380,7 +385,7 @@ def collect_stage_case(
     for repeat, seed in enumerate(seed_bases):
         run_dir = Path(args.work_root).resolve() / "runs" / cfg.name / f"hmc_rep{repeat}"
         print(
-            "  [{mode}] repeat={repeat} seed={seed} nfrog={nfrog} dt={dt:.6g} mass={mass:g} uniform_mass={uniform_mass:g} lowk_mass={lowk_mass:g} shell1_mass={shell1_mass:g} shell2_mass={shell2_mass:g}".format(
+            "  [{mode}] repeat={repeat} seed={seed} nfrog={nfrog} dt={dt:.6g} mass={mass:g} uniform_mass={uniform_mass:g} lowk_mass={lowk_mass:g} lowk_shells={lowk_shells} shell1_mass={shell1_mass:g} shell2_mass={shell2_mass:g}".format(
                 mode="run" if execute else "reuse",
                 repeat=repeat,
                 seed=seed,
@@ -389,6 +394,7 @@ def collect_stage_case(
                 mass=hmc_mass,
                 uniform_mass=hmc_mass_spatial_uniform,
                 lowk_mass=hmc_mass_spatial_lowk,
+                lowk_shells=hmc_mass_spatial_lowk_shells,
                 shell1_mass=hmc_mass_spatial_shell1,
                 shell2_mass=hmc_mass_spatial_shell2,
             ),
@@ -409,7 +415,13 @@ def collect_stage_case(
             run_case(
                 run_dir,
                 np_ranks=args.np,
-                env_overrides=hmc_env_overrides(hmc_mass_spatial_uniform, hmc_mass_spatial_lowk, hmc_mass_spatial_shell1, hmc_mass_spatial_shell2),
+                env_overrides=hmc_env_overrides(
+                    hmc_mass_spatial_uniform,
+                    hmc_mass_spatial_lowk,
+                    hmc_mass_spatial_lowk_shells,
+                    hmc_mass_spatial_shell1,
+                    hmc_mass_spatial_shell2,
+                ),
             )
         elif not run_dir.exists():
             print("    [skip] missing run directory", flush=True)
@@ -431,6 +443,7 @@ def collect_stage_case(
             "hmc_mass": hmc_mass,
             "hmc_mass_spatial_uniform": hmc_mass_spatial_uniform,
             "hmc_mass_spatial_lowk": hmc_mass_spatial_lowk,
+            "hmc_mass_spatial_lowk_shells": hmc_mass_spatial_lowk_shells,
             "hmc_mass_spatial_shell1": hmc_mass_spatial_shell1,
             "hmc_mass_spatial_shell2": hmc_mass_spatial_shell2,
             "acceptance": info["Accept_HMC"],
@@ -502,6 +515,7 @@ def collect_stage_case(
         "hmc_mass": hmc_mass,
         "hmc_mass_spatial_uniform": hmc_mass_spatial_uniform,
         "hmc_mass_spatial_lowk": hmc_mass_spatial_lowk,
+        "hmc_mass_spatial_lowk_shells": hmc_mass_spatial_lowk_shells,
         "hmc_mass_spatial_shell1": hmc_mass_spatial_shell1,
         "hmc_mass_spatial_shell2": hmc_mass_spatial_shell2,
         "repeats": len(repeat_rows),
@@ -535,6 +549,7 @@ def collect_stage_case(
             "hmc_mass": hmc_mass,
             "hmc_mass_spatial_uniform": hmc_mass_spatial_uniform,
             "hmc_mass_spatial_lowk": hmc_mass_spatial_lowk,
+            "hmc_mass_spatial_lowk_shells": hmc_mass_spatial_lowk_shells,
             "hmc_mass_spatial_shell1": hmc_mass_spatial_shell1,
             "hmc_mass_spatial_shell2": hmc_mass_spatial_shell2,
         },
@@ -563,7 +578,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
         case_rows = []
         print(
             f"[{'tune' if execute else 'collect-tune'}] case={cfg.name} mass={args.hmc_mass:g} "
-            f"uniform_mass={args.hmc_mass_spatial_uniform:g} lowk_mass={args.hmc_mass_spatial_lowk:g} shell1_mass={args.hmc_mass_spatial_shell1:g} "
+            f"uniform_mass={args.hmc_mass_spatial_uniform:g} lowk_mass={args.hmc_mass_spatial_lowk:g} lowk_shells={args.hmc_mass_spatial_lowk_shells} shell1_mass={args.hmc_mass_spatial_shell1:g} "
             f"shell2_mass={args.hmc_mass_spatial_shell2:g} "
             f"jitter={args.hmc_jitter}",
             flush=True,
@@ -595,6 +610,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
                         env_overrides=hmc_env_overrides(
                             args.hmc_mass_spatial_uniform,
                             args.hmc_mass_spatial_lowk,
+                            args.hmc_mass_spatial_lowk_shells,
                             args.hmc_mass_spatial_shell1,
                             args.hmc_mass_spatial_shell2,
                         ),
@@ -620,6 +636,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
                     "hmc_mass": args.hmc_mass,
                     "hmc_mass_spatial_uniform": args.hmc_mass_spatial_uniform,
                     "hmc_mass_spatial_lowk": args.hmc_mass_spatial_lowk,
+                    "hmc_mass_spatial_lowk_shells": args.hmc_mass_spatial_lowk_shells,
                     "hmc_mass_spatial_shell1": args.hmc_mass_spatial_shell1,
                     "hmc_mass_spatial_shell2": args.hmc_mass_spatial_shell2,
                     "repeat": repeat,
@@ -705,6 +722,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
                 "hmc_mass": args.hmc_mass,
                 "hmc_mass_spatial_uniform": args.hmc_mass_spatial_uniform,
                 "hmc_mass_spatial_lowk": args.hmc_mass_spatial_lowk,
+                "hmc_mass_spatial_lowk_shells": args.hmc_mass_spatial_lowk_shells,
                 "hmc_mass_spatial_shell1": args.hmc_mass_spatial_shell1,
                 "hmc_mass_spatial_shell2": args.hmc_mass_spatial_shell2,
             }
@@ -724,6 +742,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "hmc_mass",
             "hmc_mass_spatial_uniform",
             "hmc_mass_spatial_lowk",
+            "hmc_mass_spatial_lowk_shells",
             "hmc_mass_spatial_shell1",
             "hmc_mass_spatial_shell2",
             "repeats",
@@ -756,6 +775,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "hmc_mass",
             "hmc_mass_spatial_uniform",
             "hmc_mass_spatial_lowk",
+            "hmc_mass_spatial_lowk_shells",
             "hmc_mass_spatial_shell1",
             "hmc_mass_spatial_shell2",
             "repeat",
@@ -778,6 +798,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "hmc_mass": case["recommended"]["hmc_mass"],
             "hmc_mass_spatial_uniform": case["recommended"]["hmc_mass_spatial_uniform"],
             "hmc_mass_spatial_lowk": case["recommended"].get("hmc_mass_spatial_lowk", 0.0),
+            "hmc_mass_spatial_lowk_shells": case["recommended"].get("hmc_mass_spatial_lowk_shells", 3),
             "hmc_mass_spatial_shell1": case["recommended"].get("hmc_mass_spatial_shell1", 0.0),
             "hmc_mass_spatial_shell2": case["recommended"].get("hmc_mass_spatial_shell2", 0.0),
         }
@@ -811,7 +832,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
     for case_index, cfg in enumerate(configs.values()):
         if args.warm >= 0:
             cfg = cfg.with_sampling(is_warm=args.warm > 0, nwarm=max(args.warm, 0))
-        nfrog, hmc_dt, jitter, hmc_mass, hmc_mass_spatial_uniform, hmc_mass_spatial_lowk, hmc_mass_spatial_shell1, hmc_mass_spatial_shell2 = get_hmc_params(cfg.name, args, tuned_map)
+        nfrog, hmc_dt, jitter, hmc_mass, hmc_mass_spatial_uniform, hmc_mass_spatial_lowk, hmc_mass_spatial_lowk_shells, hmc_mass_spatial_shell1, hmc_mass_spatial_shell2 = get_hmc_params(cfg.name, args, tuned_map)
         summary: dict[str, dict[str, list[float]]] = {"local": defaultdict(list), "hmc": defaultdict(list)}
         perf: dict[str, dict[str, list[float]]] = {"local": defaultdict(list), "hmc": defaultdict(list)}
         hmc_accept = []
@@ -838,6 +859,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                     env_overrides=hmc_env_overrides(
                         hmc_mass_spatial_uniform if is_global else 0.0,
                         hmc_mass_spatial_lowk if is_global else 0.0,
+                        hmc_mass_spatial_lowk_shells if is_global else 3,
                         hmc_mass_spatial_shell1 if is_global else 0.0,
                         hmc_mass_spatial_shell2 if is_global else 0.0,
                     ),
@@ -876,6 +898,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 "hmc_mass": hmc_mass,
                 "hmc_mass_spatial_uniform": hmc_mass_spatial_uniform,
                 "hmc_mass_spatial_lowk": hmc_mass_spatial_lowk,
+                "hmc_mass_spatial_lowk_shells": hmc_mass_spatial_lowk_shells,
                 "hmc_mass_spatial_shell1": hmc_mass_spatial_shell1,
                 "hmc_mass_spatial_shell2": hmc_mass_spatial_shell2,
             },
@@ -908,6 +931,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 "hmc_mass": hmc_mass,
                 "hmc_mass_spatial_uniform": hmc_mass_spatial_uniform,
                 "hmc_mass_spatial_lowk": hmc_mass_spatial_lowk,
+                "hmc_mass_spatial_lowk_shells": hmc_mass_spatial_lowk_shells,
                 "hmc_mass_spatial_shell1": hmc_mass_spatial_shell1,
                 "hmc_mass_spatial_shell2": hmc_mass_spatial_shell2,
                 "acceptance_mean": accept_mean,
@@ -947,6 +971,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
             "hmc_mass",
             "hmc_mass_spatial_uniform",
             "hmc_mass_spatial_lowk",
+            "hmc_mass_spatial_lowk_shells",
             "hmc_mass_spatial_shell1",
             "hmc_mass_spatial_shell2",
             "acceptance_mean",
@@ -1023,6 +1048,7 @@ def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "warm": args.warm,
             "hmc_mass_spatial_uniform": args.hmc_mass_spatial_uniform,
             "hmc_mass_spatial_lowk": args.hmc_mass_spatial_lowk,
+            "hmc_mass_spatial_lowk_shells": args.hmc_mass_spatial_lowk_shells,
             "hmc_mass_spatial_shell1": args.hmc_mass_spatial_shell1,
             "hmc_mass_spatial_shell2": args.hmc_mass_spatial_shell2,
         },
@@ -1047,6 +1073,7 @@ def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "hmc_mass",
             "hmc_mass_spatial_uniform",
             "hmc_mass_spatial_lowk",
+            "hmc_mass_spatial_lowk_shells",
             "hmc_mass_spatial_shell1",
             "hmc_mass_spatial_shell2",
             "repeats",
@@ -1108,6 +1135,7 @@ def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "hmc_mass",
             "hmc_mass_spatial_uniform",
             "hmc_mass_spatial_lowk",
+            "hmc_mass_spatial_lowk_shells",
             "hmc_mass_spatial_shell1",
             "hmc_mass_spatial_shell2",
             "acceptance",
@@ -1199,6 +1227,7 @@ def build_parser() -> argparse.ArgumentParser:
     tune.add_argument("--hmc-mass", type=float, default=1.0)
     tune.add_argument("--hmc-mass-spatial-uniform", type=float, default=0.0)
     tune.add_argument("--hmc-mass-spatial-lowk", type=float, default=0.0)
+    tune.add_argument("--hmc-mass-spatial-lowk-shells", type=int, default=3)
     tune.add_argument("--hmc-mass-spatial-shell1", type=float, default=0.0)
     tune.add_argument("--hmc-mass-spatial-shell2", type=float, default=0.0)
     tune.add_argument("--repeats", type=int, default=1)
@@ -1214,6 +1243,7 @@ def build_parser() -> argparse.ArgumentParser:
     collect_tune_parser.add_argument("--hmc-mass", type=float, default=1.0)
     collect_tune_parser.add_argument("--hmc-mass-spatial-uniform", type=float, default=0.0)
     collect_tune_parser.add_argument("--hmc-mass-spatial-lowk", type=float, default=0.0)
+    collect_tune_parser.add_argument("--hmc-mass-spatial-lowk-shells", type=int, default=3)
     collect_tune_parser.add_argument("--hmc-mass-spatial-shell1", type=float, default=0.0)
     collect_tune_parser.add_argument("--hmc-mass-spatial-shell2", type=float, default=0.0)
     collect_tune_parser.add_argument("--repeats", type=int, default=1)
@@ -1232,6 +1262,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--hmc-mass", type=float, default=1.0)
     bench.add_argument("--hmc-mass-spatial-uniform", type=float, default=0.0)
     bench.add_argument("--hmc-mass-spatial-lowk", type=float, default=0.0)
+    bench.add_argument("--hmc-mass-spatial-lowk-shells", type=int, default=3)
     bench.add_argument("--hmc-mass-spatial-shell1", type=float, default=0.0)
     bench.add_argument("--hmc-mass-spatial-shell2", type=float, default=0.0)
     bench.add_argument("--min-run-accept", type=float, default=0.05)
@@ -1248,6 +1279,7 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--hmc-mass", type=float, default=1.0)
         subparser.add_argument("--hmc-mass-spatial-uniform", type=float, default=0.0)
         subparser.add_argument("--hmc-mass-spatial-lowk", type=float, default=0.0)
+        subparser.add_argument("--hmc-mass-spatial-lowk-shells", type=int, default=3)
         subparser.add_argument("--hmc-mass-spatial-shell1", type=float, default=0.0)
         subparser.add_argument("--hmc-mass-spatial-shell2", type=float, default=0.0)
         subparser.add_argument("--min-run-accept", type=float, default=0.05)

@@ -139,16 +139,19 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Finish the active lighter combined low-|k| probe:
-   - `m = 16`, `mu = 1`, `m_lowk = 0.5`
-   - current fixed-family short-tune winner:
+2. Move past the now-closed three-shell `m_lowk = 0.5` family and start the widened
+   grouped low-|k| probe:
+   - `m = 16`, `mu = 1`, `m_lowk = 0.5`, `lowk_shells = 4`
+   - explicit seed-family block `50001, 51001, 52001`
+   - first target grid:
+     - `16 x 0.0001`
      - `20 x 0.00008`
-   - current retained-window follow-up:
-     - `20 x 0.00008`, `512 / 256 / 32`
-     - explicit seed-family block `50001, 51001, 52001`
+     - `24 x 0.00006`
+     - `28 x 0.00005`
    - immediate check:
-     - whether worst-repeat retained drift is materially below the closed
-       `m_lowk = 1` / `2` / `4` families
+     - whether widening the Fourier-accelerated low-|k| basis reduces the
+       worst-repeat retained drift below the closed three-shell
+       `m_lowk = 0.5` / `1` / `2` / `4` families
 3. Compare the active broader low-|k| probe against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
    - shell1-only `mk = 4`, `24 x 0.0002`
@@ -158,9 +161,10 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
    - combined low-|k| `m_lowk = 4`
    - combined low-|k| `m_lowk = 2`
    - combined low-|k| `m_lowk = 1`
-   - active combined low-|k| `m_lowk = 0.5`
-   If the `m_lowk = 0.5` family still does not flatten materially faster, widen the
-   Fourier-accelerated low-|k| basis again and make multi-seed-family diagnosis mandatory.
+   - closed three-shell combined low-|k| `m_lowk = 0.5`
+   - active widened combined low-|k| `m_lowk = 0.5`, `lowk_shells = 4`
+   If the widened `lowk_shells = 4` family still does not flatten materially faster,
+   widen the Fourier-accelerated low-|k| basis again and keep multi-seed-family diagnosis mandatory.
 4. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
    representative preconditioned rung and use it as the production-side reference.
 5. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp

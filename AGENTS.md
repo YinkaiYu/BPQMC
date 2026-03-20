@@ -92,6 +92,8 @@
     for the second triangular nonzero momentum shell
   - `test/production_hmc.py` also supports `--hmc-mass-spatial-lowk`
     for a broader combined low-|k| split that groups the first three nonzero momentum shells
+  - `test/production_hmc.py` also supports `--hmc-mass-spatial-lowk-shells`
+    to widen that grouped low-|k| subspace beyond the default three shells
 - Current workstation production examples already distinguish:
   - a healthy projector ladder at `L=6, Nbos=1e3, U2=1`, currently healthy through `beta=160`, `dtau=0.004`
   - a partially collected but representative `beta=192`, `dtau=0.002` rung on the same baseline point,
@@ -116,10 +118,11 @@
       the lighter `shell2` follow-up `shell1_mass=4`, `shell2_mass=2` is no longer the main lead;
       all cheap candidates still kept `acceptance=1` with huge positive `DeltaH`
       the first combined low-|k| family `lowk_mass=4` is now also closed as `strong_drift`
-      the current active path is the lighter combined low-|k| split:
-      - `lowk_mass=2`, `nfrog=16`, `dt=0.0002`
-      - `lowk_mass=2`, `nfrog=20`, `dt=0.00015`
-      - the main current issue is seed-family sensitivity:
+      the completed three-shell broader-family ladder `lowk_mass=2 -> 1 -> 0.5`
+      is also still `strong_drift`
+      the current active path is therefore a widened grouped low-|k| basis:
+      - `lowk_mass=0.5`, `lowk_shells=4`
+      - the main current issue is still seed-family sensitivity:
         `seed_base=50001` freezes, while `51001` and `52001` move
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
   - that unified `report.md` now begins with `## Current Representative Stage Per Case`

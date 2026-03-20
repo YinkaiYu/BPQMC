@@ -366,16 +366,17 @@ def write_stage_markdown(summary: dict, case_rows: list[dict[str, str]], trace_f
         "- `strong_drift`: gate observables still drift strongly or different repeats settle onto clearly different retained windows",
         "- `stuck_or_invalid`: acceptance or ESS indicates that at least one repeat is effectively unusable",
         "",
-        "| Case | mass | m_uniform | m_lowk | m_shell1 | m_shell2 | Acceptance | tau_int(doubleOcc) | ESS/sec | squareOcc drift/span | IPR drift/span | Status |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        "| Case | mass | m_uniform | m_lowk | lowk_shells | m_shell1 | m_shell2 | Acceptance | tau_int(doubleOcc) | ESS/sec | squareOcc drift/span | IPR drift/span | Status |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in case_rows:
         lines.append(
-            "| {name} | {mass:.6g} | {uniform:.6g} | {lowk:.6g} | {shell1:.6g} | {shell2:.6g} | {accept:.3f} | {tau:.3f} | {ess:.3f} | {sq:.3f} | {ipr:.3f} | {status} |".format(
+            "| {name} | {mass:.6g} | {uniform:.6g} | {lowk:.6g} | {lowk_shells} | {shell1:.6g} | {shell2:.6g} | {accept:.3f} | {tau:.3f} | {ess:.3f} | {sq:.3f} | {ipr:.3f} | {status} |".format(
                 name=row["name"],
                 mass=float(row["hmc_mass"]),
                 uniform=float(row.get("hmc_mass_spatial_uniform", 0.0)),
                 lowk=float(row.get("hmc_mass_spatial_lowk", 0.0)),
+                lowk_shells=int(float(row.get("hmc_mass_spatial_lowk_shells", 0.0))),
                 shell1=float(row.get("hmc_mass_spatial_shell1", 0.0)),
                 shell2=float(row.get("hmc_mass_spatial_shell2", 0.0)),
                 accept=float(row["acceptance_mean"]),

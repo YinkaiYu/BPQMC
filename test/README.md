@@ -149,5 +149,7 @@ The immediate next production rungs are:
   the first `shell2` family `mk1=8`, `mk2=4` is also now `strong_drift`,
   the lighter `shell2` follow-up `mk1=4`, `mk2=2` also never produced a selective tune window,
   the first combined low-|k| family `m_lowk=4` is also now `strong_drift`,
-  and the active replacement path is now the lighter combined low-|k| split `m_lowk=2`,
-  with the main current issue being seed-family sensitivity rather than acceptance alone
+  the completed three-shell broader-family ladder `m_lowk=2 -> 1 -> 0.5` is also still `strong_drift`,
+  and the active replacement path is now a widened grouped low-|k| basis
+  `m_lowk=0.5`, `lowk_shells=4`, with the main current issue being seed-family sensitivity
+  rather than acceptance alone
