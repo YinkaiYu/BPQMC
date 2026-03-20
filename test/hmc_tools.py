@@ -4,6 +4,7 @@ import math
 import os
 import re
 import shutil
+import signal
 import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -338,19 +339,49 @@ def prepare_run_dir(
     )
 
 
-def run_case(run_dir: Path, *, np_ranks: int = 1, env_overrides: dict[str, str] | None = None) -> None:
+def run_case(
+    run_dir: Path,
+    *,
+    np_ranks: int = 1,
+    env_overrides: dict[str, str] | None = None,
+    run_timeout_sec: float = 0.0,
+) -> None:
     env = os.environ.copy()
     if env_overrides:
         env.update(env_overrides)
     with (run_dir / "output.log").open("w", encoding="ascii") as stream:
-        subprocess.run(
+        proc = subprocess.Popen(
             ["mpirun", "-np", str(np_ranks), "./BPQMC.out"],
             cwd=run_dir,
             stdout=stream,
             stderr=subprocess.STDOUT,
             env=env,
-            check=True,
+            start_new_session=True,
         )
+        try:
+            returncode = proc.wait(timeout=run_timeout_sec if run_timeout_sec > 0.0 else None)
+        except subprocess.TimeoutExpired as exc:
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            try:
+                proc.wait(timeout=5.0)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                proc.wait()
+            try:
+                info = parse_info_metrics(run_dir)
+            except (FileNotFoundError, ValueError):
+                raise exc
+            if "Accept_HMC" in info and "Tot_CPU_time" in info:
+                return
+            raise exc
+        if returncode != 0:
+            raise subprocess.CalledProcessError(returncode, proc.args)
 
 
 def parse_info_metrics(run_dir: Path) -> dict[str, float]:

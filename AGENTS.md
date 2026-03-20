@@ -37,6 +37,8 @@
 - Generated observables and logs should remain inside `test/` unless explicitly archived.
 - `paramC_sets.txt` may now start with a lattice header: `kagome` or `triangular`.
 - `test/production_hmc.py` is the main driver for production tuning, staged HMC thermalization runs, summary collection, and report rendering.
+  It now also supports `--run-timeout-sec` on execute paths so a hung `mpirun` can be cut off
+  once `info.txt` and the observables are already complete.
 - `test/render_hmc_report.py` converts production summary JSON into PNG plots and a Markdown summary.
 - `test/render_hmc_live_progress.py` converts raw in-flight stage traces into PNG plots and a Markdown summary before a repeat has fully finished.
 - `test/hmc_report_template.ipynb` is the notebook entry point for interactive post-processing.

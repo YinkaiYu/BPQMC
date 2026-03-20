@@ -77,6 +77,8 @@ Future work should prioritize:
 The active production workflow is now:
 
 - `production_hmc.py tune`: short HMC grid scans for candidate parameters
+  - `--run-timeout-sec` is available for tune/stage/benchmark execution paths when `mpirun`
+    occasionally hangs after the observable files and `info.txt` are already complete
 - `production_hmc.py collect-tune`: rebuild `production_tune*.json/csv` from finished or partially finished tune `runs/`
 - `production_hmc.py stage`: long HMC-only runs with sample-index trace capture for `squareOcc`, `IPR`, `doubleOcc`, `nearestOcc`
 - `production_hmc.py collect`: rebuild `production_stage*.json/csv` from finished or partially finished `runs/` without rerunning QMC

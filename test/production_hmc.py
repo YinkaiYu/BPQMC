@@ -422,6 +422,7 @@ def collect_stage_case(
                     hmc_mass_spatial_shell1,
                     hmc_mass_spatial_shell2,
                 ),
+                run_timeout_sec=args.run_timeout_sec,
             )
         elif not run_dir.exists():
             print("    [skip] missing run directory", flush=True)
@@ -640,6 +641,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
                             args.hmc_mass_spatial_shell1,
                             args.hmc_mass_spatial_shell2,
                         ),
+                        run_timeout_sec=args.run_timeout_sec,
                     )
                 elif not run_dir.exists():
                     print("    [skip] missing run directory", flush=True)
@@ -889,6 +891,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                         hmc_mass_spatial_shell1 if is_global else 0.0,
                         hmc_mass_spatial_shell2 if is_global else 0.0,
                     ),
+                    run_timeout_sec=args.run_timeout_sec,
                 )
                 means = collect_run_means(run_dir, cfg.nthermal)
                 for obs_name, value in means.items():
@@ -1231,6 +1234,12 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--repeat-seed-step", type=int, default=100)
         subparser.add_argument("--binary", default=str(DEFAULT_BINARY))
         subparser.add_argument("--work-root", default=str(Path("/tmp") / "bpqmc_production"))
+        subparser.add_argument(
+            "--run-timeout-sec",
+            type=float,
+            default=0.0,
+            help="Optional wall-clock timeout for each mpirun invocation; if info.txt already contains Accept_HMC and Tot CPU time when the timeout fires, the run is treated as complete.",
+        )
 
     tune = subparsers.add_parser("tune", help="Scan HMC parameters on a production parameter grid.")
     add_common(tune)
