@@ -423,6 +423,8 @@ The current next production rungs are:
       - `l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk2_nf16_dt2em4_diag512_warm32_seed52001`
     - for future scans, prefer explicit seed-family batches over manual directory cloning:
       `--seed-base-values 50001,51001,52001`
+      and note that this explicit list is now reused verbatim across the whole scan,
+      rather than being shifted per HMC grid candidate
 
 See `HMC-REFERENCE.md` for the running interpretation of these stage results and blockers.
 For a single merged entry point across all production directories, open:

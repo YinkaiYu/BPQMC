@@ -74,7 +74,7 @@ def resolve_seed_bases(
     base_offset: int = 0,
 ) -> list[int]:
     if args.seed_base_values:
-        return [seed + base_offset for seed in parse_int_list(args.seed_base_values)]
+        return list(parse_int_list(args.seed_base_values))
     return [args.seed_base + base_offset + repeat * args.repeat_seed_step for repeat in range(requested_repeats)]
 
 
@@ -1186,7 +1186,7 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--imbalance", type=float, default=0.0)
         subparser.add_argument("--np", type=int, default=1)
         subparser.add_argument("--seed-base", type=int, default=50001)
-        subparser.add_argument("--seed-base-values", default="", help="Optional comma-separated explicit seed-base list; overrides --seed-base/--repeat-seed-step for repeats.")
+        subparser.add_argument("--seed-base-values", default="", help="Optional comma-separated explicit seed-base list used verbatim for repeats; overrides --seed-base/--seed-step/--repeat-seed-step family generation.")
         subparser.add_argument("--seed-step", type=int, default=1000)
         subparser.add_argument("--repeat-seed-step", type=int, default=100)
         subparser.add_argument("--binary", default=str(DEFAULT_BINARY))

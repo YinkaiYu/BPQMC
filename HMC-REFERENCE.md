@@ -40,6 +40,9 @@ initial-state families in one invocation via:
 
 - `--ini-type-values`
 - `--ini-ampl-values`
+- `--seed-base-values 50001,51001,52001`
+  - the explicit seed-family list is now used verbatim across the scan, so different
+    HMC grid candidates are compared on the same seed families
 
 The default output root for this new workflow should be under:
 

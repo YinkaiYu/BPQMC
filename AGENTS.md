@@ -81,7 +81,8 @@
     `--ini-type-values` and `--ini-ampl-values`
   - `test/production_hmc.py` can now also expand explicit seed-family lists with
     `--seed-base-values 50001,51001,52001`, which is the preferred way to probe
-    `U2=1000` seed-family sensitivity without hand-copying many work roots
+    `U2=1000` seed-family sensitivity without hand-copying many work roots;
+    that explicit list is now used verbatim across the whole scan rather than shifted per grid point
   - `test/production_hmc.py` also supports `--hmc-mass-spatial-uniform`
     to split the per-time-slice spatially uniform mode away from the residual `--hmc-mass`
   - `test/production_hmc.py` also supports `--hmc-mass-spatial-shell1`
