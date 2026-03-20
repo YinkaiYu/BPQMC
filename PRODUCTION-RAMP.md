@@ -91,38 +91,52 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
   - current active replacement path:
     - keep `mass = 16`
     - keep `uniform_mass = 1`
-    - first shell2 family already tested:
-      - `shell1_mass = 8`
-      - `shell2_mass = 4`
-      - completed `warm=0` and deeper stages are both still `strong_drift`
-      - the aggressive follow-up scan on the same family still keeps `acceptance = 1`
+    - shell-by-shell probes are now effectively closed:
+      - first completed shell2 family:
+        - `shell1_mass = 8`
+        - `shell2_mass = 4`
+        - completed `warm=0` and deeper stages are both still `strong_drift`
+      - lighter shell2 follow-up:
+        - `shell1_mass = 4`
+        - `shell2_mass = 2`
+        - grid:
+          - `12 x 0.0003`
+          - `16 x 0.00025`
+          - `20 x 0.0002`
+          - `24 x 0.00015`
+        - all candidates still kept `acceptance = 1` with huge positive `DeltaH`
     - current active probe:
-      - `shell1_mass = 4`
-      - `shell2_mass = 2`
-      - grid:
-        - `12 x 0.0003`
-        - `16 x 0.00025`
-        - `20 x 0.0002`
-        - `24 x 0.00015`
+      - broader combined low-|k| split:
+        - `lowk_mass = 4`
+        - grid:
+          - `12 x 0.0003`
+          - `16 x 0.00025`
+          - `20 x 0.0002`
+          - `24 x 0.00015`
+        - current recommended candidate:
+          - `16 x 0.00025`
+        - current backup candidate:
+          - `20 x 0.0002`
 
 ## Immediate Next Steps
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Finish the active lighter shell2 probe:
-   - `mk1 = 4`, `mk2 = 2`
-   - grid:
-     - `12 x 0.0003`
+2. Finish the active combined low-|k| probe:
+   - `m = 16`, `mu = 1`, `m_lowk = 4`
+   - current active warm=`0` stages:
      - `16 x 0.00025`
      - `20 x 0.0002`
-     - `24 x 0.00015`
-   If it still behaves like the first shell2 family, stop spending time on shell-by-shell rescans.
-3. Compare the shell2 probe against the closed bad references:
+   - current deeper retained-window stage:
+     - `16 x 0.00025`, `1024 / 512 / 512`
+3. Compare the low-|k| probe against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
    - shell1-only `mk = 4`, `24 x 0.0002`
    - shell1-only `mk = 8`, `24 x 0.00025`
-   If shell2 still does not flatten materially faster, widen the low-|k| basis again rather than
-   continuing to rescan the same scalar/uniform/shell1-only family.
+   - first shell2 family `mk1 = 8`, `mk2 = 4`
+   - lighter shell2 follow-up `mk1 = 4`, `mk2 = 2`
+   If the combined low-|k| family still does not flatten materially faster, widen the
+   Fourier-accelerated low-|k| basis again rather than returning to shell-by-shell rescans.
 4. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
    representative preconditioned rung and use it as the production-side reference.
 5. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp
@@ -143,18 +157,25 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
   - completed `warm=0` stage: `strong_drift`, `drift/span ≈ 0.762`
   - completed deeper stage: `strong_drift`, `drift/span ≈ 0.744`
   - aggressive follow-up still keeps `acceptance = 1`
-- `U2 = 1e3`, current lighter shell2 probe:
+- `U2 = 1e3`, lighter shell2 follow-up:
   - `mk1 = 4`, `mk2 = 2`
   - grid:
     - `12 x 0.0003`
     - `16 x 0.00025`
     - `20 x 0.0002`
     - `24 x 0.00015`
+  - all candidates still kept `acceptance = 1` with huge positive `DeltaH`
+- `U2 = 1e3`, current combined low-|k| probe:
+  - `m_lowk = 4`
+  - `12 x 0.0003` already dies with `acceptance = 0`
+  - `16 x 0.00025` is the current recommended candidate
+  - `20 x 0.0002` is the current slower backup candidate
 - Working interpretation:
   - shell1-only preconditioning helped the very early trace shape but did not solve the retained-window drift
   - the first shell2 family also failed on completed stages
-  - the remaining cheap test is whether lighter low-|k| masses help at all; if not,
-    the next step should be a broader low-|k| basis rather than more shell-by-shell scans
+  - the lighter shell2 follow-up also failed to produce a genuinely selective tune window
+  - the broader combined low-|k| family is the first path that produces both
+    an unstable point and nearby sane-`DeltaH` points, so it is now the main production lead
 
 ## Medium-Term Ladder
 

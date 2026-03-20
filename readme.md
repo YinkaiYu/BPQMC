@@ -402,13 +402,20 @@ The current next production rungs are:
   - `shell1_mass=1` has already been ruled out as too aggressive
   - shell1-only `shell1_mass=4` and `shell1_mass=8` exploratory stages have now both finished as `strong_drift`
   - the first `shell2` family `shell1_mass=8`, `shell2_mass=4` has also now failed on completed stages
-  - the active replacement path is now a lighter `shell2` family:
-    - `mass=16`, `uniform_mass=1`, `shell1_mass=4`, `shell2_mass=2`
-    - grid:
+  - the lighter `shell2` follow-up `shell1_mass=4`, `shell2_mass=2` also failed to produce
+    a selective tune window; all cheap candidates stayed at `acceptance = 1` with huge positive `DeltaH`
+  - the active replacement path is now the broader combined low-|k| split:
+    - `mass=16`, `uniform_mass=1`, `lowk_mass=4`
+    - short-tune grid:
       - `12 x 0.0003`
       - `16 x 0.00025`
       - `20 x 0.0002`
       - `24 x 0.00015`
+    - current recommended candidate: `16 x 0.00025`
+    - current backup candidate: `20 x 0.0002`
+    - active live traces:
+      - `l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk4_nf16_dt2p5em4_diag512_warm0`
+      - `l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk4_nf20_dt2em4_diag512_warm0`
 
 See `HMC-REFERENCE.md` for the running interpretation of these stage results and blockers.
 For a single merged entry point across all production directories, open:

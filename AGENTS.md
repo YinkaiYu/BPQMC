@@ -84,6 +84,10 @@
   - `test/production_hmc.py` also supports `--hmc-mass-spatial-shell1`
     to split the triangular lowest nonzero momentum shell away from both the residual
     `--hmc-mass` and the exact uniform mode
+  - `test/production_hmc.py` also supports `--hmc-mass-spatial-shell2`
+    for the second triangular nonzero momentum shell
+  - `test/production_hmc.py` also supports `--hmc-mass-spatial-lowk`
+    for a broader combined low-|k| split that groups the first three nonzero momentum shells
 - Current workstation production examples already distinguish:
   - a healthy projector ladder at `L=6, Nbos=1e3, U2=1`, currently healthy through `beta=160`, `dtau=0.004`
   - a partially collected but representative `beta=192`, `dtau=0.002` rung on the same baseline point,
@@ -105,11 +109,12 @@
       `shell1_mass=1` has also been closed as too aggressive
       shell1-only `shell1_mass=4` and `shell1_mass=8` completed stages are now also closed as `strong_drift`
       the first `shell2` family `shell1_mass=8`, `shell2_mass=4` is now also closed as `strong_drift`
-      the current short probe is the lighter `shell2` family:
-      - `shell1_mass=4`, `shell2_mass=2`, `nfrog=12`, `dt=0.0003`
-      - `shell1_mass=4`, `shell2_mass=2`, `nfrog=16`, `dt=0.00025`
-      - `shell1_mass=4`, `shell2_mass=2`, `nfrog=20`, `dt=0.0002`
-      - `shell1_mass=4`, `shell2_mass=2`, `nfrog=24`, `dt=0.00015`
+      the lighter `shell2` follow-up `shell1_mass=4`, `shell2_mass=2` is no longer the main lead;
+      all cheap candidates still kept `acceptance=1` with huge positive `DeltaH`
+      the current active path is the broader combined low-|k| split:
+      - `lowk_mass=4`, `nfrog=16`, `dt=0.00025`
+      - `lowk_mass=4`, `nfrog=20`, `dt=0.0002`
+      - the retained-window active stage is currently `lowk_mass=4`, `nfrog=16`, `dt=0.00025`
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
   - that unified `report.md` now begins with `## Current Representative Stage Per Case`
     before the full historical stage table
@@ -163,6 +168,10 @@
 - `test/production_hmc.py report` renders Markdown + PNG summaries from `production_stage.json`, `production_tune.json`, or the legacy `production_benchmark.json`.
 - `test/production_hmc.py` can optionally pass `--hmc-mass-spatial-uniform` into the HMC kernel
   through the environment variable `BPQMC_HMC_MASS_SPATIAL_UNIFORM`.
+- `test/production_hmc.py` can also pass `--hmc-mass-spatial-shell1`,
+  `--hmc-mass-spatial-shell2`, and `--hmc-mass-spatial-lowk` into the HMC kernel
+  through `BPQMC_HMC_MASS_SPATIAL_SHELL1`, `BPQMC_HMC_MASS_SPATIAL_SHELL2`,
+  and `BPQMC_HMC_MASS_SPATIAL_LOWK`.
 - `test/render_hmc_report.py` now understands three summary modes:
   - `tune`
   - `stage`

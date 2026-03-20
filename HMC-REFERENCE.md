@@ -31,6 +31,8 @@ The active production CLI is `test/production_hmc.py`:
   on top of both the residual `--hmc-mass` and the spatially uniform split;
   `0` disables it
 - `--hmc-mass-spatial-shell2`: optional triangular second nonzero momentum-shell mass split
+- `--hmc-mass-spatial-lowk`: optional broader triangular low-|k| mass split that groups
+  the first three nonzero momentum shells into one preconditioned subspace
   on top of the residual, uniform, and shell1 masses; `0` disables it
 
 For seed/init-state convergence checks, the production driver can now expand multiple
@@ -130,8 +132,7 @@ Current next rung:
       - `mk=1` has now been closed as too aggressive; the completed tune is effectively unusable
       - shell1-only `mk=4` and `mk=8` are now also closed on completed `1024 / 512 / 512`
         stages: both still end as `strong_drift`, with `squareOcc/IPR drift/span ≈ 0.71 - 0.75`
-      - the active path is therefore no longer another shell1-only rescan; it is the new
-        wider low-|k| split with `shell2_mass`
+      - the active path is therefore no longer another shell1-only rescan
     - active shell1 long-stage probes:
       - [mk4 nf24 dt2e-4](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk4_nf24_dt2em4_diag1024_probe)
       - [mk8 nf24 dt2p5e-4](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_mk8_nf24_dt2p5em4_diag1024_probe)
@@ -143,7 +144,7 @@ Current next rung:
         `squareOcc` head-to-tail drift/span around `0.60`
       - the shell1-only `warm=0` traces initially looked healthier than the old bad reference,
         but their completed stages later showed that early flattening alone was not enough
-    - active shell2 probe:
+    - closed shell2 probes:
         - `m=16`, `mu=1`, `mk1=8`, `mk2=4`
         - grid: `12 x 3e-4`, `16 x 2.5e-4`, `20 x 2e-4`, `24 x 1.5e-4`
         - current short-tune winner: `12 x 3e-4`, jitter `=2`
@@ -159,10 +160,31 @@ Current next rung:
       - follow-up aggressive scan on the same `mk1=8`, `mk2=4` family:
         - [aggressive follow-up](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_8_mk2_4_aggressive)
         - current best short-tune row there is `16 x 3.5e-4`, but it is still `acceptance = 1`
-      - current active replacement probe after that failure:
+      - lighter shell2 follow-up after that failure:
         - `m=16`, `mu=1`, `mk1=4`, `mk2=2`
         - work root:
           [l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_4_mk2_2_probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_mk1_4_mk2_2_probe)
+        - reading:
+          - all four cheap shell-by-shell candidates still kept `acceptance = 1`
+          - their `DeltaH` values stayed huge and positive, so this line did not produce
+            a genuinely selective tuning window either
+      - current active replacement path:
+        - broader combined low-|k| split:
+          - `m=16`, `mu=1`, `m_lowk=4`
+          - short-tune work root:
+            [l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_lowk4_probe](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_tune_m16_mu1_lowk4_probe)
+          - short-tune reading:
+            - `12 x 0.0003` is too aggressive and dies with `acceptance = 0`
+            - `16 x 0.00025` is the current recommended candidate
+            - `20 x 0.0002` is the current slower backup candidate
+            - unlike the shell-by-shell probes, these middle candidates have small
+              positive `DeltaH`, which is the first genuinely selective window seen
+              on the `U2 = 1000` blocker
+          - active warm=`0` traces:
+            - [nf16 dt2p5e-4 warm0](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk4_nf16_dt2p5em4_diag512_warm0/live_progress/report.md)
+            - [nf20 dt2e-4 warm0](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk4_nf20_dt2em4_diag512_warm0/live_progress/report.md)
+          - active deeper retained-window stage:
+            - [nf16 dt2p5e-4 diag1024](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/data/triangular_hmc_production/l6_n1e4_u1e3_beta32_dtau1em2_stage_m16_mu1_lowk4_nf16_dt2p5em4_diag1024)
 
 Current main blocker:
 
@@ -176,12 +198,16 @@ Current main blocker:
   - the immediate blocker rung is now `L=6`, `Nbos=1e4`, `U2=1000`
     - the old scalar/uniform-only reference geometry `m=16`, `mu=1`, `20 x 0.0004` is formally `strong_drift`
     - the shell1-only replacement path is now also formally insufficient on completed stages
-    - the active implementation path is a wider soft-mode split:
-      `shell2_mass`, which covers the second triangular nonzero momentum shell
-    - the first shell2 family `mk1=8`, `mk2=4` is now also formally insufficient on completed stages
-    - the current lighter shell2 family `mk1=4`, `mk2=2` is the last cheap shell-by-shell probe
-    - if that lighter probe still leaves every candidate in the same slow geometry family,
-      the next target should be a broader low-|k| basis or a more explicitly Fourier-accelerated mass map
+    - the shell2-based implementation path has now been exhausted as a serious workstation lead:
+      the first completed family `mk1=8`, `mk2=4` is formally insufficient, and the lighter
+      cheap follow-up `mk1=4`, `mk2=2` never produced a selective tune window
+    - the current active implementation path is the broader combined low-|k| split:
+      `lowk_mass`, which groups the first three triangular nonzero momentum shells
+    - the current first promising family on that path is `m=16`, `mu=1`, `m_lowk=4`,
+      with active `warm=0` traces at `16 x 0.00025` and `20 x 0.0002`
+    - if this broader low-|k| family still leaves retained-window drift at `U2 = 1000`,
+      the next target should be an even wider Fourier-accelerated mass map rather than
+      returning to shell-by-shell rescans
   - `L=6`, `Nbos=1e4`, `U2=300` is still active, but its deeper `2048 / 1024 / 1024` rerun already looks much healthier;
     the main remaining question there is cross-repeat agreement, not obvious single-trace drift
 - trace-based tuning lesson from the original `Nbos=1e4, U2=1` blocker point:

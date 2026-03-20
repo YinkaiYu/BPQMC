@@ -143,4 +143,5 @@ The immediate next production rungs are:
   the old scalar/uniform-only `20 x 0.0004` reference stage is now `strong_drift`,
   shell1-only `mk=4` and `mk=8` completed stages are also now `strong_drift`,
   the first `shell2` family `mk1=8`, `mk2=4` is also now `strong_drift`,
-  and the active replacement path is the lighter `shell2` family
+  the lighter `shell2` follow-up `mk1=4`, `mk2=2` also never produced a selective tune window,
+  and the active replacement path is now the broader combined low-|k| split
