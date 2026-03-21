@@ -391,10 +391,11 @@ def select_representative_stage_rows(
         current = best_by_key.get(key)
         candidate_score = (
             STATUS_RANK.get(str(row["status"]), 99),
+            float(row["gate_drift_ratio_max"]),
+            float(row["gate_repeat_span_ratio"]),
             int(row["missing_repeats"]),
             -int(row["completed_repeats"]),
-            float(row["gate_repeat_span_ratio"]),
-            float(row["gate_drift_ratio_max"]),
+            -float(row["post_thermal_samples_mean"]),
             str(row["label"]),
         )
         if current is None:
@@ -402,10 +403,11 @@ def select_representative_stage_rows(
             continue
         current_score = (
             STATUS_RANK.get(str(current["status"]), 99),
+            float(current["gate_drift_ratio_max"]),
+            float(current["gate_repeat_span_ratio"]),
             int(current["missing_repeats"]),
             -int(current["completed_repeats"]),
-            float(current["gate_repeat_span_ratio"]),
-            float(current["gate_drift_ratio_max"]),
+            -float(current["post_thermal_samples_mean"]),
             str(current["label"]),
         )
         if candidate_score < current_score:
@@ -421,9 +423,9 @@ def select_representative_stage_cases(stage_cases: list[dict[str, object]]) -> l
         current = best_by_case.get(key)
         candidate_score = (
             STATUS_RANK.get(str(row["status"]), 99),
-            int(row["missing_repeats"]),
-            float(row["gate_repeat_span_ratio"]),
             float(row["gate_drift_ratio_max"]),
+            float(row["gate_repeat_span_ratio"]),
+            int(row["missing_repeats"]),
             -float(row["post_thermal_samples_mean"]),
             -float(row["beta"]),
             float(row["dtau"]),
@@ -434,9 +436,9 @@ def select_representative_stage_cases(stage_cases: list[dict[str, object]]) -> l
             continue
         current_score = (
             STATUS_RANK.get(str(current["status"]), 99),
-            int(current["missing_repeats"]),
-            float(current["gate_repeat_span_ratio"]),
             float(current["gate_drift_ratio_max"]),
+            float(current["gate_repeat_span_ratio"]),
+            int(current["missing_repeats"]),
             -float(current["post_thermal_samples_mean"]),
             -float(current["beta"]),
             float(current["dtau"]),
