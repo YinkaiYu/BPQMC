@@ -24,16 +24,18 @@ contains
     subroutine Dyn_init(this, Init_obj)
         class(Dynamics), intent(inout) :: this
         class(Initial), intent(in) :: Init_obj
+        if (allocated(Prop_d)) deallocate(Prop_d)
         allocate(Prop_d)
         call Prop_d%make(Init_obj)
+        if (allocated(PropGr)) deallocate(PropGr)
         allocate(PropGr)
         call PropGr%make()
         return
     end subroutine Dyn_init
     
     subroutine Dyn_clear()
-        deallocate(Prop_d)
-        deallocate(PropGr)
+        if (allocated(Prop_d)) deallocate(Prop_d)
+        if (allocated(PropGr)) deallocate(PropGr)
         return
     end subroutine Dyn_clear
     

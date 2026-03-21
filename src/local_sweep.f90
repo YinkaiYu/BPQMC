@@ -30,9 +30,11 @@ contains
     subroutine Local_sweep_init(this, Init_obj)
         class(LocalSweep), intent(inout) :: this
         class(Initial), intent(in) :: Init_obj
+        if (allocated(Obs_equal)) deallocate(Obs_equal)
         allocate(Obs_equal)
         call Obs_equal%make()
         if (is_tau) then
+            if (allocated(Obs_tau)) deallocate(Obs_tau)
             allocate(Obs_tau)
             call Obs_tau%make()
             call Dyn%init(Init_obj)
