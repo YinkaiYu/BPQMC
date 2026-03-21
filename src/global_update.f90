@@ -2,6 +2,7 @@ module GlobalUpdate_mod
     use CalcBasic
     use DQMC_Model_mod
     use Dynamics_mod
+    use LocalSweep_mod, only: LocalSweep
     use MakeInitialState, only: Initial
     use Multiply_mod
     use ObserEqual_mod
@@ -25,6 +26,7 @@ module GlobalUpdate_mod
     type :: GlobalUpdate
         type(Propagator), allocatable, private :: prop_work
         type(WrapList), allocatable, private :: wr_work
+        type(LocalSweep), allocatable, private :: hybrid_local
         real(kind=8), dimension(:,:,:), allocatable, private :: force_cur
         real(kind=8), dimension(:,:,:), allocatable, private :: momentum
         real(kind=8), dimension(:,:,:), allocatable, private :: phi_backup
@@ -48,6 +50,7 @@ module GlobalUpdate_mod
         procedure, private :: sample_momentum => Global_sample_momentum
         procedure, private :: leapfrog => Global_leapfrog
         procedure, private :: step => Global_step
+        procedure, private :: run_hybrid_local => Global_run_hybrid_local
         procedure, private :: measure_config => Global_measure_config
         procedure, private :: check_equal_obs => Global_check_equal_obs
         procedure :: therm => Global_therm
@@ -98,6 +101,10 @@ contains
         call this%prop_work%make(Init_obj)
         allocate(this%wr_work)
         call this%wr_work%make()
+        if (hmc_hybrid_local_sweeps > 0) then
+            allocate(this%hybrid_local)
+            call this%hybrid_local%init(Init_obj)
+        endif
         allocate(this%force_cur(Naux, Ndim, Ltrot))
         allocate(this%momentum(Naux, Ndim, Ltrot))
         allocate(this%phi_backup(Naux, Ndim, Ltrot))
@@ -141,6 +148,10 @@ contains
         call HMC_shell_clear()
         call HMC_trace_close()
         call HMC_monitor_close()
+        if (allocated(this%hybrid_local)) then
+            call this%hybrid_local%clear()
+            deallocate(this%hybrid_local)
+        endif
         deallocate(this%prop_work)
         deallocate(this%wr_work)
         deallocate(this%force_cur, this%momentum, this%phi_backup)
@@ -1257,6 +1268,22 @@ contains
         return
     end subroutine Global_measure_config
 
+    subroutine Global_run_hybrid_local(this, iseed)
+        class(GlobalUpdate), intent(inout) :: this
+        integer, intent(inout) :: iseed
+        integer :: nlocal
+
+        if (hmc_hybrid_local_sweeps <= 0) return
+        if (.not. allocated(this%hybrid_local)) return
+
+        call this%hybrid_local%pre(this%prop_work, this%wr_work)
+        do nlocal = 1, hmc_hybrid_local_sweeps
+            call this%hybrid_local%therm(this%prop_work, this%wr_work, iseed)
+        enddo
+        this%state_ready = .false.
+        return
+    end subroutine Global_run_hybrid_local
+
     subroutine Global_check_equal_obs(this, stage, Nobs, Nobst, toggle)
         class(GlobalUpdate), intent(in) :: this
         character(len=*), intent(in) :: stage
@@ -1294,6 +1321,7 @@ contains
         call Acc_HMC_warm%reset()
         call this%step(iseed, Acc_HMC_warm, 0)
         call Acc_HMC_warm%ratio()
+        call this%run_hybrid_local(iseed)
         return
     end subroutine Global_therm
 
@@ -1314,6 +1342,7 @@ contains
                 write(6,*) 'Global_sweep before step: sweep=', nsw, ' Nobs=', Nobs, ' Nobst=', Nobst
             endif
             call this%step(iseed, Acc_HMC, 1)
+            call this%run_hybrid_local(iseed)
             if (HMC_debug_measure > 0 .and. IRANK == 0) then
                 write(6,*) 'Global_sweep after step: sweep=', nsw, ' Nobs=', Nobs, ' Nobst=', Nobst
             endif

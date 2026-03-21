@@ -27,6 +27,7 @@ module CalcBasic ! Global parameters
     logical,                public              :: is_global ! HMC switch; false => local update
     integer,                public              :: Nfrog
     integer,                public              :: NfrogJitter
+    integer,                public              :: hmc_hybrid_local_sweeps
     real(kind=8),           public              :: hmc_dt
     real(kind=8),           public              :: hmc_mass
     real(kind=8),           public              :: hmc_mass_spatial_uniform
@@ -81,6 +82,7 @@ contains
             Nfrog = 0
             hmc_dt = 0.d0
             NfrogJitter = 0
+            hmc_hybrid_local_sweeps = 0
             hmc_mass = 1.d0
             hmc_mass_spatial_uniform = 0.d0
             hmc_mass_spatial_lowk = 0.d0
@@ -141,6 +143,7 @@ contains
             call read_env_real("BPQMC_HMC_MASS_SPATIAL_SHELL1", hmc_mass_spatial_shell1)
             call read_env_real("BPQMC_HMC_MASS_SPATIAL_SHELL2", hmc_mass_spatial_shell2)
             call read_env_real_list("BPQMC_HMC_MASS_SPATIAL_SHELL_MAP", hmc_mass_spatial_shell_map, hmc_mass_spatial_shell_map_count)
+            call read_env_int("BPQMC_HMC_HYBRID_LOCAL_SWEEPS", hmc_hybrid_local_sweeps)
         endif 
 !   MPI process: parallelization
         call MPI_BCAST(Beta, 1, MPI_Real8, 0, MPI_COMM_WORLD, IERR)
@@ -181,6 +184,7 @@ contains
         call MPI_BCAST(Nwarm, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nfrog, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(NfrogJitter, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
+        call MPI_BCAST(hmc_hybrid_local_sweeps, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nthermal, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(Nsweep, 1, MPI_Integer, 0, MPI_COMM_WORLD, IERR)
         call MPI_BCAST(is_tau, 1, MPI_Logical, 0, MPI_COMM_WORLD, IERR)
@@ -213,6 +217,9 @@ contains
             endif
             if (NfrogJitter < 0) then
                 write(6,*) "NfrogJitter must be non-negative in HMC mode"; stop
+            endif
+            if (hmc_hybrid_local_sweeps < 0) then
+                write(6,*) "hmc_hybrid_local_sweeps must be non-negative in HMC mode"; stop
             endif
             if (hmc_dt <= 0.d0) then
                 write(6,*) "hmc_dt must be positive in HMC mode"; stop
@@ -462,6 +469,7 @@ contains
                 write(50,*) 'Sampler                                        :', 'HMC'
                 write(50,*) 'Leapfrog steps                                :', Nfrog
                 write(50,*) 'Leapfrog jitter                               :', NfrogJitter
+                write(50,*) 'Hybrid local sweeps per HMC step              :', hmc_hybrid_local_sweeps
                 write(50,*) 'Leapfrog step size                             :', hmc_dt
                 write(50,*) 'Leapfrog mass                                  :', hmc_mass
                 write(50,*) 'Spatial-uniform leapfrog mass                  :', hmc_mass_spatial_uniform
