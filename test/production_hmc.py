@@ -617,6 +617,15 @@ def stage_config_payload(args: argparse.Namespace) -> dict[str, object]:
         "bins": args.bins,
         "thermal_cut": args.thermal_cut,
         "warm": args.warm,
+        "repeats": args.repeats,
+        "seed_step": args.seed_step,
+        "seed_base_values": getattr(args, "seed_base_values", ""),
+        "stage_label": args.stage_label,
+        "hmc_json": args.hmc_json,
+        "hmc_nfrog": args.hmc_nfrog,
+        "hmc_dt": args.hmc_dt,
+        "hmc_jitter": args.hmc_jitter,
+        "hmc_mass": args.hmc_mass,
         "hmc_mass_spatial_uniform": args.hmc_mass_spatial_uniform,
         "hmc_mass_spatial_lowk": args.hmc_mass_spatial_lowk,
         "hmc_mass_spatial_lowk_shells": args.hmc_mass_spatial_lowk_shells,
@@ -626,6 +635,11 @@ def stage_config_payload(args: argparse.Namespace) -> dict[str, object]:
         "hmc_mass_spatial_shell2": args.hmc_mass_spatial_shell2,
         "hmc_mass_spatial_shell_map": args.hmc_mass_spatial_shell_map,
         "hmc_hybrid_local_sweeps": args.hmc_hybrid_local_sweeps,
+        "min_run_accept": args.min_run_accept,
+        "trace_window_frac": args.trace_window_frac,
+        "trace_min_window": args.trace_min_window,
+        "stable_drift_ratio": args.stable_drift_ratio,
+        "warning_drift_ratio": args.warning_drift_ratio,
     }
 
 
@@ -634,6 +648,17 @@ def write_stage_config(work_root: Path, args: argparse.Namespace) -> None:
         json.dumps(stage_config_payload(args), indent=2),
         encoding="utf-8",
     )
+
+
+def load_stage_config_into_args(work_root: Path, args: argparse.Namespace) -> argparse.Namespace:
+    config_path = work_root / "stage_config.json"
+    if not config_path.exists():
+        return args
+    payload = json.loads(config_path.read_text(encoding="utf-8"))
+    for key, value in payload.items():
+        if hasattr(args, key):
+            setattr(args, key, value)
+    return args
 
 
 def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
@@ -1113,11 +1138,14 @@ def run_benchmark(args: argparse.Namespace) -> int:
 
 
 def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
-    configs = build_configs(args)
-    binary = Path(args.binary).resolve()
     work_root = Path(args.work_root).resolve()
     work_root.mkdir(parents=True, exist_ok=True)
-    write_stage_config(work_root, args)
+    if execute:
+        write_stage_config(work_root, args)
+    else:
+        args = load_stage_config_into_args(work_root, args)
+    configs = build_configs(args)
+    binary = Path(args.binary).resolve()
     tuned_map = load_hmc_map(args.hmc_json)
 
     cases = []
