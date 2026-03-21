@@ -162,15 +162,16 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
         - `uniform_mass = 0.25`
         - `jitter = 8`
         - explicit seed family block `50001, 51001, 52001`
-        - current best partial retained-window branch:
+        - current best completed retained-window branch:
           - `hybrid_local_sweeps = 2`
           - `nfrog = 24`
           - `dt = 0.000035`
           - completed `512 / 256 / 32` stage still ends as `strong_drift`
-          - the deeper `1024 / 512 / 512` rerun is now the best formal partial candidate:
-            - `1/3` collected
-            - `stable_window`
-            - `squareOcc/IPR drift/span max ≈ 0.205`
+          - the deeper `1024 / 512 / 512` rerun is now the best completed branch:
+            - `3/3` collected
+            - `slow_drift`
+            - `squareOcc/IPR drift/span max ≈ 0.208`
+            - retained `repeat span ≈ 0.462`
         - current short-tune follow-up:
           - `hybrid_local_sweeps = 2`
           - aggressive retune currently favors:
@@ -186,10 +187,10 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Let the deeper `hybrid_local_sweeps = 2`, `24 x 0.000035`, `1024 / 512 / 512` stage
-   continue past the current formal `1/3 stable_window` partial result and see whether the
-   remaining seed families keep `drift/span` in the same band.
-3. Compare that deeper `24 x 0.000035` rerun against the new aggressive
+2. Push the current best `hybrid_local_sweeps = 2`, `24 x 0.000035` geometry to
+   a deeper `2048 / 1024 / 1024` rerun and check whether the current
+   `slow_drift (max ≈ 0.208, repeat span ≈ 0.462)` compresses into a shared retained plateau.
+3. Compare that deeper `24 x 0.000035` rerun against the aggressive
    `hybrid_local_sweeps = 2`, `16 x 0.00005` retained-window follow-up.
 4. Keep the broader Fourier mass-map direction in reserve, but do not widen grouped `lowk`
    / `midk` bands any further unless the hybrid shell-map route clearly fails.

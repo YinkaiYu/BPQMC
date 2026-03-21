@@ -170,10 +170,11 @@ The immediate next production rungs are:
   grouped-`midk` follow-ups are now also formally `strong_drift`,
   and the current active replacement path is the explicit shell-map preconditioner
   `shell_map=0.125,0.125,0.25,0.25,0.5,0.5` plus `jitter=8`.
-  The current retained-window lead is now `hybrid_local_sweeps=2`,
+  The current best completed retained-window branch is now `hybrid_local_sweeps=2`,
   `nfrog=24`, `dt=0.000035`; the completed `512/256/32` stage is still `strong_drift`,
-  but the deeper `1024/512/512` rerun is now the best formal partial candidate,
-  currently `1/3 stable_window` with `squareOcc/IPR drift/span≈0.205`.
+  while the deeper `1024/512/512` rerun has improved to `3/3 slow_drift` with
+  `squareOcc/IPR drift/span≈0.208` and `repeat span≈0.462`.
+  The active next rerun is the same geometry at `2048/1024/1024`.
   The current short-tune lead is also `hybrid_local_sweeps=2`,
   `nfrog=16`, `dt=0.00005`, with partial
   `acceptance≈0.979`, `tau_int≈10.731`, `ESS/sec≈0.085`.

@@ -447,12 +447,15 @@ The current next production rungs are:
       `shell_map=0.125,0.125,0.25,0.25,0.5,0.5`,
       `jitter=8`
     - current active follow-up is no longer pure HMC mass tuning alone:
-      - retained-window lead:
+      - current best completed retained-window branch:
         `hybrid_local_sweeps=2`, `nfrog=24`, `dt=0.000035`
         completed `512/256/32` still ends as `strong_drift`,
-        but the deeper `1024/512/512` rerun is now the best formal partial candidate
-        in `overview/report.md`, currently `1/3 stable_window` with
-        `squareOcc/IPR drift/span≈0.205`
+        and the deeper `1024/512/512` rerun is now the best completed branch
+        in `overview/report.md`, currently `3/3 slow_drift` with
+        `squareOcc/IPR drift/span≈0.208` and `repeat span≈0.462`
+      - current active deeper rerun:
+        `hybrid_local_sweeps=2`, `nfrog=24`, `dt=0.000035`,
+        `2048/1024/1024`
       - short-tune lead:
         aggressive retune currently favors
         `hybrid_local_sweeps=2`, `nfrog=16`, `dt=0.00005`,

@@ -92,7 +92,7 @@ Current blocker snapshot:
     - `mass = 16`
     - `uniform_mass = 0.25`
     - `shell_map = 0.125,0.125,0.25,0.25,0.5,0.5`
-  - current best retained-window partial:
+  - current best completed retained-window branch:
     - `hybrid_local_sweeps = 2`
     - `nfrog = 24`
     - `dt = 3.5e-05`
@@ -100,14 +100,17 @@ Current blocker snapshot:
       - `squareOcc/IPR drift/span max ≈ 0.621`
       - retained `repeat span ≈ 1.312`
       - `acceptance ≈ 0.993`
-    - active deeper rerun:
+    - completed deeper rerun:
       - `1024 / 512 / 512`
-      - current formal partial result in `overview/report.md`:
-        - `1/3` repeats collected
-        - case status `stable_window`
-        - `squareOcc/IPR drift/span max ≈ 0.205`
-        - retained `repeat span ≈ 0.000`
-        - `acceptance ≈ 0.980`
+      - current formal result in `overview/report.md`:
+        - `3/3` repeats collected
+        - case status `slow_drift`
+        - `squareOcc/IPR drift/span max ≈ 0.208`
+        - retained `repeat span ≈ 0.462`
+        - `acceptance ≈ 0.991`
+    - active deeper rerun:
+      - `2048 / 1024 / 1024`
+      - same explicit seed-family block `50001,51001,52001`
   - current best short-tune follow-up:
     - `hybrid_local_sweeps = 2`
     - aggressive retune currently favors:
