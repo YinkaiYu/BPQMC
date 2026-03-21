@@ -449,12 +449,13 @@ The current next production rungs are:
     - current active follow-up is no longer pure HMC mass tuning alone:
       - retained-window lead:
         `hybrid_local_sweeps=2`, `nfrog=24`, `dt=0.000035`
-        with current partial `2/3` summary
-        `squareOcc/IPR drift/span max≈0.548`, `repeat span≈0.083`
+        completed `512/256/32` still ends as `strong_drift`,
+        but the deeper `1024/512/512` rerun is now the best live candidate
+        in `overview/report.md`, with post-cut `squareOcc/IPR drift/span≈0.185`
       - short-tune lead:
-        `hybrid_local_sweeps=2`, `nfrog=20`, `dt=0.00004`
-        with current partial tune
-        `acceptance≈0.992`, `tau_int≈12.484`, `ESS/sec≈0.055`
+        aggressive retune currently favors
+        `hybrid_local_sweeps=2`, `nfrog=16`, `dt=0.00005`,
+        `acceptance≈0.979`, `tau_int≈10.731`, `ESS/sec≈0.085`
       - `hybrid_local_sweeps=1` is still being kept as a comparison branch
     - explicit seed families `50001,51001,52001`
     - the current unified overview now favors `hybrid_local_sweeps=2`, not `1`

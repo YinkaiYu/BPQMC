@@ -166,27 +166,28 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
           - `hybrid_local_sweeps = 2`
           - `nfrog = 24`
           - `dt = 0.000035`
-          - formal partial `2/3` summary:
-            - `squareOcc/IPR drift/span max ≈ 0.548`
-            - retained `repeat span ≈ 0.083`
+          - completed `512 / 256 / 32` stage still ends as `strong_drift`
+          - the deeper `1024 / 512 / 512` rerun is now the best live candidate,
+            with post-cut `squareOcc/IPR drift/span ≈ 0.185`
         - current short-tune follow-up:
           - `hybrid_local_sweeps = 2`
-          - `nfrog = 20`
-          - `dt = 0.00004`
-          - current partial tune:
-            - `acceptance ≈ 0.992`
-            - `tau_int(doubleOcc) ≈ 12.484`
-            - `ESS/sec ≈ 0.055`
+          - aggressive retune currently favors:
+            - `nfrog = 16`
+            - `dt = 0.00005`
+            - `acceptance ≈ 0.979`
+            - `tau_int(doubleOcc) ≈ 10.731`
+            - `ESS/sec ≈ 0.085`
+          - retained-window follow-up on `16 x 0.00005` has also been launched
         - `hybrid_local_sweeps = 1` is still running, but is no longer the leading branch
 
 ## Immediate Next Steps
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Finish the current `hybrid_local_sweeps = 2`, `24 x 0.000035` retained-window stage to `3/3`
-   and confirm whether the improved `repeat span` survives the last seed family.
-3. Let the new `hybrid_local_sweeps = 2`, `20 x 0.00004` retained-window stage cross the cut
-   and compare it directly against the older `24 x 0.000035` branch.
+2. Let the deeper `hybrid_local_sweeps = 2`, `24 x 0.000035`, `1024 / 512 / 512` stage
+   continue far enough past the cut to see whether the current live `~0.185` drift holds.
+3. Compare that deeper `24 x 0.000035` rerun against the new aggressive
+   `hybrid_local_sweeps = 2`, `16 x 0.00005` retained-window follow-up.
 4. Keep the broader Fourier mass-map direction in reserve, but do not widen grouped `lowk`
    / `midk` bands any further unless the hybrid shell-map route clearly fails.
 5. Compare the current broader low-|k| probe against the closed bad references:

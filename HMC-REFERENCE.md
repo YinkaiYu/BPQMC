@@ -96,18 +96,25 @@ Current blocker snapshot:
     - `hybrid_local_sweeps = 2`
     - `nfrog = 24`
     - `dt = 3.5e-05`
-    - formal partial `2/3` retained-window summary:
-      - `squareOcc/IPR drift/span max ≈ 0.548`
-      - retained `repeat span ≈ 0.083`
-      - `acceptance ≈ 0.992`
+    - completed `512 / 256 / 32` stage now still ends as `strong_drift`:
+      - `squareOcc/IPR drift/span max ≈ 0.621`
+      - retained `repeat span ≈ 1.312`
+      - `acceptance ≈ 0.993`
+    - active deeper rerun:
+      - `1024 / 512 / 512`
+      - current best live reading in `overview/report.md`:
+        - `longest trace ≈ 807`
+        - `window = post-cut`
+        - `squareOcc/IPR drift/span ≈ 0.185`
   - current best short-tune follow-up:
     - `hybrid_local_sweeps = 2`
-    - `nfrog = 20`
-    - `dt = 4e-05`
-    - partial `2/3` tune:
-      - `acceptance ≈ 0.992`
-      - `tau_int(doubleOcc) ≈ 12.484`
-      - `ESS/sec ≈ 0.055`
+    - aggressive retune currently favors:
+      - `nfrog = 16`
+      - `dt = 5e-05`
+      - `acceptance ≈ 0.979`
+      - `tau_int(doubleOcc) ≈ 10.731`
+      - `ESS/sec ≈ 0.085`
+    - retained-window follow-up on `16 x 5e-05` has now been launched
   - `hybrid_local_sweeps = 1` remains a live comparison branch, but it is no longer the
     leading one in the unified overview
 

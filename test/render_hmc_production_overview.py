@@ -594,6 +594,7 @@ def scan_live_reports(root: Path) -> list[dict[str, str]]:
         stage_config_json = stage_root / "stage_config.json"
         live_summary_json = report_path.parent / "summary.json"
         thermal_cut = 0
+        live_case = ""
         if stage_json.exists():
             data = json.loads(stage_json.read_text(encoding="utf-8"))
             thermal_cut = int(data.get("config_summary", {}).get("thermal_cut", 0))
@@ -603,12 +604,18 @@ def scan_live_reports(root: Path) -> list[dict[str, str]]:
         elif live_summary_json.exists():
             live_data = json.loads(live_summary_json.read_text(encoding="utf-8"))
             thermal_cut = int(live_data.get("thermal_cut", 0))
+        if live_summary_json.exists():
+            live_data = json.loads(live_summary_json.read_text(encoding="utf-8"))
+            case_keys = list((live_data.get("cases") or {}).keys())
+            if case_keys:
+                live_case = str(case_keys[0])
         run_dirs = sorted((stage_root / "runs").glob("*/*"))
         longest_trace, window_mode, square_ratio, ipr_ratio = summarize_run_dirs(run_dirs, thermal_cut)
         rows.append(
             {
                 "stage_root": str(stage_root.resolve()),
                 "label": case_name,
+                "case": live_case,
                 "trace_path": str(pngs[0].resolve()) if pngs else "",
                 "longest_trace": str(longest_trace),
                 "window_mode": window_mode,
@@ -618,6 +625,33 @@ def scan_live_reports(root: Path) -> list[dict[str, str]]:
             }
         )
     return rows
+
+
+def select_best_live_reports(live_reports: list[dict[str, str]]) -> list[dict[str, str]]:
+    best_by_case: dict[str, dict[str, str]] = {}
+    for row in live_reports:
+        case = str(row.get("case", "")).strip()
+        if not case:
+            continue
+        current = best_by_case.get(case)
+        candidate_score = (
+            0 if row.get("window_mode") == "post-cut" else 1,
+            max(float(row.get("square_ratio", 0.0)), float(row.get("ipr_ratio", 0.0))),
+            -int(float(row.get("longest_trace", 0))),
+            str(row.get("label", "")),
+        )
+        if current is None:
+            best_by_case[case] = row
+            continue
+        current_score = (
+            0 if current.get("window_mode") == "post-cut" else 1,
+            max(float(current.get("square_ratio", 0.0)), float(current.get("ipr_ratio", 0.0))),
+            -int(float(current.get("longest_trace", 0))),
+            str(current.get("label", "")),
+        )
+        if candidate_score < current_score:
+            best_by_case[case] = row
+    return [best_by_case[key] for key in sorted(best_by_case)]
 
 
 def write_report(
@@ -672,6 +706,23 @@ def write_report(
                 **row
             )
         )
+    best_live = select_best_live_reports(recent_live_reports)
+    if best_live:
+        lines.extend(
+            [
+                "",
+                "## Best Live Candidate Per Case",
+                "",
+                "These are in-flight stage traces only. They can be more informative than the completed representative table when a deeper retained-window rerun is still in progress.",
+                "",
+                "| case | live candidate | longest trace | window | squareOcc drift/span | IPR drift/span |",
+                "| --- | --- | ---: | --- | ---: | ---: |",
+            ]
+        )
+        for row in best_live:
+            lines.append(
+                f"| {row['case']} | {row['label']} | {row['longest_trace']} | {row['window_mode']} | {row['square_ratio']} | {row['ipr_ratio']} |"
+            )
     lines.extend(
         [
             "",
