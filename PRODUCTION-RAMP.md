@@ -158,26 +158,38 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
       - keep the explicit shell-map profile
         `0.125,0.125,0.25,0.25,0.5,0.5`
       - current static shell-map branches are now all `strong_drift`
-      - current active follow-up is therefore:
+      - current retained-window lead is now the hybrid-local branch:
         - `uniform_mass = 0.25`
         - `jitter = 8`
-        - `nfrog = 24`
-        - `dt = 0.000035`
         - explicit seed family block `50001, 51001, 52001`
-        - compare `hybrid_local_sweeps = 1` against `hybrid_local_sweeps = 2`
-      - current early live reading:
-        - `hyb1` looks materially better than the old static shell-map family
-        - `hyb2` is currently worse than `hyb1`
+        - current best partial retained-window branch:
+          - `hybrid_local_sweeps = 2`
+          - `nfrog = 24`
+          - `dt = 0.000035`
+          - formal partial `2/3` summary:
+            - `squareOcc/IPR drift/span max ≈ 0.548`
+            - retained `repeat span ≈ 0.083`
+        - current short-tune follow-up:
+          - `hybrid_local_sweeps = 2`
+          - `nfrog = 20`
+          - `dt = 0.00004`
+          - current partial tune:
+            - `acceptance ≈ 0.992`
+            - `tau_int(doubleOcc) ≈ 12.484`
+            - `ESS/sec ≈ 0.055`
+        - `hybrid_local_sweeps = 1` is still running, but is no longer the leading branch
 
 ## Immediate Next Steps
 
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
-2. Let the two active hybrid retained-window stages finish far enough past the cut to judge
-   whether `hybrid_local_sweeps = 1` really reduces the worst retained drift.
-3. Keep the broader Fourier mass-map direction in reserve, but do not widen grouped `lowk`
+2. Finish the current `hybrid_local_sweeps = 2`, `24 x 0.000035` retained-window stage to `3/3`
+   and confirm whether the improved `repeat span` survives the last seed family.
+3. Let the new `hybrid_local_sweeps = 2`, `20 x 0.00004` retained-window stage cross the cut
+   and compare it directly against the older `24 x 0.000035` branch.
+4. Keep the broader Fourier mass-map direction in reserve, but do not widen grouped `lowk`
    / `midk` bands any further unless the hybrid shell-map route clearly fails.
-4. Compare the current broader low-|k| probe against the closed bad references:
+5. Compare the current broader low-|k| probe against the closed bad references:
    - `mk = 0`, `20 x 0.0004`
    - shell1-only `mk = 4`, `24 x 0.0002`
    - shell1-only `mk = 8`, `24 x 0.00025`
@@ -201,9 +213,9 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
    - current active hybrid follow-up
      `mu = 0.25`, `shell_map = 0.125,0.125,0.25,0.25,0.5,0.5`,
      `jitter = 8`, `hybrid_local_sweeps = 1 or 2`
-5. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
+6. If `U2 = 300` stays healthy at `2048 / 1024 / 1024`, keep that geometry as the
    representative preconditioned rung and use it as the production-side reference.
-6. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp
+7. Only after `U2 = 1e3` has at least a partially healthy geometry should the ramp
    move to larger `Nbos` or larger `L`.
 
 ## Current Early-Trace Reading

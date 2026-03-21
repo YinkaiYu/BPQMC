@@ -92,15 +92,24 @@ Current blocker snapshot:
     - `mass = 16`
     - `uniform_mass = 0.25`
     - `shell_map = 0.125,0.125,0.25,0.25,0.5,0.5`
+  - current best retained-window partial:
+    - `hybrid_local_sweeps = 2`
     - `nfrog = 24`
     - `dt = 3.5e-05`
-  - active probes now compare:
-    - `hybrid_local_sweeps = 1`
+    - formal partial `2/3` retained-window summary:
+      - `squareOcc/IPR drift/span max ≈ 0.548`
+      - retained `repeat span ≈ 0.083`
+      - `acceptance ≈ 0.992`
+  - current best short-tune follow-up:
     - `hybrid_local_sweeps = 2`
-  - current early live reading in the unified overview:
-    - `hyb1` is the first branch whose early `pre-cut drift/span` is materially below the old
-      static shell-map family
-    - `hyb2` is running too, but its early drift is currently much worse than `hyb1`
+    - `nfrog = 20`
+    - `dt = 4e-05`
+    - partial `2/3` tune:
+      - `acceptance ≈ 0.992`
+      - `tau_int(doubleOcc) ≈ 12.484`
+      - `ESS/sec ≈ 0.055`
+  - `hybrid_local_sweeps = 1` remains a live comparison branch, but it is no longer the
+    leading one in the unified overview
 
 Current healthy ladder:
 

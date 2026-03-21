@@ -145,10 +145,14 @@
       the current active lead is now the explicit shell-map plus hybrid-local follow-up:
       - static reference geometry:
         `uniform_mass=0.25`,
-        `shell_map=0.125,0.125,0.25,0.25,0.5,0.5`,
-        `jitter=8`, `nfrog=24`, `dt=0.000035`
-      - active retained-window follow-up compares:
-        `hmc_hybrid_local_sweeps=1` versus `2`
+        `shell_map=0.125,0.125,0.25,0.25,0.5,0.5`, `jitter=8`
+      - current retained-window lead:
+        `hmc_hybrid_local_sweeps=2`, `nfrog=24`, `dt=0.000035`,
+        partial `2/3`, `drift/span max≈0.548`, `repeat span≈0.083`
+      - current short-tune lead:
+        `hmc_hybrid_local_sweeps=2`, `nfrog=20`, `dt=0.00004`,
+        partial `acceptance≈0.992`, `tau_int≈12.484`, `ESS/sec≈0.055`
+      - `hmc_hybrid_local_sweeps=1` is still running as a comparison branch
       - explicit seed families:
         `50001,51001,52001`
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`

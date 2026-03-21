@@ -170,7 +170,10 @@ The immediate next production rungs are:
   grouped-`midk` follow-ups are now also formally `strong_drift`,
   and the current active replacement path is the explicit shell-map preconditioner
   `shell_map=0.125,0.125,0.25,0.25,0.5,0.5` plus `jitter=8`.
-  The current live follow-up is comparing `hybrid_local_sweeps=1` against `2`
-  on the same `nfrog=24`, `dt=0.000035` geometry with explicit seed families
-  `50001,51001,52001`. The main current issue remains retained-window
-  drift and seed-family sensitivity rather than acceptance alone
+  The current retained-window lead is now `hybrid_local_sweeps=2`,
+  `nfrog=24`, `dt=0.000035`, with partial `2/3`
+  `squareOcc/IPR drift/span max≈0.548` and `repeat span≈0.083`.
+  The current short-tune lead is also `hybrid_local_sweeps=2`,
+  `nfrog=20`, `dt=0.00004`, with partial
+  `acceptance≈0.992`, `tau_int≈12.484`, `ESS/sec≈0.055`.
+  `hybrid_local_sweeps=1` is still retained as a comparison branch.
