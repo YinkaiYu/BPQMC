@@ -172,8 +172,8 @@ The immediate next production rungs are:
   `shell_map=0.125,0.125,0.25,0.25,0.5,0.5` plus `jitter=8`.
   The current retained-window lead is now `hybrid_local_sweeps=2`,
   `nfrog=24`, `dt=0.000035`; the completed `512/256/32` stage is still `strong_drift`,
-  but the deeper `1024/512/512` rerun is now the best live candidate,
-  with post-cut `squareOcc/IPR drift/span≈0.185`.
+  but the deeper `1024/512/512` rerun is now the best formal partial candidate,
+  currently `1/3 stable_window` with `squareOcc/IPR drift/span≈0.205`.
   The current short-tune lead is also `hybrid_local_sweeps=2`,
   `nfrog=16`, `dt=0.00005`, with partial
   `acceptance≈0.979`, `tau_int≈10.731`, `ESS/sec≈0.085`.

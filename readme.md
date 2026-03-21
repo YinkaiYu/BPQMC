@@ -450,8 +450,9 @@ The current next production rungs are:
       - retained-window lead:
         `hybrid_local_sweeps=2`, `nfrog=24`, `dt=0.000035`
         completed `512/256/32` still ends as `strong_drift`,
-        but the deeper `1024/512/512` rerun is now the best live candidate
-        in `overview/report.md`, with post-cut `squareOcc/IPR drift/span≈0.185`
+        but the deeper `1024/512/512` rerun is now the best formal partial candidate
+        in `overview/report.md`, currently `1/3 stable_window` with
+        `squareOcc/IPR drift/span≈0.205`
       - short-tune lead:
         aggressive retune currently favors
         `hybrid_local_sweeps=2`, `nfrog=16`, `dt=0.00005`,

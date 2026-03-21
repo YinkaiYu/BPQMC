@@ -102,10 +102,12 @@ Current blocker snapshot:
       - `acceptance ≈ 0.993`
     - active deeper rerun:
       - `1024 / 512 / 512`
-      - current best live reading in `overview/report.md`:
-        - `longest trace ≈ 807`
-        - `window = post-cut`
-        - `squareOcc/IPR drift/span ≈ 0.185`
+      - current formal partial result in `overview/report.md`:
+        - `1/3` repeats collected
+        - case status `stable_window`
+        - `squareOcc/IPR drift/span max ≈ 0.205`
+        - retained `repeat span ≈ 0.000`
+        - `acceptance ≈ 0.980`
   - current best short-tune follow-up:
     - `hybrid_local_sweeps = 2`
     - aggressive retune currently favors:

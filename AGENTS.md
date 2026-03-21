@@ -149,8 +149,8 @@
       - current retained-window lead:
         `hmc_hybrid_local_sweeps=2`, `nfrog=24`, `dt=0.000035`
         completed `512/256/32` still ends as `strong_drift`,
-        but the deeper `1024/512/512` rerun is now the best live candidate,
-        with post-cut `drift/span≈0.185`
+        but the deeper `1024/512/512` rerun is now the best formal partial candidate,
+        currently `1/3 stable_window` with `drift/span≈0.205`
       - current short-tune lead:
         aggressive retune currently favors
         `hmc_hybrid_local_sweeps=2`, `nfrog=16`, `dt=0.00005`,

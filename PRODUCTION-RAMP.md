@@ -167,8 +167,10 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
           - `nfrog = 24`
           - `dt = 0.000035`
           - completed `512 / 256 / 32` stage still ends as `strong_drift`
-          - the deeper `1024 / 512 / 512` rerun is now the best live candidate,
-            with post-cut `squareOcc/IPR drift/span ≈ 0.185`
+          - the deeper `1024 / 512 / 512` rerun is now the best formal partial candidate:
+            - `1/3` collected
+            - `stable_window`
+            - `squareOcc/IPR drift/span max ≈ 0.205`
         - current short-tune follow-up:
           - `hybrid_local_sweeps = 2`
           - aggressive retune currently favors:
@@ -185,7 +187,8 @@ It is intentionally shorter and more action-oriented than `HMC-REFERENCE.md`.
 1. Finish the deeper `U2 = 300` long stage to a full `2/2` repeat set and re-check
    `squareOcc` / `IPR` retained-window agreement in the unified overview report.
 2. Let the deeper `hybrid_local_sweeps = 2`, `24 x 0.000035`, `1024 / 512 / 512` stage
-   continue far enough past the cut to see whether the current live `~0.185` drift holds.
+   continue past the current formal `1/3 stable_window` partial result and see whether the
+   remaining seed families keep `drift/span` in the same band.
 3. Compare that deeper `24 x 0.000035` rerun against the new aggressive
    `hybrid_local_sweeps = 2`, `16 x 0.00005` retained-window follow-up.
 4. Keep the broader Fourier mass-map direction in reserve, but do not widen grouped `lowk`
