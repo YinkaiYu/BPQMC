@@ -125,7 +125,7 @@ def get_hmc_params(
     case_name: str,
     args: argparse.Namespace,
     tuned_map: dict[str, dict[str, float]],
-) -> tuple[int, float, int, float, float, float, int, float, int, float, float, str]:
+) -> tuple[int, float, int, float, float, float, int, float, int, float, float, str, int]:
     if case_name in tuned_map:
         params = tuned_map[case_name]
         return (
@@ -141,6 +141,7 @@ def get_hmc_params(
             float(params.get("hmc_mass_spatial_shell1", 0.0)),
             float(params.get("hmc_mass_spatial_shell2", 0.0)),
             str(params.get("hmc_mass_spatial_shell_map", "")),
+            int(params.get("hmc_hybrid_local_sweeps", 0)),
         )
     return (
         args.hmc_nfrog,
@@ -155,6 +156,7 @@ def get_hmc_params(
         args.hmc_mass_spatial_shell1,
         args.hmc_mass_spatial_shell2,
         args.hmc_mass_spatial_shell_map,
+        args.hmc_hybrid_local_sweeps,
     )
 
 
@@ -167,6 +169,7 @@ def hmc_env_overrides(
     hmc_mass_spatial_shell1: float,
     hmc_mass_spatial_shell2: float,
     hmc_mass_spatial_shell_map: str,
+    hmc_hybrid_local_sweeps: int,
 ) -> dict[str, str]:
     env = {
         "BPQMC_HMC_MASS_SPATIAL_UNIFORM": f"{hmc_mass_spatial_uniform:.16g}",
@@ -176,6 +179,7 @@ def hmc_env_overrides(
         "BPQMC_HMC_MASS_SPATIAL_MIDK_SHELLS": str(hmc_mass_spatial_midk_shells),
         "BPQMC_HMC_MASS_SPATIAL_SHELL1": f"{hmc_mass_spatial_shell1:.16g}",
         "BPQMC_HMC_MASS_SPATIAL_SHELL2": f"{hmc_mass_spatial_shell2:.16g}",
+        "BPQMC_HMC_HYBRID_LOCAL_SWEEPS": str(hmc_hybrid_local_sweeps),
     }
     if hmc_mass_spatial_shell_map.strip():
         env["BPQMC_HMC_MASS_SPATIAL_SHELL_MAP"] = hmc_mass_spatial_shell_map.strip()
@@ -258,6 +262,7 @@ def aggregate_tune_repeat_rows(repeat_rows: list[dict[str, float | int | str]]) 
         "hmc_mass_spatial_shell1": repeat_rows[0]["hmc_mass_spatial_shell1"],
         "hmc_mass_spatial_shell2": repeat_rows[0]["hmc_mass_spatial_shell2"],
         "hmc_mass_spatial_shell_map": repeat_rows[0].get("hmc_mass_spatial_shell_map", ""),
+        "hmc_hybrid_local_sweeps": repeat_rows[0].get("hmc_hybrid_local_sweeps", 0),
         "repeats": len(repeat_rows),
         "stuck_repeats": sum(int(row["stuck"]) for row in repeat_rows),
     }
@@ -393,7 +398,7 @@ def collect_stage_case(
 ) -> tuple[dict[str, object], list[dict[str, object]], list[dict[str, object]], list[dict[str, object]]]:
     if args.warm >= 0:
         cfg = cfg.with_sampling(is_warm=args.warm > 0, nwarm=max(args.warm, 0))
-    nfrog, hmc_dt, jitter, hmc_mass, hmc_mass_spatial_uniform, hmc_mass_spatial_lowk, hmc_mass_spatial_lowk_shells, hmc_mass_spatial_midk, hmc_mass_spatial_midk_shells, hmc_mass_spatial_shell1, hmc_mass_spatial_shell2, hmc_mass_spatial_shell_map = get_hmc_params(cfg.name, args, tuned_map)
+    nfrog, hmc_dt, jitter, hmc_mass, hmc_mass_spatial_uniform, hmc_mass_spatial_lowk, hmc_mass_spatial_lowk_shells, hmc_mass_spatial_midk, hmc_mass_spatial_midk_shells, hmc_mass_spatial_shell1, hmc_mass_spatial_shell2, hmc_mass_spatial_shell_map, hmc_hybrid_local_sweeps = get_hmc_params(cfg.name, args, tuned_map)
     repeat_rows: list[dict[str, object]] = []
     sample_rows: list[dict[str, object]] = []
     repeat_observables: dict[str, list[dict[str, float | int | str]]] = defaultdict(list)
@@ -402,7 +407,7 @@ def collect_stage_case(
     for repeat, seed in enumerate(seed_bases):
         run_dir = Path(args.work_root).resolve() / "runs" / cfg.name / f"hmc_rep{repeat}"
         print(
-            "  [{mode}] repeat={repeat} seed={seed} nfrog={nfrog} dt={dt:.6g} mass={mass:g} uniform_mass={uniform_mass:g} lowk_mass={lowk_mass:g} lowk_shells={lowk_shells} midk_mass={midk_mass:g} midk_shells={midk_shells} shell_map={shell_map} shell1_mass={shell1_mass:g} shell2_mass={shell2_mass:g}".format(
+            "  [{mode}] repeat={repeat} seed={seed} nfrog={nfrog} dt={dt:.6g} mass={mass:g} uniform_mass={uniform_mass:g} lowk_mass={lowk_mass:g} lowk_shells={lowk_shells} midk_mass={midk_mass:g} midk_shells={midk_shells} shell_map={shell_map} shell1_mass={shell1_mass:g} shell2_mass={shell2_mass:g} hybrid_local={hybrid_local}".format(
                 mode="run" if execute else "reuse",
                 repeat=repeat,
                 seed=seed,
@@ -417,6 +422,7 @@ def collect_stage_case(
                 shell_map=hmc_mass_spatial_shell_map if hmc_mass_spatial_shell_map else "-",
                 shell1_mass=hmc_mass_spatial_shell1,
                 shell2_mass=hmc_mass_spatial_shell2,
+                hybrid_local=hmc_hybrid_local_sweeps,
             ),
             flush=True,
         )
@@ -444,6 +450,7 @@ def collect_stage_case(
                     hmc_mass_spatial_shell1,
                     hmc_mass_spatial_shell2,
                     hmc_mass_spatial_shell_map,
+                    hmc_hybrid_local_sweeps,
                 ),
                 run_timeout_sec=args.run_timeout_sec,
             )
@@ -473,6 +480,7 @@ def collect_stage_case(
             "hmc_mass_spatial_shell1": hmc_mass_spatial_shell1,
             "hmc_mass_spatial_shell2": hmc_mass_spatial_shell2,
             "hmc_mass_spatial_shell_map": hmc_mass_spatial_shell_map,
+            "hmc_hybrid_local_sweeps": hmc_hybrid_local_sweeps,
             "acceptance": info["Accept_HMC"],
             "tau_int_doubleOcc": perf_stats["tau_int_doubleOcc"],
             "lag1_doubleOcc": perf_stats["lag1_doubleOcc"],
@@ -548,6 +556,7 @@ def collect_stage_case(
         "hmc_mass_spatial_shell1": hmc_mass_spatial_shell1,
         "hmc_mass_spatial_shell2": hmc_mass_spatial_shell2,
         "hmc_mass_spatial_shell_map": hmc_mass_spatial_shell_map,
+        "hmc_hybrid_local_sweeps": hmc_hybrid_local_sweeps,
         "repeats": len(repeat_rows),
         "requested_repeats": len(seed_bases),
         "missing_repeats": max(len(seed_bases) - len(repeat_rows), 0),
@@ -585,6 +594,7 @@ def collect_stage_case(
             "hmc_mass_spatial_shell1": hmc_mass_spatial_shell1,
             "hmc_mass_spatial_shell2": hmc_mass_spatial_shell2,
             "hmc_mass_spatial_shell_map": hmc_mass_spatial_shell_map,
+            "hmc_hybrid_local_sweeps": hmc_hybrid_local_sweeps,
         },
         "requested_repeats": len(seed_bases),
         "missing_repeats": max(len(seed_bases) - len(repeat_rows), 0),
@@ -615,6 +625,7 @@ def stage_config_payload(args: argparse.Namespace) -> dict[str, object]:
         "hmc_mass_spatial_shell1": args.hmc_mass_spatial_shell1,
         "hmc_mass_spatial_shell2": args.hmc_mass_spatial_shell2,
         "hmc_mass_spatial_shell_map": args.hmc_mass_spatial_shell_map,
+        "hmc_hybrid_local_sweeps": args.hmc_hybrid_local_sweeps,
     }
 
 
@@ -643,7 +654,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             f"uniform_mass={args.hmc_mass_spatial_uniform:g} lowk_mass={args.hmc_mass_spatial_lowk:g} lowk_shells={args.hmc_mass_spatial_lowk_shells} "
             f"midk_mass={args.hmc_mass_spatial_midk:g} midk_shells={args.hmc_mass_spatial_midk_shells} shell_map={args.hmc_mass_spatial_shell_map or '-'} shell1_mass={args.hmc_mass_spatial_shell1:g} "
             f"shell2_mass={args.hmc_mass_spatial_shell2:g} "
-            f"jitter={args.hmc_jitter}",
+            f"jitter={args.hmc_jitter} hybrid_local={args.hmc_hybrid_local_sweeps}",
             flush=True,
         )
         for idx, (nfrog, dt) in enumerate(grid):
@@ -679,6 +690,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
                             args.hmc_mass_spatial_shell1,
                             args.hmc_mass_spatial_shell2,
                             args.hmc_mass_spatial_shell_map,
+                            args.hmc_hybrid_local_sweeps,
                         ),
                         run_timeout_sec=args.run_timeout_sec,
                     )
@@ -709,6 +721,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
                     "hmc_mass_spatial_shell1": args.hmc_mass_spatial_shell1,
                     "hmc_mass_spatial_shell2": args.hmc_mass_spatial_shell2,
                     "hmc_mass_spatial_shell_map": args.hmc_mass_spatial_shell_map,
+                    "hmc_hybrid_local_sweeps": args.hmc_hybrid_local_sweeps,
                     "repeat": repeat,
                     "seed": seed,
                     "acceptance": info["Accept_HMC"],
@@ -798,6 +811,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
                 "hmc_mass_spatial_shell1": args.hmc_mass_spatial_shell1,
                 "hmc_mass_spatial_shell2": args.hmc_mass_spatial_shell2,
                 "hmc_mass_spatial_shell_map": args.hmc_mass_spatial_shell_map,
+                "hmc_hybrid_local_sweeps": args.hmc_hybrid_local_sweeps,
             }
             for nfrog, dt in grid
         ],
@@ -821,6 +835,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "hmc_mass_spatial_shell1",
             "hmc_mass_spatial_shell2",
             "hmc_mass_spatial_shell_map",
+            "hmc_hybrid_local_sweeps",
             "repeats",
             "requested_repeats",
             "missing_repeats",
@@ -857,6 +872,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "hmc_mass_spatial_shell1",
             "hmc_mass_spatial_shell2",
             "hmc_mass_spatial_shell_map",
+            "hmc_hybrid_local_sweeps",
             "repeat",
             "seed",
             "stuck",
@@ -883,6 +899,7 @@ def run_tune_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "hmc_mass_spatial_shell1": case["recommended"].get("hmc_mass_spatial_shell1", 0.0),
             "hmc_mass_spatial_shell2": case["recommended"].get("hmc_mass_spatial_shell2", 0.0),
             "hmc_mass_spatial_shell_map": case["recommended"].get("hmc_mass_spatial_shell_map", ""),
+            "hmc_hybrid_local_sweeps": case["recommended"].get("hmc_hybrid_local_sweeps", 0),
         }
         for case in tuned_cases
         if case.get("recommended_viable", True)
@@ -914,7 +931,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
     for case_index, cfg in enumerate(configs.values()):
         if args.warm >= 0:
             cfg = cfg.with_sampling(is_warm=args.warm > 0, nwarm=max(args.warm, 0))
-        nfrog, hmc_dt, jitter, hmc_mass, hmc_mass_spatial_uniform, hmc_mass_spatial_lowk, hmc_mass_spatial_lowk_shells, hmc_mass_spatial_midk, hmc_mass_spatial_midk_shells, hmc_mass_spatial_shell1, hmc_mass_spatial_shell2, hmc_mass_spatial_shell_map = get_hmc_params(cfg.name, args, tuned_map)
+        nfrog, hmc_dt, jitter, hmc_mass, hmc_mass_spatial_uniform, hmc_mass_spatial_lowk, hmc_mass_spatial_lowk_shells, hmc_mass_spatial_midk, hmc_mass_spatial_midk_shells, hmc_mass_spatial_shell1, hmc_mass_spatial_shell2, hmc_mass_spatial_shell_map, hmc_hybrid_local_sweeps = get_hmc_params(cfg.name, args, tuned_map)
         summary: dict[str, dict[str, list[float]]] = {"local": defaultdict(list), "hmc": defaultdict(list)}
         perf: dict[str, dict[str, list[float]]] = {"local": defaultdict(list), "hmc": defaultdict(list)}
         hmc_accept = []
@@ -947,6 +964,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                         hmc_mass_spatial_shell1 if is_global else 0.0,
                         hmc_mass_spatial_shell2 if is_global else 0.0,
                         hmc_mass_spatial_shell_map if is_global else "",
+                        hmc_hybrid_local_sweeps if is_global else 0,
                     ),
                     run_timeout_sec=args.run_timeout_sec,
                 )
@@ -990,6 +1008,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 "hmc_mass_spatial_shell1": hmc_mass_spatial_shell1,
                 "hmc_mass_spatial_shell2": hmc_mass_spatial_shell2,
                 "hmc_mass_spatial_shell_map": hmc_mass_spatial_shell_map,
+                "hmc_hybrid_local_sweeps": hmc_hybrid_local_sweeps,
             },
             "acceptance_mean": accept_mean,
             "acceptance_stderr": accept_err,
@@ -1026,6 +1045,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
                 "hmc_mass_spatial_shell1": hmc_mass_spatial_shell1,
                 "hmc_mass_spatial_shell2": hmc_mass_spatial_shell2,
                 "hmc_mass_spatial_shell_map": hmc_mass_spatial_shell_map,
+                "hmc_hybrid_local_sweeps": hmc_hybrid_local_sweeps,
                 "acceptance_mean": accept_mean,
                 "acceptance_stderr": accept_err,
                 "local_stuck_repeats": local_stuck_repeats,
@@ -1069,6 +1089,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
             "hmc_mass_spatial_shell1",
             "hmc_mass_spatial_shell2",
             "hmc_mass_spatial_shell_map",
+            "hmc_hybrid_local_sweeps",
             "acceptance_mean",
             "acceptance_stderr",
             "local_stuck_repeats",
@@ -1160,6 +1181,7 @@ def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "hmc_mass_spatial_shell1",
             "hmc_mass_spatial_shell2",
             "hmc_mass_spatial_shell_map",
+            "hmc_hybrid_local_sweeps",
             "repeats",
             "requested_repeats",
             "missing_repeats",
@@ -1225,6 +1247,7 @@ def run_stage_or_collect(args: argparse.Namespace, *, execute: bool) -> int:
             "hmc_mass_spatial_shell1",
             "hmc_mass_spatial_shell2",
             "hmc_mass_spatial_shell_map",
+            "hmc_hybrid_local_sweeps",
             "acceptance",
             "tau_int_doubleOcc",
             "lag1_doubleOcc",
@@ -1326,6 +1349,7 @@ def build_parser() -> argparse.ArgumentParser:
     tune.add_argument("--hmc-mass-spatial-shell1", type=float, default=0.0)
     tune.add_argument("--hmc-mass-spatial-shell2", type=float, default=0.0)
     tune.add_argument("--hmc-mass-spatial-shell-map", default="")
+    tune.add_argument("--hmc-hybrid-local-sweeps", type=int, default=0)
     tune.add_argument("--repeats", type=int, default=1)
     tune.add_argument("--accept-min", type=float, default=0.70)
     tune.add_argument("--accept-max", type=float, default=0.85)
@@ -1345,6 +1369,7 @@ def build_parser() -> argparse.ArgumentParser:
     collect_tune_parser.add_argument("--hmc-mass-spatial-shell1", type=float, default=0.0)
     collect_tune_parser.add_argument("--hmc-mass-spatial-shell2", type=float, default=0.0)
     collect_tune_parser.add_argument("--hmc-mass-spatial-shell-map", default="")
+    collect_tune_parser.add_argument("--hmc-hybrid-local-sweeps", type=int, default=0)
     collect_tune_parser.add_argument("--repeats", type=int, default=1)
     collect_tune_parser.add_argument("--accept-min", type=float, default=0.70)
     collect_tune_parser.add_argument("--accept-max", type=float, default=0.85)
@@ -1367,6 +1392,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--hmc-mass-spatial-shell1", type=float, default=0.0)
     bench.add_argument("--hmc-mass-spatial-shell2", type=float, default=0.0)
     bench.add_argument("--hmc-mass-spatial-shell-map", default="")
+    bench.add_argument("--hmc-hybrid-local-sweeps", type=int, default=0)
     bench.add_argument("--min-run-accept", type=float, default=0.05)
     bench.set_defaults(func=run_benchmark)
 
@@ -1387,6 +1413,7 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--hmc-mass-spatial-shell1", type=float, default=0.0)
         subparser.add_argument("--hmc-mass-spatial-shell2", type=float, default=0.0)
         subparser.add_argument("--hmc-mass-spatial-shell-map", default="")
+        subparser.add_argument("--hmc-hybrid-local-sweeps", type=int, default=0)
         subparser.add_argument("--min-run-accept", type=float, default=0.05)
         subparser.add_argument("--trace-window-frac", type=float, default=0.25)
         subparser.add_argument("--trace-min-window", type=int, default=16)
