@@ -39,6 +39,9 @@ The active production CLI is `test/production_hmc.py`:
 - `--hmc-mass-spatial-shell-map`: optional comma-separated per-shell mass profile for the
   first few triangular nonzero momentum shells; when present, it supersedes the grouped
   `lowk` / `midk` shell-band shortcuts
+- `--hmc-hybrid-local-sweeps`: optional number of local Metropolis sweeps inserted after
+  each HMC proposal and before measurement; this is now the active experimental fallback
+  once static Fourier-mass tuning stops improving retained-window drift
 
 For seed/init-state convergence checks, the production driver can now expand multiple
 initial-state families in one invocation via:
@@ -63,6 +66,9 @@ The unified entry point for the accumulated production results is now:
   repeat rather than averaging or silently choosing one longest trace
 - explicit fixed-`beta` or fixed-`dtau` scans can be launched with
   [production_convergence_scan.py](/mnt/c/users/newton/documents/ligroupiop/2408_bosonsignproblem/code_bpqmc/test/production_convergence_scan.py)
+- a large-`Nbos` numerical fix landed while enabling hybrid probes:
+  `localU.f90` now evaluates the local Metropolis acceptance ratio in log space, so
+  `Nbos = 1e4` and above no longer overflow in `exp(Nbos * log_r_b)` during local steps
 - the overview report now shows `bins`, `thermal_cut`, `warm`, and `samples/post` per stage,
   so late slow-mode drift is easier to spot without opening each rung directory separately
 - the overview report now also renders per-case relative-change plots and a representative
@@ -76,6 +82,25 @@ The unified entry point for the accumulated production results is now:
   overview as `repeat span`, so different seeds settling on different plateaus are no longer hidden
 
 ## Current Stage / Next Stage / Blocker
+
+Current blocker snapshot:
+
+- `L = 6`, `Nbos = 1e4`, `U2 = 1000`
+- the best static `shell-map A + jitter` geometries are still `strong_drift`
+- active replacement path is now `shell-map A + jitter = 8 + hybrid local sweeps`
+  - static reference geometry:
+    - `mass = 16`
+    - `uniform_mass = 0.25`
+    - `shell_map = 0.125,0.125,0.25,0.25,0.5,0.5`
+    - `nfrog = 24`
+    - `dt = 3.5e-05`
+  - active probes now compare:
+    - `hybrid_local_sweeps = 1`
+    - `hybrid_local_sweeps = 2`
+  - current early live reading in the unified overview:
+    - `hyb1` is the first branch whose early `pre-cut drift/span` is materially below the old
+      static shell-map family
+    - `hyb2` is running too, but its early drift is currently much worse than `hyb1`
 
 Current healthy ladder:
 

@@ -37,6 +37,9 @@ section for the current best retained-window stage at each fixed `(L, Nbos, U2)`
 plus a `## Live Progress` section for in-flight large-`U2` stages.
 The live section is intentionally conservative: it reports the worst per-run `drift/span`
 among the currently visible repeats, not an average across runs.
+The current `U2=1000` lead is also experimenting with
+`--hmc-hybrid-local-sweeps`, which inserts a small number of local Metropolis sweeps
+between HMC proposals.
 
 Run a triangular-lattice HMC smoke test in a fresh temporary directory:
 
@@ -439,14 +442,16 @@ The current next production rungs are:
   - widening that grouped low-`|k|` block to `lowk_shells=6` only made the tune more conservative
   - grouped `midk` follow-ups have now also been closed as retained-window `strong_drift`
   - current active probe has therefore switched to the general shell-map interface:
-    - `mass=16`, `uniform_mass=0.5`
-    - `shell_map=0.125,0.125,0.25,0.25,0.5,0.5`
-    - current partial tune winner: `nfrog=20`, `dt=0.00004`
+    - static shell-map reference:
+      `mass=16`, `uniform_mass=0.25`,
+      `shell_map=0.125,0.125,0.25,0.25,0.5,0.5`,
+      `jitter=8`, `nfrog=24`, `dt=0.000035`
+    - current active follow-up is no longer pure HMC mass tuning alone:
+      - `hybrid_local_sweeps=1`
+      - `hybrid_local_sweeps=2`
     - explicit seed families `50001,51001,52001`
-    - current partial tune summary in `overview/report.md`:
-      - `acceptance≈0.995`
-      - `tau_int(doubleOcc)≈8.98`
-      - `ESS/sec≈0.190`
+    - early live reading in `overview/report.md` currently favors `hybrid_local_sweeps=1`
+      over `2`, but both still need retained-window evidence past the cut
   - for future scans, prefer explicit seed-family batches over manual directory cloning:
     `--seed-base-values 50001,51001,52001`
     and note that this explicit list is now reused verbatim across the whole scan,

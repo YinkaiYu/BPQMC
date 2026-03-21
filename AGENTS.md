@@ -94,8 +94,11 @@
     for the second triangular nonzero momentum shell
   - `test/production_hmc.py` also supports `--hmc-mass-spatial-lowk`
     for a broader combined low-|k| split that groups the first three nonzero momentum shells
-  - `test/production_hmc.py` also supports `--hmc-mass-spatial-lowk-shells`
+- `test/production_hmc.py` also supports `--hmc-mass-spatial-lowk-shells`
     to widen that grouped low-|k| subspace beyond the default three shells
+- `test/production_hmc.py` also supports `--hmc-hybrid-local-sweeps`
+    to insert a small number of local Metropolis sweeps between HMC proposals when
+    pure HMC mass tuning still leaves strong retained-window drift
   - `test/production_hmc.py` also supports `--hmc-mass-spatial-midk`
     and `--hmc-mass-spatial-midk-shells`
     to split the next grouped momentum-shell band away from the lightest low-|k| block
@@ -139,12 +142,14 @@
       widening that grouped low-|k| block to `lowk_shells=6` only made the tune more conservative
       the grouped-`midk` follow-ups are now also formally `strong_drift`
       (`midk_mass=1` and `midk_mass=0.5`, both with `midk_shells=2`)
-      the current active lead is now the general shell-map preconditioner:
-      - partial short-tune winner:
-        `uniform_mass=0.5`,
+      the current active lead is now the explicit shell-map plus hybrid-local follow-up:
+      - static reference geometry:
+        `uniform_mass=0.25`,
         `shell_map=0.125,0.125,0.25,0.25,0.5,0.5`,
-        `nfrog=20`, `dt=0.00004`
-      - active retained-window follow-up: `512 / 256 / 32` with explicit seed families
+        `jitter=8`, `nfrog=24`, `dt=0.000035`
+      - active retained-window follow-up compares:
+        `hmc_hybrid_local_sweeps=1` versus `2`
+      - explicit seed families:
         `50001,51001,52001`
   - the merged report entry is `data/triangular_hmc_production/overview/report.md`
   - that unified `report.md` now begins with `## Current Representative Stage Per Case`

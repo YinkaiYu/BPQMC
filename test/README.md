@@ -96,6 +96,9 @@ The active production workflow is now:
   - pass a comma-separated per-shell mass profile for the first few triangular nonzero
     momentum shells
   - this explicit shell-map takes precedence over grouped `lowk` / `midk` bands
+- `production_hmc.py` also supports `--hmc-hybrid-local-sweeps`
+  - use this when a static HMC mass profile still shows strong retained-window drift
+  - it inserts a small number of local Metropolis sweeps between HMC proposals
 - `production_hmc.py` also supports `--hmc-mass-spatial-shell1`
   - `0` keeps the scalar/uniform-only geometry
   - positive values split the triangular lowest nonzero momentum shell away from the residual
@@ -166,7 +169,8 @@ The immediate next production rungs are:
   the completed three-shell broader-family ladder `m_lowk=2 -> 1 -> 0.5` is also still `strong_drift`,
   grouped-`midk` follow-ups are now also formally `strong_drift`,
   and the current active replacement path is the explicit shell-map preconditioner
-  `shell_map=0.125,0.125,0.25,0.25,0.5,0.5`; the current partial short-tune winner is
-  `nfrog=20`, `dt=0.00004`, and its retained-window follow-up is running with
-  explicit seed families `50001,51001,52001`. The main current issue remains retained-window
+  `shell_map=0.125,0.125,0.25,0.25,0.5,0.5` plus `jitter=8`.
+  The current live follow-up is comparing `hybrid_local_sweeps=1` against `2`
+  on the same `nfrog=24`, `dt=0.000035` geometry with explicit seed families
+  `50001,51001,52001`. The main current issue remains retained-window
   drift and seed-family sensitivity rather than acceptance alone
