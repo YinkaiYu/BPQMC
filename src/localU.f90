@@ -39,8 +39,8 @@ contains
         real(kind=8), external :: ranf
         real(kind=8) :: phi_old, phi_new
         real(kind=8) :: xflip, Xdif, random
-        real(kind=8) :: ratio_abs
-        complex(kind=8) :: ratio_Pfa, ratio_exp, r_b
+        real(kind=8) :: log_ratio_abs, log_random, ratio_exp_abs
+        complex(kind=8) :: ratio_exp, r_b
         complex(kind=8) :: delta_term, log_r_b
         complex(kind=8) :: uur_old
 
@@ -59,11 +59,16 @@ contains
         delta_term = Op_U%Delta * uur_old * Prop%UUL(1,ii) / Prop%overlap
         r_b = dcmplx(1.d0,0.d0) + delta_term
         log_r_b = clog1p(delta_term)
-        ratio_Pfa = exp(dcmplx(dble(Nbos), 0.d0) * log_r_b)
-        ratio_abs = abs(ratio_exp * ratio_Pfa * dconjg(ratio_Pfa))
+        ratio_exp_abs = abs(ratio_exp)
+        if (ratio_exp_abs > 0.d0) then
+            log_ratio_abs = log(ratio_exp_abs) + 2.d0 * dble(Nbos) * real(log_r_b)
+        else
+            log_ratio_abs = -huge(1.d0)
+        endif
 ! Update rank-1 state and phi if accepted
         random = ranf(iseed)
-        if (ratio_abs .gt. random) then
+        log_random = log(max(random, tiny(1.d0)))
+        if (log_ratio_abs >= 0.d0 .or. log_ratio_abs > log_random) then
             call Op_U%Acc_U_local%count(.true.)
 
             Prop%UUR(ii,1) = (dcmplx(1.d0,0.d0) + Op_U%Delta) * uur_old
